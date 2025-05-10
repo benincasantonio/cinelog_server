@@ -24,7 +24,8 @@ def test_user_creation():
         lastName="Doe",
         email="john.doe@example.com",
         password="securepassword",
-        dateOfBirth="1990-01-01"
+        dateOfBirth="1990-01-01",
+        handle="johndoe"
     )
     user.save()
     assert User.objects.count() == 1
@@ -35,8 +36,9 @@ def test_required_fields():
         lastName="Doe",
         email="john.doe@example.com",
         password="securepassword",
-        dateOfBirth="1990-01-01"
-    )
+        dateOfBirth="1990-01-01",
+        handle="johndoe"
+    ) 
     with pytest.raises(Exception):
         user.save()
 
@@ -47,7 +49,8 @@ def test_email_uniqueness():
         lastName="Doe",
         email="john.doe@example.com",
         password="securepassword",
-        dateOfBirth="1990-01-01"
+        dateOfBirth="1990-01-01",
+        handle="johndoe"
     )
     user1.save()
 
@@ -56,8 +59,33 @@ def test_email_uniqueness():
         lastName="Smith",
         email="john.doe@example.com",
         password="anotherpassword",
-        dateOfBirth="1992-02-02"
+        dateOfBirth="1992-02-02",
+        handle="janesmith"
     )
+    with pytest.raises(Exception):
+        user2.save()
+
+def test_handle_uniqueness():
+    user1 = User(
+        firstName="John",
+        lastName="Doe",
+        email="john.doe@example.com",
+        password="securepassword",
+        dateOfBirth="1990-01-01",
+        handle="johndoe"
+    )
+
+    user1.save()
+
+    user2 = User(
+        firstName="Jane",
+        lastName="Smith",
+        email="jane@example.com",
+        password="anotherpassword",
+        dateOfBirth="1992-02-02",
+        handle="johndoe"
+    )
+
     with pytest.raises(Exception):
         user2.save()
 
@@ -68,7 +96,8 @@ def test_created_at_field():
         lastName="Doe",
         email="john.doe@example.com",
         password="securepassword",
-        dateOfBirth="1990-01-01"
+        dateOfBirth="1990-01-01",
+        handle="johndoe"
     )
     user.save()
     
@@ -81,7 +110,8 @@ def test_object_id_field():
         lastName="Doe",
         email="john.doe@example.com",
         password="securepassword",
-        dateOfBirth="1990-01-01"
+        dateOfBirth="1990-01-01",
+        handle="johndoe"
     )
     user.save()
 

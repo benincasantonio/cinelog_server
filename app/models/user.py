@@ -8,6 +8,7 @@ class User(Document):
     firstName = StringField(required=True)
     lastName = StringField(required=True)
     email = StringField(required=True, unique=True)
+    handle = StringField(required=True, unique=True)
     password = StringField(required=True)
     dateOfBirth = DateTimeField()
     deleted = StringField(default="false")
