@@ -1,0 +1,11 @@
+flask
+flask-pymongo
+flask-bcrypt
+pyjwt
+python-dotenv
+flask-restful
+flask-cors
+flask-migrate
+flask-testing
+pytest
+mongoengine
