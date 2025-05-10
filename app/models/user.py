@@ -1,5 +1,6 @@
 from mongoengine import Document, StringField, DateTimeField, ObjectIdField
 from bson import ObjectId
+from datetime import datetime
 
 
 class User(Document):
@@ -9,4 +10,7 @@ class User(Document):
     email = StringField(required=True, unique=True)
     password = StringField(required=True)
     dateOfBirth = DateTimeField()
+    deleted = StringField(default="false")
+    deletedAt = DateTimeField()
+    createdAt = DateTimeField(default=lambda: datetime.now())
 

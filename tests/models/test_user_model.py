@@ -2,6 +2,7 @@ import pytest
 from mongoengine import connect, disconnect
 import mongomock
 from app.models.user import User
+from datetime import datetime
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_and_teardown():
@@ -59,3 +60,30 @@ def test_email_uniqueness():
     )
     with pytest.raises(Exception):
         user2.save()
+
+
+def test_created_at_field():
+    user = User(
+        firstName="John",
+        lastName="Doe",
+        email="john.doe@example.com",
+        password="securepassword",
+        dateOfBirth="1990-01-01"
+    )
+    user.save()
+    
+    assert user.createdAt is not None
+    assert isinstance(user.createdAt, datetime)
+
+def test_object_id_field():
+    user = User(
+        firstName="John",
+        lastName="Doe",
+        email="john.doe@example.com",
+        password="securepassword",
+        dateOfBirth="1990-01-01"
+    )
+    user.save()
+
+    assert user.id is not None
+    assert isinstance(user.id, mongomock.ObjectId)

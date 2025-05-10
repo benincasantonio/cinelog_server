@@ -9,3 +9,4 @@ flask-migrate
 flask-testing
 pytest
 mongoengine
+pydantic
