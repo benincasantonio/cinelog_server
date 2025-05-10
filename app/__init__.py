@@ -7,6 +7,9 @@ app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb://localhost:27017/cinelog_db"
 mongo = PyMongo(app)
 
-# Creazione dell'app Flask
+@app.route('/')
+def index():
+    return "Welcome to the Cinelog API!"
+
 def create_app():
     return app
