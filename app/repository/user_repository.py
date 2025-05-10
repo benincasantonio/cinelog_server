@@ -1,6 +1,6 @@
 from app.models.user import User
 from app.schemas.user_schemas import UserCreateRequest
-from datetime import datetime
+from datetime import datetime, UTC
 
 class UserRepository:
     """Repository class for User-related operations."""
@@ -34,25 +34,28 @@ class UserRepository:
         return User.objects(id=user_id).first()
     
     @staticmethod
-    def delete_user(self, user_id: str) -> bool:
+    def delete_user(user_id: str) -> bool:
         """Delete a user logically by ID."""
-        user = self.find_user_by_id(user_id)
-
+        user = UserRepository.find_user_by_id(user_id)
+        
         user.deleted = True
-        user.deleted_at = datetime.utcnow()
+        user.deletedAt = datetime.now(UTC)
 
         user.save()
         return True
     
-    def delete_user_oblivion(self, user_id: str) -> bool:
+    @staticmethod
+    def delete_user_oblivion(user_id: str) -> bool:
         """Obscure all the user information and delete the user logically."""
-        user = self.find_user_by_id(user_id)
+        user = UserRepository.find_user_by_id(user_id)
 
         user.firstName = "Deleted"
         user.lastName = "User"
-        user.email = "redacted"
+        user.email = ""
         user.handle = f"deleted_{user_id}"
         user.dateOfBirth = None
         user.deleted = True
-        user.deleted_at = datetime.utcnow()
+        user.deletedAt = datetime.now(UTC)
         user.save()
+        
+        return True

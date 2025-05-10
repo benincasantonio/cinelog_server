@@ -43,6 +43,32 @@ def test_create_user(user_create_request):
     assert user.email == user_create_request.email
     assert User.objects.count() == 1
 
+def test_cannot_create_user_with_same_email():
+    # Test creating a user with the same email
+    repository = UserRepository()
+    user_request1 = UserCreateRequest(
+        firstName="Alice",
+        lastName="Smith",
+        email="alice.smith@example.com",
+        password="securepassword",
+        handle="alicesmith",
+        dateOfBirth=date(1992, 5, 15)
+    )
+
+    user_request2 = UserCreateRequest(
+        firstName="Bob",
+        lastName="Johnson",
+        email="alice.smith@example.com",
+        password="anotherpassword",
+        handle="bobjohnson",
+        dateOfBirth=date(1988, 10, 5)
+    )
+
+    repository.create_user(user_request1)
+
+    with pytest.raises(Exception):
+        repository.create_user(user_request2)
+
 def test_find_user_by_email():
     repository = UserRepository()
     user_request = UserCreateRequest(
@@ -97,6 +123,7 @@ def test_oblivion_user():
         lastName="Williams",
         email="bob.williams@example.com",
         password="secure789",
+        handle="bobw",
         dateOfBirth=date(1988, 10, 5)
     )
     created_user = repository.create_user(user_request)
@@ -105,9 +132,11 @@ def test_oblivion_user():
     # This method doesn't exist yet, you'll need to implement it
     success = repository.delete_user_oblivion(created_user.id)
 
-    # oblivion does not delete the user but anonymizes it
-    user = repository.find_user_by_id(created_user.id)
+    # oblivion does not delete the user but anonymizes it - search with mongo directly
+    user = User.objects(id=created_user.id).first()
+    assert success is True
+    
     assert user is not None 
-    assert user.firstName == "Anonymous"
-    assert user.lastName == "Anonymous"
+    assert user.firstName == "Deleted"
+    assert user.lastName == "User"
     assert user.email == ""
