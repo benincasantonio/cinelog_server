@@ -1,13 +1,12 @@
 from app.repository.user_repository import UserRepository
 from app.schemas.auth_schemas import RegisterRequest, RegisterResponse
-from app.utils import generate_access_token
+from app.utils.generate_access_token import generate_access_token
 
 class AuthService():
-    user_repository = UserRepository()
+    user_repository: UserRepository
 
-    def __init__(self, user_repository, token_service):
+    def __init__(self, user_repository):
         self.user_repository = user_repository
-        self.token_service = token_service
 
     def login(self, username, password):
         raise NotImplementedError("Login method not implemented")

@@ -7,19 +7,14 @@ class UserRepository:
 
     def __init__(self):
         pass
-        
+    
     @staticmethod
     def create_user(request: UserCreateRequest) -> User:
         """Create a new user in the database."""
         
-        user = User(
-            firstName=request.firstName,
-            lastName=request.lastName,
-            email=request.email,
-            password=request.password,
-            handle=request.handle,
-            dateOfBirth=request.dateOfBirth
-        )
+        # Convert Pydantic model to dict and unpack into User model
+        user_data = request.model_dump()
+        user = User(**user_data)
         user.save()
         return user
 
