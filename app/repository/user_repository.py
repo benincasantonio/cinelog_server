@@ -22,6 +22,17 @@ class UserRepository:
     def find_user_by_email(email: str) -> User:
         """Find a user by email."""
         return User.objects(email=email).first()
+    
+    
+    @staticmethod
+    def find_user_by_handle(handle: str) -> User:
+        """Find a user by handle."""
+        return User.objects(handle=handle).first()
+
+    @staticmethod
+    def find_user_by_email_or_handle(email_or_handle: str) -> User:
+        """Find a user by email or handle."""
+        return UserRepository.find_user_by_email(email_or_handle) or UserRepository.find_user_by_handle(email_or_handle)
         
     @staticmethod
     def find_user_by_id(user_id: str) -> User:

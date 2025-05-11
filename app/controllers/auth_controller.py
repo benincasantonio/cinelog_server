@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 
 from app.repository.user_repository import UserRepository
+from app.schemas.auth_schemas import LoginRequest
 from app.schemas.user_schemas import UserCreateRequest
 from app.services.auth_service import AuthService
+from app.utils.exceptions import AppException
 
 auth_controller = Blueprint("auth", __name__)
 
@@ -14,7 +16,18 @@ def login():
     """
     Handle user login.
     """
-    raise NotImplementedError("Login method not implemented")
+    request_data = request.get_json()
+
+    user_login_request: LoginRequest = LoginRequest(
+        emailOrHandle=request_data["emailOrHandle"],
+        password=request_data["password"]
+    )
+
+    try:
+        response = auth_service.login(request=user_login_request)
+        return response.model_dump_json(), 200
+    except AppException as e:
+        return jsonify(e.error.model_dump()), e.error.error_code
 
 @auth_controller.post("/register")
 def register():
@@ -32,6 +45,8 @@ def register():
         dateOfBirth=request_data["dateOfBirth"]
     )
 
-    response = auth_service.register(request=user_create_request)
-    
-    return response.model_dump_json(), 201
+    try:
+        response = auth_service.register(request=user_create_request)
+        return response.model_dump_json(), 201
+    except AppException as e:
+        return jsonify(e.error.model_dump()), e.error.error_code

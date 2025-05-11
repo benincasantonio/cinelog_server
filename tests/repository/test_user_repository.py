@@ -8,6 +8,8 @@ from app.models.user import User
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_and_teardown():
+    # Disconnect from any existing connections first
+    disconnect()
     # Connect to a test database using mongomock
     connect('mongoenginetest', host='localhost', mongo_client_class=mongomock.MongoClient)
     yield
@@ -140,3 +142,43 @@ def test_oblivion_user():
     assert user.firstName == "Deleted"
     assert user.lastName == "User"
     assert user.email == ""
+
+def test_find_user_by_handle():
+    repository = UserRepository()
+    user_request = UserCreateRequest(
+        firstName="Charlie",
+        lastName="Brown",
+        email="test@example.com",
+        password="securepassword",
+        handle="charliebrown",
+        dateOfBirth=date(1990, 1, 1)
+    )
+
+    created_user = repository.create_user(user_request)
+    found_user = repository.find_user_by_handle("charliebrown")
+    assert found_user is not None
+    assert found_user.id == created_user.id
+    assert found_user.handle == "charliebrown"
+
+
+def test_find_user_by_email_or_handle():
+    repository = UserRepository()
+    user_request = UserCreateRequest(
+        firstName="David",
+        lastName="Smith",
+        email="example@example.com",
+        password="securepassword",
+        handle="david_smith",
+        dateOfBirth=date(1990, 1, 1)
+    )
+    created_user = repository.create_user(user_request)
+    found_user_by_email = repository.find_user_by_email_or_handle("example@example.com")
+    found_user_by_handle = repository.find_user_by_email_or_handle("david_smith")
+    assert found_user_by_email is not None
+    assert found_user_by_email.id == created_user.id
+    assert found_user_by_email.email == "example@example.com"
+    assert found_user_by_handle is not None
+    assert found_user_by_handle.id == created_user.id
+    assert found_user_by_handle.handle == "david_smith"
+
+    assert found_user_by_email.id == found_user_by_handle.id

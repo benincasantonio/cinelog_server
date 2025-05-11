@@ -6,6 +6,8 @@ from datetime import datetime
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_and_teardown():
+    # Disconnect from any existing connections first
+    disconnect()
     # Connect to a test database using the new mongo_client_class parameter
     connect('mongoenginetest', host='localhost', mongo_client_class=mongomock.MongoClient)
     yield
