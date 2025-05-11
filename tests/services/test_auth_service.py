@@ -13,14 +13,10 @@ def mock_user_repository():
     return Mock(spec=UserRepository)
 
 
-@pytest.fixture
-def mock_token_service():
-    return Mock()
-
 
 @pytest.fixture
-def auth_service(mock_user_repository, mock_token_service):
-    return AuthService(mock_user_repository, mock_token_service)
+def auth_service(mock_user_repository):
+    return AuthService(mock_user_repository)
 
 
 @pytest.fixture
