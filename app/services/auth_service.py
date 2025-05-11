@@ -1,6 +1,7 @@
 from app.repository.user_repository import UserRepository
 from app.schemas.auth_schemas import RegisterRequest, RegisterResponse
 from app.utils.generate_access_token import generate_access_token
+from app.utils.hash_password_utils import hash_password
 
 class AuthService():
     user_repository: UserRepository
@@ -12,6 +13,7 @@ class AuthService():
         raise NotImplementedError("Login method not implemented")
 
     def register(self, request: RegisterRequest):
+        request.password = hash_password(request.password.strip())
         self.user_repository.create_user(request=request)
 
         jwt_token = generate_access_token(user_id=request.email)
