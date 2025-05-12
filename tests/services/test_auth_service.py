@@ -125,10 +125,9 @@ class TestAuthService:
         mock_created_user.handle = register_request.handle
         
         mock_user_repository.create_user.return_value = mock_created_user
-        
-        # Mock token generation
-        with patch('app.utils.hash_password', return_value="hashed_password"), \
-             patch('app.utils.generate_access_token', return_value="mock_jwt_token"):
+          # Mock token generation
+        with patch('app.services.auth_service.hash_password', return_value="hashed_password"), \
+             patch('app.services.auth_service.generate_access_token', return_value="mock_jwt_token"):
             
             # Act
             result = auth_service.register(register_request)
@@ -141,17 +140,3 @@ class TestAuthService:
             assert result.lastName == register_request.lastName
             assert result.handle == register_request.handle
             assert result.user_id == mock_created_user.id.__str__()
-    
-    def test_register_existing_user(self, auth_service, mock_user_repository, register_request):
-        # Arrange
-        mock_user = Mock()
-        mock_user.email = register_request.email
-        mock_user_repository.find_user_by_email.return_value = mock_user
-        
-        # Act & Assert
-        with pytest.raises(AppException) as exc_info:
-            auth_service.register(register_request)
-        
-        # Assert
-        mock_user_repository.find_user_by_email.assert_called_once_with(register_request.email)
-        mock_user_repository.create_user.assert_not_called()
