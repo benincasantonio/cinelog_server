@@ -4,7 +4,9 @@ from dotenv import load_dotenv
 from mongoengine import connect
 from app.controllers.auth_controller import auth_controller
 
-load_dotenv()
+load_dotenv(
+    dotenv_path='../.env'
+)
 
 app = Flask(__name__)
 
