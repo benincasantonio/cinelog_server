@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, ObjectIdField
+from mongoengine import StringField, DateTimeField, ObjectIdField
 from bson import ObjectId
 from datetime import datetime
 
@@ -13,4 +13,8 @@ class User(BaseEntity):
     handle = StringField(required=True, unique=True)
     password = StringField(required=True)
     dateOfBirth = DateTimeField()
+
+    meta = {
+        'collection': 'users',
+    }
 
