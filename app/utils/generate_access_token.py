@@ -1,6 +1,6 @@
 import os
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 def generate_access_token(user_id: str) -> str:
     """
@@ -17,7 +17,7 @@ def generate_access_token(user_id: str) -> str:
     SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     ALGORITHM = "HS256"
 
-    expiration = datetime.utcnow() + timedelta(hours=1)
+    expiration = datetime.now(UTC) + timedelta(hours=1)
 
     payload = {
         "sub": user_id,

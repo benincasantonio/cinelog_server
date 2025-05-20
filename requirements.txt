@@ -11,3 +11,5 @@ pytest
 mongoengine
 pydantic
 pydantic[email]
+mongomock >= 4.3.0
+freezegun >= 1.5.1
