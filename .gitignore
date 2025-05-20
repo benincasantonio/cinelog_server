@@ -84,3 +84,6 @@ Desktop.ini
 # Flask-SQLite database
 *.db
 *.sqlite3
+
+# DB 
+/data/db
