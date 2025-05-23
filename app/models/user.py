@@ -1,6 +1,5 @@
 from mongoengine import StringField, DateTimeField, ObjectIdField
 from bson import ObjectId
-from datetime import datetime
 
 from app.models.base_entity import BaseEntity
 

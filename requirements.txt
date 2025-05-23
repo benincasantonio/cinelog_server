@@ -1,15 +1,17 @@
-flask
+flask~=3.1.1
 flask-pymongo
 flask-bcrypt
-pyjwt
-python-dotenv
+pyjwt~=2.10.1
+python-dotenv~=1.1.0
 flask-restful
 flask-cors
 flask-migrate
 flask-testing
-pytest
-mongoengine
-pydantic
+pytest~=8.3.5
+mongoengine~=0.29.1
+pydantic~=2.11.4
 pydantic[email]
 mongomock >= 4.3.0
 freezegun >= 1.5.1
+bcrypt~=4.3.0
+pymongo~=4.13.0
