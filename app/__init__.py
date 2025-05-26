@@ -12,14 +12,12 @@ mongo_client = MongoClient("mongodb://localhost:27017/cinelog_db")
 
 connect('cinelog_db', host='localhost', port=27017)
 
-@app.get('/')
+@app.get('/', tags=['Root'], summary="Cinelog API Root")
 def index():
     return "Welcome to the Cinelog API!"
 
-# Blueprints
-#app.register_blueprint(auth_controller, url_prefix='/v1/auth')
 
-app.include_router(auth_controller.router, prefix='/v1/auth', tags=['auth'])
+app.include_router(auth_controller.router, prefix='/v1/auth', tags=['Auth'])
 
 def create_app():
     return app
