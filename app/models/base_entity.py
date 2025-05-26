@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, BooleanField
+from mongoengine import Document, DateTimeField, BooleanField
 from datetime import datetime
 
 
@@ -11,3 +11,4 @@ class BaseEntity(Document):
     deleted = BooleanField(default=False)
     deletedAt = DateTimeField()
     createdAt = DateTimeField(default=lambda: datetime.now())
+    updatedAt = DateTimeField(default=lambda: datetime.now())

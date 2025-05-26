@@ -1,4 +1,4 @@
-from mongoengine import StringField
+from mongoengine import StringField, IntField
 from bson import ObjectId
 
 from app.models.base_entity import BaseEntity
@@ -6,7 +6,7 @@ from app.models.base_entity import BaseEntity
 
 class Movie(BaseEntity):
     id = StringField(primary_key=True, default=lambda: str(ObjectId()))
-    tmdbId = StringField(required=True, unique=True)
+    tmdbId = IntField(required=True, unique=True)
     title = StringField(required=True)
 
     meta = {
