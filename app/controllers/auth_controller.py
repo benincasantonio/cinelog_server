@@ -1,42 +1,33 @@
-from flask import Blueprint, request, jsonify
+from fastapi import APIRouter, Request
 
 from app.repository.user_repository import UserRepository
-from app.schemas.auth_schemas import LoginRequest
-from app.schemas.user_schemas import UserCreateRequest
+from app.schemas.auth_schemas import LoginRequest, RegisterRequest, RegisterResponse, LoginResponse
 from app.services.auth_service import AuthService
 from app.utils.exceptions import AppException
 
-auth_controller = Blueprint("auth", __name__)
+router = APIRouter()
 
 user_repository = UserRepository()
 auth_service = AuthService(user_repository)
 
-@auth_controller.post("/login")
-def login():
+@router.post("/login")
+def login(request: LoginRequest) -> LoginResponse:
     """
     Handle user login.
     """
-    request_data = request.get_json()
-
-    user_login_request: LoginRequest = LoginRequest(
-        emailOrHandle=request_data["emailOrHandle"],
-        password=request_data["password"]
-    )
-
     try:
-        response = auth_service.login(request=user_login_request)
-        return response.model_dump_json(), 200
+        return auth_service.login(request=request)
     except AppException as e:
-        return jsonify(e.error.model_dump()), e.error.error_code
+        raise e
 
-@auth_controller.post("/register")
-def register():
+@router.post("/register")
+async def register(request: Request) -> RegisterResponse:
     """
     Handle user registration.
     """
-    request_data = request.get_json()
+    request_data = await request.json()
 
-    user_create_request: UserCreateRequest = UserCreateRequest(
+    register_request: RegisterRequest = RegisterRequest(
         firstName=request_data["firstName"],
         lastName=request_data["lastName"],
         email=request_data["email"],
@@ -46,7 +37,6 @@ def register():
     )
 
     try:
-        response = auth_service.register(request=user_create_request)
-        return response.model_dump_json(), 201
+        return auth_service.register(request=register_request)
     except AppException as e:
-        return jsonify(e.error.model_dump()), e.error.error_code
+        raise e

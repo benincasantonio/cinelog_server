@@ -14,8 +14,8 @@ def generate_access_token(user_id: str) -> str:
     """
 
     # Define the secret key and algorithm
-    SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-    ALGORITHM = "HS256"
+    secret_key = os.getenv("JWT_SECRET_KEY")
+    algorithm = "HS256"
 
     expiration = datetime.now(UTC) + timedelta(hours=1)
 
@@ -25,6 +25,6 @@ def generate_access_token(user_id: str) -> str:
     }
 
     # Generate the JWT token
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode(payload, secret_key, algorithm=algorithm)
 
     return token

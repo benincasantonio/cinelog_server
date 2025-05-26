@@ -5,7 +5,7 @@ from app.utils.exceptions import AppException
 from app.utils.generate_access_token import generate_access_token
 from app.utils.hash_password_utils import check_password, hash_password
 
-class AuthService():
+class AuthService:
     user_repository: UserRepository
 
     def __init__(self, user_repository):
