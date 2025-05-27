@@ -2,7 +2,7 @@ from app.repository.user_repository import UserRepository
 from app.schemas.auth_schemas import LoginRequest, LoginResponse, RegisterRequest, RegisterResponse
 from app.utils.error_codes import ErrorCodes
 from app.utils.exceptions import AppException
-from app.utils.generate_access_token import generate_access_token
+from app.utils.access_token_utils import generate_access_token
 from app.utils.hash_password_utils import check_password, hash_password
 
 class AuthService:
