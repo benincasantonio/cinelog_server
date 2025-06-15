@@ -17,8 +17,6 @@ class TMDBService:
             "Authorization": f"Bearer {self.API_KEY}",
         }
 
-        print("Headers:", headers)
-
         response = requests.get(url, headers=headers)
 
         return TMDBMovieSearchResult(**response.json())

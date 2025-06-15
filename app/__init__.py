@@ -3,9 +3,6 @@ from pymongo import MongoClient
 from mongoengine import connect
 import app.controllers.auth_controller as auth_controller
 import app.controllers.movie_controller as movie_controller
-from pathlib import Path
-
-load_dotenv()
 
 app = FastAPI(title="Cinelog API",)
 
