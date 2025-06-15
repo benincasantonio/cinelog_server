@@ -1,10 +1,7 @@
 from fastapi import FastAPI
 from pymongo import MongoClient
-from dotenv import load_dotenv
 from mongoengine import connect
 import app.controllers.auth_controller as auth_controller
-
-load_dotenv()
 
 app = FastAPI(title="Cinelog API",)
 
