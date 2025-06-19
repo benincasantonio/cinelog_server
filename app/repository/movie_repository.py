@@ -6,9 +6,6 @@ from datetime import datetime, UTC
 class MovieRepository:
     """Repository class for movie-related operations."""
 
-    def __init__(self):
-        pass
-
 
 
     @staticmethod
