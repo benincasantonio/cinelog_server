@@ -10,7 +10,6 @@ from os import getenv
 router = APIRouter()
 
 TMDB_API_KEY = getenv("TMDB_API_KEY")
-print(TMDB_API_KEY)
 tmdb_service = TMDBService(api_key=TMDB_API_KEY)
 
 
