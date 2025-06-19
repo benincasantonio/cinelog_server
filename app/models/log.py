@@ -6,9 +6,11 @@ class Log(BaseEntity):
     meta = {
         'collection': 'logs',
         'indexes': [
-            '-dateWatched',
+            'dateWatched',
             {'fields': ['tmdbId', '-dateWatched']},
+            {'fields': ['tmdbId', 'rating']},
             'watchedWhere',
+            'dateWatched'
         ]
     }
 

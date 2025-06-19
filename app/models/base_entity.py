@@ -6,7 +6,13 @@ class BaseEntity(Document):
     """
     Abstract base class that provides common fields for all entity models
     """
-    meta = {'abstract': True}
+    meta = {
+        'abstract': True,
+        'indexes': [
+            '-createdAt',
+            'deleted',
+        ]
+    }
     
     deleted = BooleanField(default=False)
     deletedAt = DateTimeField()
