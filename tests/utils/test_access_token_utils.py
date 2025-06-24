@@ -75,17 +75,16 @@ class TestIsValidAccessToken:
 
         assert is_valid is True
 
-
+    @patch.dict(os.environ, {"JWT_SECRET_KEY": "test_secret_key"})
     def test_is_valid_with_empty_token(self):
         """Test that is_valid_access_token returns False for an empty token."""
-        # Arrange
         token = ""
 
         is_valid = is_valid_access_token(token)
 
         assert is_valid is False
 
-
+    @patch.dict(os.environ, {"JWT_SECRET_KEY": "test_secret_key"})
     def test_is_valid_with_invalid_token(self):
         """Test that is_valid_access_token returns False for an invalid token."""
 
@@ -101,6 +100,7 @@ class TestIsValidAccessToken:
 
         assert is_valid is False
 
+    @patch.dict(os.environ, {"JWT_SECRET_KEY": "test_secret_key"})
     def test_is_valid_with_expired_token(self):
         """Test that is_valid_access_token returns False for an expired token."""
 
@@ -112,5 +112,16 @@ class TestIsValidAccessToken:
             is_valid = is_valid_access_token(token)
 
         assert is_valid is False
+
+
+    def test_if_secret_token_is_not_set(self):
+        """Test that is_valid_access_token raises an error if the secret key is not set."""
+
+        token = "some_invalid_token"
+
+        try:
+            is_valid_access_token(token)
+        except ValueError as e:
+            assert str(e) == "JWT_SECRET_KEY environment variable is not set."
 
 
