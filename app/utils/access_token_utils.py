@@ -43,6 +43,9 @@ def is_valid_access_token(token: str) -> bool:
     secret_key = os.getenv("JWT_SECRET_KEY")
     algorithm = "HS256"
 
+    if not secret_key:
+        raise ValueError("JWT_SECRET_KEY environment variable is not set.")
+
     try:
         jwt.decode(token, secret_key, algorithms=[algorithm])
         return True
