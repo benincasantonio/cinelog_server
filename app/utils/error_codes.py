@@ -17,6 +17,13 @@ class ErrorCodes:
         error_description="The handle provided is already in use by another user."
     )
 
+    EMAIL_ALREADY_EXISTS = ErrorSchema(
+        error_code_name="EMAIL_ALREADY_EXISTS",
+        error_code=409,
+        error_message="Email already exists",
+        error_description="The email provided is already in use by another user."
+    )
+
     ERROR_CREATING_USER = ErrorSchema(
         error_code_name="ERROR_CREATING_USER",
         error_code=500,

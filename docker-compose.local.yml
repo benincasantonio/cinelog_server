@@ -8,7 +8,25 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
-    
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinelog_api_local
+    ports:
+      - "5009:5009"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    environment:
+      - MONGODB_HOST=mongo
+      - MONGODB_PORT=27017
+      - MONGODB_DB=cinelog_db
+    depends_on:
+      - mongo
+    command: uvicorn app:app --host 0.0.0.0 --port 5009 --reload
 
 volumes:
   mongo_data:
