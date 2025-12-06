@@ -13,5 +13,6 @@ COPY . .
 EXPOSE 5009
 
 # Run uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5009", "--reload"]
+# Note: --reload is removed for production; use docker-compose.local.yml for local development with reload
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5009"]
 
