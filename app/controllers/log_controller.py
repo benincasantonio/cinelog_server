@@ -1,6 +1,4 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
-import jwt
-import os
 
 from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import (
@@ -12,26 +10,12 @@ from app.schemas.log_schemas import (
 )
 from app.services.log_service import LogService
 from app.dependencies.auth_dependency import auth_dependency
+from app.utils.access_token_utils import get_user_id_from_token
 
 router = APIRouter()
 
 log_repository = LogRepository()
 log_service = LogService(log_repository)
-
-
-def get_user_id_from_token(request: Request) -> str:
-    """Extract user ID from JWT token in request headers."""
-    token = request.headers.get("Authorization")
-    if not token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    try:
-        secret_key = os.getenv("JWT_SECRET_KEY")
-        algorithm = "HS256"
-        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        return payload.get("sub")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 @router.post("/", response_model=LogCreateResponse)
@@ -45,7 +29,12 @@ def create_log(
 
     Requires authentication via Bearer token.
     """
-    user_id = get_user_id_from_token(request)
+    token = request.headers.get("Authorization")
+    try:
+        user_id = get_user_id_from_token(token)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
     return log_service.create_log(user_id=user_id, request=request_body)
 
 
@@ -62,7 +51,12 @@ def update_log(
     Requires authentication via Bearer token.
     Only the owner of the log can update it.
     """
-    user_id = get_user_id_from_token(request)
+    token = request.headers.get("Authorization")
+    try:
+        user_id = get_user_id_from_token(token)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
     return log_service.update_log(user_id=user_id, log_id=log_id, request=request_body)
 
 
@@ -82,7 +76,11 @@ def get_logs(
     Requires authentication via Bearer token.
     Returns all logs filtered and sorted according to query parameters.
     """
-    user_id = get_user_id_from_token(request)
+    token = request.headers.get("Authorization")
+    try:
+        user_id = get_user_id_from_token(token)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
     # Build request object from query parameters
     list_request = LogListRequest(
