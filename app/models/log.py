@@ -6,19 +6,20 @@ class Log(BaseEntity):
     meta = {
         'collection': 'logs',
         'indexes': [
+            'userId',
             'dateWatched',
+            {'fields': ['userId', '-dateWatched']},
+            {'fields': ['userId', 'movieId']},
             {'fields': ['tmdbId', '-dateWatched']},
-            {'fields': ['tmdbId', 'rating']},
-            'watchedWhere',
-            'dateWatched'
+            'watchedWhere'
         ]
     }
 
     id = ObjectIdField(primary_key=True, default=lambda: ObjectId())
+    userId = ObjectIdField(required=True)
     movieId = ObjectIdField(required=True)
     tmdbId = IntField(required=True)
     dateWatched = DateTimeField(required=True)
-    comment = StringField()
-    rating = IntField(min_value=1, max_value=10)
+    viewingNotes = StringField()
     posterPath = StringField()
     watchedWhere = StringField(choices=["cinema", "streaming", "homeVideo", "tv", "other"], required=True, default="other")

@@ -42,4 +42,43 @@ class MovieRepository:
         """Find a movie by TMDB ID."""
         return Movie.objects(tmdbId=tmdb_id).first()
 
+    @staticmethod
+    def create_from_tmdb_data(tmdb_data: dict) -> Movie:
+        """
+        Create a movie from TMDB API response data.
+
+        Expected fields in tmdb_data:
+        - id (tmdbId)
+        - title
+        - release_date
+        - overview
+        - poster_path
+        - vote_average
+        - runtime
+        - original_language
+        """
+        from datetime import datetime
+
+        # Parse release date if present
+        release_date = None
+        if tmdb_data.get('release_date'):
+            try:
+                release_date = datetime.strptime(tmdb_data['release_date'], '%Y-%m-%d')
+            except ValueError:
+                pass  # Keep as None if parsing fails
+
+        movie = Movie(
+            tmdbId=tmdb_data['id'],
+            title=tmdb_data['title'],
+            releaseDate=release_date,
+            overview=tmdb_data.get('overview'),
+            posterPath=tmdb_data.get('poster_path'),
+            voteAverage=tmdb_data.get('vote_average'),
+            runtime=tmdb_data.get('runtime'),
+            originalLanguage=tmdb_data.get('original_language')
+        )
+
+        movie.save()
+        return movie
+
 

@@ -69,9 +69,7 @@ def update_log(
 @router.get("/", response_model=LogListResponse)
 def get_logs(
     request: Request,
-    page: int = 1,
-    pageSize: int = 10,
-    sortBy: str = None,
+    sortBy: str = "dateWatched",
     sortOrder: str = "desc",
     watchedWhere: str = None,
     dateWatchedFrom: str = None,
@@ -79,17 +77,15 @@ def get_logs(
     _: bool = Depends(auth_dependency)
 ) -> LogListResponse:
     """
-    Get paginated list of user's viewing logs.
+    Get list of user's viewing logs.
 
     Requires authentication via Bearer token.
-    Returns logs filtered and sorted according to query parameters.
+    Returns all logs filtered and sorted according to query parameters.
     """
     user_id = get_user_id_from_token(request)
 
     # Build request object from query parameters
     list_request = LogListRequest(
-        page=page,
-        pageSize=pageSize,
         sortBy=sortBy,
         sortOrder=sortOrder,
         watchedWhere=watchedWhere,

@@ -7,12 +7,12 @@ from pydantic.v1 import validator, root_validator
 
 
 class LogCreateRequest(BaseModel):
-    movieId: str = Field(..., description="Unique identifier of the movie")
+    movieId: Optional[str] = Field(None, description="Unique identifier of the movie (auto-generated from tmdbId)")
     tmdbId: int = Field(..., description="TMDB ID of the movie")
     dateWatched: date = Field(..., description="Date when the movie was watched")
-    viewingNotes: str = Field(None, description="Optional notes about this viewing")
-    posterPath: str = Field(None, description="Path to the movie poster image")
-    watchedWhere: str = Field(None, description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
+    viewingNotes: Optional[str] = Field(None, description="Optional notes about this viewing")
+    posterPath: Optional[str] = Field(None, description="Path to the movie poster image (auto-fetched from TMDB if not provided)")
+    watchedWhere: str = Field("other", description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
 
     @validator('watchedWhere')
     def validate_watched_where(self, value):
@@ -58,20 +58,14 @@ class LogListItem(BaseModel):
     viewingNotes: str = Field(None, description="Optional notes about this viewing")
     posterPath: str = Field(None, description="Path to the movie poster image")
     watchedWhere: str = Field(None, description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
-    timeWatched: int = Field(..., description="Time in seconds when the movie was watched")
 
 
 class LogListResponse(BaseModel):
     logs: list[LogListItem] = Field(..., description="List of log entries")
-    totalCount: int = Field(..., description="Total number of log entries")
-    page: int = Field(..., description="Current page number")
-    pageSize: int = Field(..., description="Number of log entries per page")
 
 
 class LogListRequest(BaseModel):
-    page: int = Field(1, ge=1, description="Page number for pagination")
-    pageSize: int = Field(10, ge=1, le=100, description="Number of log entries per page")
-    sortBy: str = Field(None, description="Field to sort by (e.g., dateWatched, rating)")
+    sortBy: str = Field("dateWatched", description="Field to sort by (e.g., dateWatched)")
     sortOrder: str = Field("desc", description="Sort order (asc or desc)")
     watchedWhere: Optional[str] = Field(None, description="Filter logs by where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
     dateWatchedFrom: Optional[date] = Field(None, description="Filter logs by date watched from")
@@ -92,7 +86,7 @@ class LogListRequest(BaseModel):
 
     @validator('sortBy')
     def validate_sort_by(cls, value):
-        valid_fields = ["dateWatched", "rating"]
+        valid_fields = ["dateWatched", "watchedWhere"]
         if value and value not in valid_fields:
             raise ValueError(f"sortBy must be one of {valid_fields}")
         return value

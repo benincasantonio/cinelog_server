@@ -1,57 +1,95 @@
 from app.models.log import Log
-from app.schemas.log_schemas import LogCreateRequest, LogListRequest
+from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest, LogListRequest
+from bson import ObjectId
+
 
 class LogRepository:
     def __init__(self):
         pass
 
     @staticmethod
-    def create_log(create_log_request: LogCreateRequest) -> Log:
+    def create_log(user_id: str, create_log_request: LogCreateRequest) -> Log:
         """
         Create a new log entry in the database.
         """
         log_data = create_log_request.model_dump()
+        log_data['userId'] = ObjectId(user_id)
         log = Log(**log_data)
         log.save()
         return log
 
     @staticmethod
-    def find_logs_by_movie_id(movie_id: str) -> list[Log]:
+    def find_log_by_id(log_id: str, user_id: str) -> Log:
         """
-        Find all log entries for a specific movie by its ID.
+        Find a log entry by its ID, ensuring it belongs to the user.
         """
-        return Log.objects(movieId=movie_id).all()
+        return Log.objects(id=log_id, userId=user_id).first()
 
     @staticmethod
-    def get_log_list(request: LogListRequest) -> dict:
+    def update_log(log_id: str, user_id: str, update_request: LogUpdateRequest) -> Log:
         """
-        Get a paginated list of log entries with optional sorting.
+        Update an existing log entry.
         """
-        query = Log.objects()
+        log = LogRepository.find_log_by_id(log_id, user_id)
+        if not log:
+            return None
 
-        if request.watchedWhere is not None:
-            query = query.filter(watchedWhere=request.watchedWhere)
+        update_data = update_request.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(log, field, value)
 
-        if request.dateWatchedFrom is not None:
-            query = query.filter(dateWatched__gte=request.dateWatchedFrom)
+        log.save()
+        return log
 
-        if request.dateWatchedTo is not None:
-            query = query.filter(dateWatched__lte=request.dateWatchedTo)
+    @staticmethod
+    def find_logs_by_user_id(user_id: str, request: LogListRequest = None) -> list[Log]:
+        """
+        Find all log entries for a specific user with optional filtering and sorting.
+        """
+        query = Log.objects(userId=user_id)
 
-        sort_order = '-' + request.sortBy if request.sortOrder == 'desc' else request.sortBy
+        if request:
+            # Apply filters
+            if request.watchedWhere is not None:
+                query = query.filter(watchedWhere=request.watchedWhere)
 
-        query = query.order_by(sort_order)
+            if request.dateWatchedFrom is not None:
+                query = query.filter(dateWatched__gte=request.dateWatchedFrom)
 
-        total_count = query.count()
-        logs = query.skip((request.page - 1) * request.pageSize).limit(request.pageSize)
+            if request.dateWatchedTo is not None:
+                query = query.filter(dateWatched__lte=request.dateWatchedTo)
 
-        return {
-            "logs": list(logs),
-            "totalCount": total_count,
-            "page": request.page,
-            "pageSize": request.pageSize
-        }
+            # Apply sorting
+            if request.sortBy:
+                sort_order = '-' + request.sortBy if request.sortOrder == 'desc' else request.sortBy
+                query = query.order_by(sort_order)
+        else:
+            # Default sorting by date watched descending
+            query = query.order_by('-dateWatched')
 
+        return list(query)
 
+    @staticmethod
+    def find_logs_by_movie_id(movie_id: str, user_id: str = None) -> list[Log]:
+        """
+        Find all log entries for a specific movie by its ID.
+        Optionally filter by user_id.
+        """
+        query_params = {"movieId": movie_id}
+        if user_id:
+            query_params["userId"] = user_id
 
+        return Log.objects(**query_params).all()
 
+    @staticmethod
+    def delete_log(log_id: str, user_id: str) -> bool:
+        """
+        Delete a log entry (soft delete).
+        """
+        log = LogRepository.find_log_by_id(log_id, user_id)
+        if not log:
+            return False
+
+        log.deleted = True
+        log.save()
+        return True

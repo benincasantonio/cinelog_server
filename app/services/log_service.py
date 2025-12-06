@@ -1,51 +1,96 @@
 from app.repository.log_repository import LogRepository
+from app.repository.movie_repository import MovieRepository
+from app.services.movie_service import MovieService
 from app.schemas.log_schemas import (
     LogCreateRequest,
     LogCreateResponse,
     LogUpdateRequest,
     LogListRequest,
     LogListResponse,
+    LogListItem,
 )
+from app.utils.exceptions import AppException
+from app.utils.error_codes import ErrorCodes
 
 
 class LogService:
     """Service layer for log operations."""
 
-    def __init__(self, log_repository: LogRepository):
+    def __init__(self, log_repository: LogRepository, movie_service: MovieService = None):
         self.log_repository = log_repository
+        # Initialize movie service if not provided
+        if movie_service is None:
+            movie_repository = MovieRepository()
+            self.movie_service = MovieService(movie_repository)
+        else:
+            self.movie_service = movie_service
 
     def create_log(self, user_id: str, request: LogCreateRequest) -> LogCreateResponse:
         """
         Create a new viewing log entry.
 
-        TODO: Implement full logic including:
-        - Validate user exists
-        - Validate movie exists
-        - Save log to database
+        If the movie doesn't exist in our database, it will be fetched from TMDB
+        and created automatically.
         """
-        # Placeholder implementation
-        raise NotImplementedError("create_log method not yet implemented")
+        # Ensure movie exists (find or create from TMDB)
+        movie = self.movie_service.find_or_create_movie(tmdb_id=request.tmdbId)
+
+        # Update the movieId in the request with the actual database ID
+        request.movieId = str(movie.id)
+
+        # Auto-populate posterPath from movie if not provided
+        if not request.posterPath and movie.posterPath:
+            request.posterPath = movie.posterPath
+
+        log = self.log_repository.create_log(user_id=user_id, create_log_request=request)
+
+        return LogCreateResponse(
+            id=str(log.id),
+            movieId=str(log.movieId),
+            tmdbId=log.tmdbId,
+            dateWatched=log.dateWatched,
+            viewingNotes=log.viewingNotes,
+            posterPath=log.posterPath,
+            watchedWhere=log.watchedWhere
+        )
 
     def update_log(self, user_id: str, log_id: str, request: LogUpdateRequest) -> LogCreateResponse:
         """
         Update an existing log entry.
-
-        TODO: Implement full logic including:
-        - Validate user owns the log
-        - Update log fields
-        - Return updated log
         """
-        # Placeholder implementation
-        raise NotImplementedError("update_log method not yet implemented")
+        log = self.log_repository.update_log(log_id=log_id, user_id=user_id, update_request=request)
+
+        if not log:
+            # Log not found or doesn't belong to user
+            raise AppException(ErrorCodes.MOVIE_NOT_FOUND)  # TODO: Create LOG_NOT_FOUND error
+
+        return LogCreateResponse(
+            id=str(log.id),
+            movieId=str(log.movieId),
+            tmdbId=log.tmdbId,
+            dateWatched=log.dateWatched,
+            viewingNotes=log.viewingNotes,
+            posterPath=log.posterPath,
+            watchedWhere=log.watchedWhere
+        )
 
     def get_user_logs(self, user_id: str, request: LogListRequest) -> LogListResponse:
         """
-        Get paginated list of user's viewing logs.
-
-        TODO: Implement full logic including:
-        - Filter logs by user_id
-        - Apply pagination and sorting
-        - Join with movie and rating data
+        Get list of user's viewing logs with optional filtering and sorting.
         """
-        # Placeholder implementation
-        raise NotImplementedError("get_user_logs method not yet implemented")
+        logs = self.log_repository.find_logs_by_user_id(user_id=user_id, request=request)
+
+        log_items = [
+            LogListItem(
+                id=str(log.id),
+                movieId=str(log.movieId),
+                tmdbId=log.tmdbId,
+                dateWatched=log.dateWatched,
+                viewingNotes=log.viewingNotes,
+                posterPath=log.posterPath,
+                watchedWhere=log.watchedWhere
+            )
+            for log in logs
+        ]
+
+        return LogListResponse(logs=log_items)
