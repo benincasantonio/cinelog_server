@@ -34,6 +34,22 @@ class LogCreateResponse(BaseModel):
     watchedWhere: str = Field(None, description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
 
 
+class LogUpdateRequest(BaseModel):
+    """Schema for updating an existing log entry."""
+    dateWatched: Optional[date] = Field(None, description="Date when the movie was watched")
+    viewingNotes: Optional[str] = Field(None, description="Optional notes about this viewing")
+    watchedWhere: Optional[str] = Field(None, description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
+
+    @validator('watchedWhere')
+    def validate_watched_where(cls, value):
+        if value is None:
+            return value
+        valid_choices = ["cinema", "streaming", "homeVideo", "tv", "other"]
+        if value not in valid_choices:
+            raise ValueError(f"watchedWhere must be one of {valid_choices}")
+        return value
+
+
 class LogListItem(BaseModel):
     id: str = Field(..., description="Unique identifier of the log entry")
     movieId: str = Field(..., description="Unique identifier of the movie")
