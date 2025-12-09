@@ -10,11 +10,9 @@ class User(BaseEntity):
     lastName = StringField(required=True)
     email = StringField(required=True, unique=True)
     handle = StringField(required=True, unique=True)
-    password = StringField(required=True)
     dateOfBirth = DateTimeField()
     firebaseUid = StringField(unique=True, sparse=True)
 
     meta = {
-        'collection': 'users',
+        "collection": "users",
     }
-
