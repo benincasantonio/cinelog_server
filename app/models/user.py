@@ -12,6 +12,7 @@ class User(BaseEntity):
     handle = StringField(required=True, unique=True)
     password = StringField(required=True)
     dateOfBirth = DateTimeField()
+    firebaseUid = StringField(unique=True, sparse=True)
 
     meta = {
         'collection': 'users',

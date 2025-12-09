@@ -8,6 +8,7 @@ class UserCreateRequest(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
     handle: str = Field(None, min_length=3, max_length=20)
     dateOfBirth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
+    firebaseUid: str = Field(None, description="Firebase UID for the user")
 
 class UserCreateResponse(BaseModel):
     id: str

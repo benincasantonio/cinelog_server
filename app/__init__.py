@@ -7,10 +7,13 @@ import app.controllers.auth_controller as auth_controller
 import app.controllers.movie_controller as movie_controller
 import app.controllers.log_controller as log_controller
 from app.utils.exceptions import AppException
+from app.integrations.firebase import initialize_firebase_admin
 
 app = FastAPI(
     title="Cinelog API",
 )
+
+firebase_app = initialize_firebase_admin()
 
 
 mongodb_uri = os.getenv("MONGODB_URI")
