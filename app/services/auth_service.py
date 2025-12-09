@@ -79,7 +79,6 @@ class AuthService:
                 firstName=request.firstName,
                 lastName=request.lastName,
                 email=request.email.strip(),
-                password="",  # Password is stored in Firebase, not MongoDB
                 handle=request.handle.strip(),
                 dateOfBirth=request.dateOfBirth,
                 firebaseUid=firebase_uid,
@@ -95,7 +94,6 @@ class AuthService:
 
         # For now, return RegisterResponse (token generation may be updated later)
         response: RegisterResponse = RegisterResponse(
-            access_token="",  # Token generation will be handled separately
             email=user.email,
             firstName=user.firstName,
             lastName=user.lastName,
