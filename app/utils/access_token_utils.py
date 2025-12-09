@@ -55,16 +55,16 @@ def is_valid_access_token(token: str) -> bool:
 
 def get_user_id_from_token(token: str) -> str:
     """
-    Extract user ID from JWT access token.
+    Extract MongoDB user ID from Firebase ID token.
 
     Args:
-        token (str): The JWT access token (can include "Bearer " prefix).
+        token (str): The Firebase ID token (can include "Bearer " prefix).
 
     Returns:
-        str: The user ID extracted from the token's 'sub' claim.
+        str: The MongoDB user ID found by Firebase UID.
 
     Raises:
-        ValueError: If token is invalid, expired, or missing.
+        ValueError: If token is invalid, expired, or user not found.
     """
     if not token:
         raise ValueError("No token provided")
@@ -72,21 +72,34 @@ def get_user_id_from_token(token: str) -> str:
     if token.startswith("Bearer "):
         token = token[7:]
 
-    secret_key = os.getenv("JWT_SECRET_KEY")
-    algorithm = "HS256"
-
-    if not secret_key:
-        raise ValueError("JWT_SECRET_KEY environment variable is not set.")
+    # Import here to avoid circular dependencies
+    from app.repository.firebase_auth_repository import FirebaseAuthRepository
+    from app.repository.user_repository import UserRepository
+    from firebase_admin import auth
 
     try:
-        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        user_id = payload.get("sub")
+        # Verify Firebase ID token
+        decoded_token = FirebaseAuthRepository.verify_id_token(token, check_revoked=True)
+        firebase_uid = decoded_token.get("uid")
 
-        if not user_id:
-            raise ValueError("Token does not contain user ID")
+        if not firebase_uid:
+            raise ValueError("Token does not contain Firebase UID")
 
-        return user_id
-    except jwt.ExpiredSignatureError:
-        raise ValueError("Token has expired")
-    except jwt.InvalidTokenError:
+        # Look up user in MongoDB by Firebase UID
+        user = UserRepository.find_user_by_firebase_uid(firebase_uid)
+        if not user:
+            raise ValueError("User not found")
+
+        return user.id.__str__()
+    except ValueError:
+        raise
+    except auth.InvalidIdTokenError:
         raise ValueError("Invalid token")
+    except auth.ExpiredIdTokenError:
+        raise ValueError("Token has expired")
+    except auth.RevokedIdTokenError:
+        raise ValueError("Token has been revoked")
+    except auth.UserDisabledError:
+        raise ValueError("User account is disabled")
+    except Exception as e:
+        raise ValueError(f"Token validation failed: {str(e)}")

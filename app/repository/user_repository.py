@@ -42,6 +42,11 @@ class UserRepository:
         return User.objects(id=user_id).first()
 
     @staticmethod
+    def find_user_by_firebase_uid(firebase_uid: str) -> User:
+        """Find a user by Firebase UID."""
+        return User.objects(firebaseUid=firebase_uid).first()
+
+    @staticmethod
     def delete_user(user_id: str) -> bool:
         """Delete a user logically by ID."""
         user = UserRepository.find_user_by_id(user_id)
