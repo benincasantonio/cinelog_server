@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from mongoengine import connect
 import os
@@ -11,6 +12,14 @@ from app.integrations.firebase import initialize_firebase_admin
 
 app = FastAPI(
     title="Cinelog API",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 firebase_app = initialize_firebase_admin()
