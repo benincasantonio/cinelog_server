@@ -1,9 +1,8 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from datetime import date
 
-from pydantic.v1 import validator, root_validator
 from app.schemas.movie_schemas import MovieResponse
 
 
@@ -15,8 +14,9 @@ class LogCreateRequest(BaseModel):
     posterPath: Optional[str] = Field(None, description="Path to the movie poster image (auto-fetched from TMDB if not provided)")
     watchedWhere: str = Field("other", description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
 
-    @validator('watchedWhere')
-    def validate_watched_where(self, value):
+    @field_validator('watchedWhere')
+    @classmethod
+    def validate_watched_where(cls, value):
         valid_choices = ["cinema", "streaming", "homeVideo", "tv", "other"]
 
         if value not in valid_choices:
@@ -42,7 +42,8 @@ class LogUpdateRequest(BaseModel):
     viewingNotes: Optional[str] = Field(None, description="Optional notes about this viewing")
     watchedWhere: Optional[str] = Field(None, description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
 
-    @validator('watchedWhere')
+    @field_validator('watchedWhere')
+    @classmethod
     def validate_watched_where(cls, value):
         if value is None:
             return value
@@ -74,33 +75,36 @@ class LogListRequest(BaseModel):
     dateWatchedFrom: Optional[date] = Field(None, description="Filter logs by date watched from")
     dateWatchedTo: Optional[date] = Field(None, description="Filter logs by date watched to")
 
-    @root_validator
-    def validate_dates(cls, values):
-        if not values.get('dateWatchedFrom') and not values.get('dateWatchedTo'):
-            return values
+    @model_validator(mode='after')
+    def validate_dates(self):
+        if not self.dateWatchedFrom and not self.dateWatchedTo:
+            return self
 
-        date_from = values.get('dateWatchedFrom')
-        date_to = values.get('dateWatchedTo')
+        date_from = self.dateWatchedFrom
+        date_to = self.dateWatchedTo
 
         if date_from and date_to and date_from > date_to:
             raise ValueError("dateWatchedFrom cannot be after dateWatchedTo")
 
-        return values
+        return self
 
-    @validator('sortBy')
+    @field_validator('sortBy')
+    @classmethod
     def validate_sort_by(cls, value):
         valid_fields = ["dateWatched", "watchedWhere"]
         if value and value not in valid_fields:
             raise ValueError(f"sortBy must be one of {valid_fields}")
         return value
 
-    @validator('sortOrder')
+    @field_validator('sortOrder')
+    @classmethod
     def validate_sort_order(cls, value):
         if value not in ["asc", "desc"]:
             raise ValueError("sortOrder must be either 'asc' or 'desc'")
         return value
 
-    @validator('watchedWhere')
+    @field_validator('watchedWhere')
+    @classmethod
     def validate_watched_where(cls, value):
         if value is None:
             return value
@@ -109,6 +113,3 @@ class LogListRequest(BaseModel):
         if value and value not in valid_choices:
             raise ValueError(f"watchedWhere must be one of {valid_choices}")
         return value
-
-
-

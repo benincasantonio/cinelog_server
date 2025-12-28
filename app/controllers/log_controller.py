@@ -63,11 +63,7 @@ def update_log(
 @router.get("/", response_model=LogListResponse)
 def get_logs(
     request: Request,
-    sortBy: str = "dateWatched",
-    sortOrder: str = "desc",
-    watchedWhere: str = None,
-    dateWatchedFrom: str = None,
-    dateWatchedTo: str = None,
+    list_request: LogListRequest = Depends(),
     _: bool = Depends(auth_dependency)
 ) -> LogListResponse:
     """
@@ -81,14 +77,5 @@ def get_logs(
         user_id = get_user_id_from_token(token)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
-
-    # Build request object from query parameters
-    list_request = LogListRequest(
-        sortBy=sortBy,
-        sortOrder=sortOrder,
-        watchedWhere=watchedWhere,
-        dateWatchedFrom=dateWatchedFrom,
-        dateWatchedTo=dateWatchedTo
-    )
 
     return log_service.get_user_logs(user_id=user_id, request=list_request)
