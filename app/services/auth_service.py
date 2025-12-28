@@ -80,6 +80,7 @@ class AuthService:
                 lastName=request.lastName,
                 email=request.email.strip(),
                 handle=request.handle.strip(),
+                bio=request.bio,
                 dateOfBirth=request.dateOfBirth,
                 firebaseUid=firebase_uid,
             )
@@ -98,6 +99,7 @@ class AuthService:
             firstName=user.firstName,
             lastName=user.lastName,
             handle=user.handle,
+            bio=user.bio,
             user_id=user.id.__str__(),
         )
 

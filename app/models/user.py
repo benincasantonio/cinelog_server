@@ -10,6 +10,7 @@ class User(BaseEntity):
     lastName = StringField(required=True)
     email = StringField(required=True, unique=True)
     handle = StringField(required=True, unique=True)
+    bio = StringField()
     dateOfBirth = DateTimeField()
     firebaseUid = StringField(unique=True, sparse=True)
 

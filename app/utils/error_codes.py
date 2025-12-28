@@ -31,6 +31,13 @@ class ErrorCodes:
         error_description="An error occurred while creating the user."
     )
 
+    USER_NOT_FOUND = ErrorSchema(
+        error_code_name="USER_NOT_FOUND",
+        error_code=404,
+        error_message="User not found",
+        error_description="The requested user was not found."
+    )
+
     # Movie Errors
 
     MOVIE_NOT_FOUND = ErrorSchema(

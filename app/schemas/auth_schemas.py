@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import date
+from typing import Optional
 
 
 class RegisterRequest(BaseModel):
@@ -18,6 +19,7 @@ class RegisterRequest(BaseModel):
     handle: str = Field(
         ..., min_length=3, max_length=20, description="User's unique handle"
     )
+    bio: Optional[str] = Field(None, max_length=500, description="User biography")
     dateOfBirth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
 
 
@@ -29,3 +31,4 @@ class RegisterResponse(BaseModel):
     lastName: str = Field(..., description="User's last name")
     email: EmailStr = Field(..., description="User's email address")
     handle: str = Field(..., description="User's unique handle")
+    bio: Optional[str] = Field(None, description="User biography")

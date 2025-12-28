@@ -7,6 +7,7 @@ import os
 import app.controllers.auth_controller as auth_controller
 import app.controllers.movie_controller as movie_controller
 import app.controllers.log_controller as log_controller
+import app.controllers.user_controller as user_controller
 from app.utils.exceptions import AppException
 from app.integrations.firebase import initialize_firebase_admin
 
@@ -62,6 +63,7 @@ def index():
 app.include_router(auth_controller.router, prefix="/v1/auth", tags=["Auth"])
 app.include_router(movie_controller.router, prefix="/v1/movies", tags=["Movies"])
 app.include_router(log_controller.router, prefix="/v1/logs", tags=["Logs"])
+app.include_router(user_controller.router, prefix="/v1/users", tags=["Users"])
 
 
 def create_app():
