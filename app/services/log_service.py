@@ -1,6 +1,7 @@
 from app.repository.log_repository import LogRepository
 from app.repository.movie_repository import MovieRepository
 from app.services.movie_service import MovieService
+from app.schemas.movie_schemas import MovieResponse
 from app.schemas.log_schemas import (
     LogCreateRequest,
     LogCreateResponse,
@@ -25,6 +26,21 @@ class LogService:
         else:
             self.movie_service = movie_service
 
+    def _map_movie_to_response(self, movie) -> MovieResponse:
+        if not movie:
+            return None
+        return MovieResponse(
+            id=str(movie.id),
+            title=movie.title,
+            tmdbId=movie.tmdbId,
+            posterPath=movie.posterPath,
+            releaseDate=movie.releaseDate,
+            overview=movie.overview,
+            voteAverage=movie.voteAverage,
+            runtime=movie.runtime,
+            originalLanguage=movie.originalLanguage
+        )
+
     def create_log(self, user_id: str, request: LogCreateRequest) -> LogCreateResponse:
         """
         Create a new viewing log entry.
@@ -47,6 +63,7 @@ class LogService:
         return LogCreateResponse(
             id=str(log.id),
             movieId=str(log.movieId),
+            movie=self._map_movie_to_response(movie),
             tmdbId=log.tmdbId,
             dateWatched=log.dateWatched,
             viewingNotes=log.viewingNotes,
@@ -64,9 +81,12 @@ class LogService:
             # Log not found or doesn't belong to user
             raise AppException(ErrorCodes.MOVIE_NOT_FOUND)  # TODO: Create LOG_NOT_FOUND error
 
+        movie = self.movie_service.get_movie_by_id(str(log.movieId))
+
         return LogCreateResponse(
             id=str(log.id),
             movieId=str(log.movieId),
+            movie=self._map_movie_to_response(movie),
             tmdbId=log.tmdbId,
             dateWatched=log.dateWatched,
             viewingNotes=log.viewingNotes,
@@ -78,19 +98,22 @@ class LogService:
         """
         Get list of user's viewing logs with optional filtering and sorting.
         """
-        logs = self.log_repository.find_logs_by_user_id(user_id=user_id, request=request)
+        logs_data = self.log_repository.find_logs_by_user_id(user_id=user_id, request=request)
 
-        log_items = [
-            LogListItem(
-                id=str(log.id),
-                movieId=str(log.movieId),
-                tmdbId=log.tmdbId,
-                dateWatched=log.dateWatched,
-                viewingNotes=log.viewingNotes,
-                posterPath=log.posterPath,
-                watchedWhere=log.watchedWhere
+        log_items = []
+        for log_data in logs_data:
+            movie = log_data.get('movie')
+            log_items.append(
+                LogListItem(
+                    id=log_data['id'],
+                    movieId=str(log_data['movieId']),
+                    movie=self._map_movie_to_response(movie),
+                    tmdbId=log_data['tmdbId'],
+                    dateWatched=log_data['dateWatched'],
+                    viewingNotes=log_data.get('viewingNotes'),
+                    posterPath=log_data.get('posterPath'),
+                    watchedWhere=log_data.get('watchedWhere')
+                )
             )
-            for log in logs
-        ]
 
         return LogListResponse(logs=log_items)

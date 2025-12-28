@@ -7,15 +7,13 @@ from bson import ObjectId
 
 
 class MovieRating(BaseEntity):
-    id: ObjectIdField(primary_key=True, default= lambda: ObjectId())
+    id: ObjectIdField(primary_key=True, default=lambda: ObjectId())
     movieId: ObjectIdField(required=True, unique=True)
     review: StringField()
     rating = IntField(min_value=1, max_value=10)
+    userId: ObjectIdField(required=True)
 
     meta = {
-        'collection': 'movie_ratings',
-        'indexes': [
-            {'fields': ['movieId'], 'unique': True},
-            {'fields': ['rating']}
-        ]
+        "collection": "movie_ratings",
+        "indexes": [{"fields": ["movieId"], "unique": True}, {"fields": ["rating"]}],
     }

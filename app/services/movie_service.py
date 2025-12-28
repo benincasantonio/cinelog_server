@@ -9,6 +9,18 @@ class MovieService:
         self.movie_repository = movie_repository
         self.tmdb_service = tmdb_service or TMDBService(api_key=os.getenv("TMDB_API_KEY"))
 
+    def get_movie_by_id(self, movie_id: str) -> Movie:
+        """
+        Find a movie by its ID.
+
+        Args:
+            movie_id: The movie ID
+
+        Returns:
+            Movie: The found movie, or None
+        """
+        return self.movie_repository.find_movie_by_id(movie_id)
+
     def find_or_create_movie(self, tmdb_id: int) -> Movie:
         """
         Find a movie by TMDB ID, or create it if it doesn't exist.

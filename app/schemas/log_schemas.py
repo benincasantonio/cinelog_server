@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from datetime import date
 
 from pydantic.v1 import validator, root_validator
+from app.schemas.movie_schemas import MovieResponse
 
 
 class LogCreateRequest(BaseModel):
@@ -27,11 +28,12 @@ class LogCreateRequest(BaseModel):
 class LogCreateResponse(BaseModel):
     id: str = Field(..., description="Unique identifier of the log entry")
     movieId: str = Field(..., description="Unique identifier of the movie")
+    movie: MovieResponse = Field(..., description="Details of the movie")
     tmdbId: int = Field(..., description="TMDB ID of the movie")
     dateWatched: date = Field(..., description="Date when the movie was watched")
-    viewingNotes: str = Field(None, description="Optional notes about this viewing")
-    posterPath: str = Field(None, description="Path to the movie poster image")
-    watchedWhere: str = Field(None, description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
+    viewingNotes: Optional[str] = Field(None, description="Optional notes about this viewing")
+    posterPath: Optional[str] = Field(None, description="Path to the movie poster image")
+    watchedWhere: Optional[str] = Field(None, description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
 
 
 class LogUpdateRequest(BaseModel):
@@ -53,11 +55,12 @@ class LogUpdateRequest(BaseModel):
 class LogListItem(BaseModel):
     id: str = Field(..., description="Unique identifier of the log entry")
     movieId: str = Field(..., description="Unique identifier of the movie")
+    movie: MovieResponse = Field(..., description="Details of the movie")
     tmdbId: int = Field(..., description="TMDB ID of the movie")
     dateWatched: date = Field(..., description="Date when the movie was watched")
-    viewingNotes: str = Field(None, description="Optional notes about this viewing")
-    posterPath: str = Field(None, description="Path to the movie poster image")
-    watchedWhere: str = Field(None, description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
+    viewingNotes: Optional[str] = Field(None, description="Optional notes about this viewing")
+    posterPath: Optional[str] = Field(None, description="Path to the movie poster image")
+    watchedWhere: Optional[str] = Field(None, description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)")
 
 
 class LogListResponse(BaseModel):
