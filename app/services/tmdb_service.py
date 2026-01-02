@@ -1,6 +1,6 @@
 import tmdbsimple as tmdb
 import requests
-from app.schemas.tmdb_schemas import TMDBMovieSearchResult
+from app.schemas.tmdb_schemas import TMDBMovieSearchResult, TMDBMovieDetails
 
 
 class TMDBService:
@@ -20,7 +20,7 @@ class TMDBService:
 
         return TMDBMovieSearchResult(**response.json())
 
-    def get_movie_details(self, tmdb_id: int) -> dict:
+    def get_movie_details(self, tmdb_id: int) -> TMDBMovieDetails:
         """
         Get full movie details from TMDB by movie ID.
 
@@ -40,4 +40,4 @@ class TMDBService:
         response = requests.get(url, headers=headers)
         response.raise_for_status()  # Raise exception for bad status codes
 
-        return response.json()
+        return TMDBMovieDetails(**response.json())
