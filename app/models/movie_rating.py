@@ -7,11 +7,11 @@ from bson import ObjectId
 
 
 class MovieRating(BaseEntity):
-    id: ObjectIdField(primary_key=True, default=lambda: ObjectId())
-    movieId: ObjectIdField(required=True, unique=True)
-    review: StringField()
+    id = ObjectIdField(primary_key=True, default=lambda: ObjectId())
+    movieId = ObjectIdField(required=True)
+    review = StringField()
     rating = IntField(min_value=1, max_value=10)
-    userId: ObjectIdField(required=True)
+    userId = ObjectIdField(required=True)
 
     meta = {
         "collection": "movie_ratings",
