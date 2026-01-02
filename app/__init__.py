@@ -32,7 +32,7 @@ mongodb_uri = os.getenv("MONGODB_URI")
 if mongodb_uri:
     mongo_client = MongoClient(mongodb_uri)
     mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
-    connect(host=mongodb_uri)
+    connect(host=mongodb_uri, db=mongodb_db)
 else:
     mongodb_host = os.getenv("MONGODB_HOST", "localhost")
     mongodb_port = int(os.getenv("MONGODB_PORT", "27017"))
