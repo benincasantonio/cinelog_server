@@ -10,9 +10,17 @@ class MovieRatingRepository:
         """
         return MovieRating.objects(userId=user_id, movieId=movie_id).first()
 
+    def find_movie_rating_by_user_and_tmdb(
+        self, user_id: str, tmdb_id: str
+    ) -> MovieRating:
+        """
+        Find a movie rating by user ID and TMDB ID.
+        """
+        return MovieRating.objects(userId=user_id, tmdbId=tmdb_id).first()
+
     @staticmethod
     def create_update_movie_rating(
-        user_id: str, movie_id: str, rating: int, comment: str
+        user_id: str, movie_id: str, rating: int, comment: str, tmdb_id: int
     ) -> MovieRating:
         """
         Create or update a movie rating for a specific user and movie.
@@ -29,7 +37,11 @@ class MovieRatingRepository:
             return existing_rating
         else:
             new_rating = MovieRating(
-                userId=user_id, movieId=movie_id, rating=rating, review=comment
+                userId=user_id,
+                movieId=movie_id,
+                rating=rating,
+                review=comment,
+                tmdbId=tmdb_id,
             )
             new_rating.save()
             return new_rating

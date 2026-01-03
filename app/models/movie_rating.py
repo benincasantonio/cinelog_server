@@ -12,8 +12,14 @@ class MovieRating(BaseEntity):
     review = StringField()
     rating = IntField(min_value=1, max_value=10)
     userId = ObjectIdField(required=True)
+    tmdbId = IntField(required=True)
 
     meta = {
         "collection": "movie_ratings",
-        "indexes": [{"fields": ["movieId"], "unique": True}, {"fields": ["rating"]}],
+        "indexes": [
+            {"fields": ["movieId"]},
+            {"fields": ["rating"]},
+            {"fields": ["tmdbId"]},
+            {"fields": ["userId", "tmdbId"], "unique": True},
+        ],
     }

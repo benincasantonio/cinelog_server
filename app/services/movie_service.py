@@ -5,9 +5,13 @@ import os
 
 
 class MovieService:
-    def __init__(self, movie_repository: MovieRepository, tmdb_service: TMDBService = None):
+    def __init__(
+        self, movie_repository: MovieRepository, tmdb_service: TMDBService = None
+    ):
         self.movie_repository = movie_repository
-        self.tmdb_service = tmdb_service or TMDBService(api_key=os.getenv("TMDB_API_KEY"))
+        self.tmdb_service = tmdb_service or TMDBService(
+            api_key=os.getenv("TMDB_API_KEY")
+        )
 
     def get_movie_by_id(self, movie_id: str) -> Movie:
         """
@@ -20,6 +24,18 @@ class MovieService:
             Movie: The found movie, or None
         """
         return self.movie_repository.find_movie_by_id(movie_id)
+
+    def get_movie_by_tmdb_id(self, tmdb_id: int) -> Movie:
+        """
+        Find a movie by its TMDB ID.
+
+        Args:
+            tmdb_id: The TMDB movie ID
+
+        Returns:
+            Movie: The found movie, or None
+        """
+        return self.movie_repository.find_movie_by_tmdb_id(tmdb_id)
 
     def find_or_create_movie(self, tmdb_id: int) -> Movie:
         """

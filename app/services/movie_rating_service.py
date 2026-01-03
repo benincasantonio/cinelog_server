@@ -23,25 +23,56 @@ class MovieRatingService:
         movie = self.movie_service.find_or_create_movie(tmdb_id=tmdbId)
 
         movie_rating = self.movie_rating_repository.create_update_movie_rating(
-            user_id, movie_id=movie.id, rating=rating, comment=comment
+            user_id, movie_id=movie.id, rating=rating, comment=comment, tmdb_id=tmdbId
         )
 
-        return MovieRatingResponse(
-            id=str(movie_rating.id),
-            userId=str(movie_rating.userId),
-            movieId=str(movie_rating.movieId),
-            tmdbId=tmdbId,
-            rating=movie_rating.rating,
-            comment=movie_rating.review,
-            createdAt=movie_rating.createdAt,
-            updatedAt=movie_rating.updatedAt,
-        )
+        return self._get_movie_rating_response(movie_rating)
 
     def get_movie_rating(self, user_id: str, movie_id: str):
         """
         Get a movie rating for a specific user and movie.
         """
 
-        return self.movie_rating_repository.find_movie_rating_by_user_and_movie(
+        movie_rating = self.movie_rating_repository.find_movie_rating_by_user_and_movie(
             user_id, movie_id=movie_id
+        )
+
+        if not movie_rating:
+            return None
+
+        return MovieRatingResponse(
+            id=str(movie_rating.id),
+            userId=str(movie_rating.userId),
+            movieId=str(movie_rating.movieId),
+            tmdbId=str(movie_rating.tmdbId),
+            rating=movie_rating.rating,
+            comment=movie_rating.review,
+            createdAt=movie_rating.createdAt,
+            updatedAt=movie_rating.updatedAt,
+        )
+
+    def get_movie_ratings_by_tmdb_id(self, user_id: str, tmdb_id: int):
+        """
+        Get all movie ratings for a specific TMDB ID.
+        """
+
+        movie_rating = self.movie_rating_repository.find_movie_rating_by_user_and_tmdb(
+            user_id, tmdb_id=tmdb_id
+        )
+
+        if not movie_rating:
+            return None
+
+        return self._get_movie_rating_response(movie_rating)
+
+    def _get_movie_rating_response(self, movie_rating) -> MovieRatingResponse:
+        return MovieRatingResponse(
+            id=str(movie_rating.id),
+            userId=str(movie_rating.userId),
+            movieId=str(movie_rating.movieId),
+            tmdbId=str(movie_rating.tmdbId),
+            rating=movie_rating.rating,
+            comment=movie_rating.review,
+            createdAt=movie_rating.createdAt,
+            updatedAt=movie_rating.updatedAt,
         )
