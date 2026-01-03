@@ -17,7 +17,9 @@ from app.utils.error_codes import ErrorCodes
 class LogService:
     """Service layer for log operations."""
 
-    def __init__(self, log_repository: LogRepository, movie_service: MovieService = None):
+    def __init__(
+        self, log_repository: LogRepository, movie_service: MovieService = None
+    ):
         self.log_repository = log_repository
         # Initialize movie service if not provided
         if movie_service is None:
@@ -38,7 +40,7 @@ class LogService:
             overview=movie.overview,
             voteAverage=movie.voteAverage,
             runtime=movie.runtime,
-            originalLanguage=movie.originalLanguage
+            originalLanguage=movie.originalLanguage,
         )
 
     def create_log(self, user_id: str, request: LogCreateRequest) -> LogCreateResponse:
@@ -58,7 +60,9 @@ class LogService:
         if not request.posterPath and movie.posterPath:
             request.posterPath = movie.posterPath
 
-        log = self.log_repository.create_log(user_id=user_id, create_log_request=request)
+        log = self.log_repository.create_log(
+            user_id=user_id, create_log_request=request
+        )
 
         return LogCreateResponse(
             id=str(log.id),
@@ -68,18 +72,22 @@ class LogService:
             dateWatched=log.dateWatched,
             viewingNotes=log.viewingNotes,
             posterPath=log.posterPath,
-            watchedWhere=log.watchedWhere
+            watchedWhere=log.watchedWhere,
         )
 
-    def update_log(self, user_id: str, log_id: str, request: LogUpdateRequest) -> LogCreateResponse:
+    def update_log(
+        self, user_id: str, log_id: str, request: LogUpdateRequest
+    ) -> LogCreateResponse:
         """
         Update an existing log entry.
         """
-        log = self.log_repository.update_log(log_id=log_id, user_id=user_id, update_request=request)
+        log = self.log_repository.update_log(
+            log_id=log_id, user_id=user_id, update_request=request
+        )
 
         if not log:
             # Log not found or doesn't belong to user
-            raise AppException(ErrorCodes.MOVIE_NOT_FOUND)  # TODO: Create LOG_NOT_FOUND error
+            raise AppException(ErrorCodes.LOG_NOT_FOUND)
 
         movie = self.movie_service.get_movie_by_id(str(log.movieId))
 
@@ -91,28 +99,31 @@ class LogService:
             dateWatched=log.dateWatched,
             viewingNotes=log.viewingNotes,
             posterPath=log.posterPath,
-            watchedWhere=log.watchedWhere
+            watchedWhere=log.watchedWhere,
         )
 
     def get_user_logs(self, user_id: str, request: LogListRequest) -> LogListResponse:
         """
         Get list of user's viewing logs with optional filtering and sorting.
         """
-        logs_data = self.log_repository.find_logs_by_user_id(user_id=user_id, request=request)
+        logs_data = self.log_repository.find_logs_by_user_id(
+            user_id=user_id, request=request
+        )
 
         log_items = []
         for log_data in logs_data:
-            movie = log_data.get('movie')
+            movie = log_data.get("movie")
             log_items.append(
                 LogListItem(
-                    id=log_data['id'],
-                    movieId=str(log_data['movieId']),
+                    id=log_data["id"],
+                    movieId=str(log_data["movieId"]),
                     movie=self._map_movie_to_response(movie),
-                    tmdbId=log_data['tmdbId'],
-                    dateWatched=log_data['dateWatched'],
-                    viewingNotes=log_data.get('viewingNotes'),
-                    posterPath=log_data.get('posterPath'),
-                    watchedWhere=log_data.get('watchedWhere')
+                    movieRating=log_data.get("movieRating"),
+                    tmdbId=log_data["tmdbId"],
+                    dateWatched=log_data["dateWatched"],
+                    viewingNotes=log_data.get("viewingNotes"),
+                    posterPath=log_data.get("posterPath"),
+                    watchedWhere=log_data.get("watchedWhere"),
                 )
             )
 

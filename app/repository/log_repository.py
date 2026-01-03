@@ -1,5 +1,6 @@
 from app.models.log import Log
 from app.models.movie import Movie
+from app.models.movie_rating import MovieRating
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest, LogListRequest
 from bson import ObjectId
 
@@ -14,7 +15,7 @@ class LogRepository:
         Create a new log entry in the database.
         """
         log_data = create_log_request.model_dump()
-        log_data['userId'] = ObjectId(user_id)
+        log_data["userId"] = ObjectId(user_id)
         log = Log(**log_data)
         log.save()
         return log
@@ -43,7 +44,9 @@ class LogRepository:
         return log
 
     @staticmethod
-    def find_logs_by_user_id(user_id: str, request: LogListRequest = None) -> list[dict]:
+    def find_logs_by_user_id(
+        user_id: str, request: LogListRequest = None
+    ) -> list[dict]:
         """
         Find all log entries for a specific user with optional filtering and sorting.
         Returns a list of dictionaries containing log data with joined movie data.
@@ -63,11 +66,15 @@ class LogRepository:
 
             # Apply sorting
             if request.sortBy:
-                sort_order = '-' + request.sortBy if request.sortOrder == 'desc' else request.sortBy
+                sort_order = (
+                    "-" + request.sortBy
+                    if request.sortOrder == "desc"
+                    else request.sortBy
+                )
                 query = query.order_by(sort_order)
         else:
             # Default sorting by date watched descending
-            query = query.order_by('-dateWatched')
+            query = query.order_by("-dateWatched")
 
         logs = list(query)
         if not logs:
@@ -77,18 +84,25 @@ class LogRepository:
         # Convert ObjectId to string for lookup if necessary, assuming Movie.id is StringField
         movie_ids = list(set([str(log.movieId) for log in logs]))
         movies = Movie.objects(id__in=movie_ids)
+        movie_ratings = MovieRating.objects(userId=user_id, movieId__in=movie_ids)
+        rating_map = {str(rating.movieId): rating.rating for rating in movie_ratings}
         movie_map = {movie.id: movie for movie in movies}
 
         result = []
         for log in logs:
             log_dict = log.to_mongo().to_dict()
             # Flatten _id
-            log_dict['id'] = str(log_dict['_id'])
+            log_dict["id"] = str(log_dict["_id"])
             # Add movie object
             movie = movie_map.get(str(log.movieId))
+
+            movieRating = rating_map.get(str(log.movieId))
+            if movieRating is not None:
+                log_dict["movieRating"] = movieRating
+
             if movie:
-                log_dict['movie'] = movie
-            
+                log_dict["movie"] = movie
+
             result.append(log_dict)
 
         return result
