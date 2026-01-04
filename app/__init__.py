@@ -9,6 +9,7 @@ import app.controllers.movie_controller as movie_controller
 import app.controllers.log_controller as log_controller
 import app.controllers.user_controller as user_controller
 import app.controllers.movie_rating_controller as movie_rating_controller
+import app.controllers.stats_controller as stats_controller
 from app.utils.exceptions import AppException
 from app.integrations.firebase import initialize_firebase_admin
 
@@ -68,6 +69,7 @@ app.include_router(user_controller.router, prefix="/v1/users", tags=["Users"])
 app.include_router(
     movie_rating_controller.router, prefix="/v1/movie-ratings", tags=["Movie Ratings"]
 )
+app.include_router(stats_controller.router, prefix="/v1/stats", tags=["Stats"])
 
 
 def create_app():
