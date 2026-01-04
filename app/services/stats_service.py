@@ -30,15 +30,8 @@ class StatsService:
 
         summary = self.compute_summary(logs)
 
-        distribution = {
-            "by_method": {
-                "cinema": 0,
-                "streaming": 0,
-                "physical_media": 0,
-                "tv": 0,
-                "other": 0,
-            }
-        }
+        distribution = self.compute_distribution(logs)
+
         pace = {"on_track_for": 0, "current_average": 0.0, "days_since_last_log": 0}
 
         return {"summary": summary, "distribution": distribution, "pace": pace}
@@ -89,3 +82,45 @@ class StatsService:
             "total_rewatches": total_rewatches,
             "total_minutes": total_minutes,
         }
+
+    def compute_distribution(self, logs: list) -> dict:
+        """
+        Compute the distribution stats from a list of log records.
+
+        Args:
+            logs: list of log dicts or objects returned by the repository
+
+        Returns:
+            dict with keys: by_method (cinema, streaming, home_video, tv, other
+
+        """
+
+        distribution = {
+            "by_method": {
+                "cinema": 0,
+                "streaming": 0,
+                "home_video": 0,
+                "tv": 0,
+                "other": 0,
+            }
+        }
+
+        for log in logs:
+            watched_where = None
+            if isinstance(log, dict):
+                watched_where = log.get("watchedWhere")
+            else:
+                watched_where = getattr(log, "watchedWhere", None)
+
+            if watched_where == "cinema":
+                distribution["by_method"]["cinema"] += 1
+            elif watched_where == "streaming":
+                distribution["by_method"]["streaming"] += 1
+            elif watched_where == "homeVideo":
+                distribution["by_method"]["home_video"] += 1
+            elif watched_where == "tv":
+                distribution["by_method"]["tv"] += 1
+            elif watched_where == "other":
+                distribution["by_method"]["other"] += 1
+
+        return distribution

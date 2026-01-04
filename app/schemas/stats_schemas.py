@@ -11,7 +11,7 @@ class Summary(BaseModel):
 class ByMethod(BaseModel):
     cinema: int
     streaming: int
-    physical_media: int
+    home_video: int
     tv: int
     other: int
 
