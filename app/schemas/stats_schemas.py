@@ -6,6 +6,7 @@ class Summary(BaseModel):
     unique_titles: int
     total_rewatches: int
     total_minutes: int
+    vote_average: float | None = None
 
 
 class ByMethod(BaseModel):

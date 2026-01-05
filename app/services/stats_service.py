@@ -52,6 +52,7 @@ class StatsService:
                 "unique_titles": 0,
                 "total_rewatches": 0,
                 "total_minutes": 0,
+                "vote_average": None,
             }
 
         total_watches = len(logs)
@@ -61,14 +62,27 @@ class StatsService:
 
         total_rewatches = max(0, total_watches - unique_titles)
 
+        votes_sum = 0
+        movie_with_votes_count = 0
+
         total_minutes = 0
         for log in logs:
             movie = log.get("movie") if isinstance(log, dict) else None
+            movie_rating: int | None = (
+                log.get("movieRating") if isinstance(log, dict) else None
+            )
             runtime = 0
             if movie:
                 runtime = getattr(movie, "runtime", 0) or 0
             else:
                 runtime = log.get("runtime", 0) if isinstance(log, dict) else 0
+
+            if movie_rating:
+                try:
+                    votes_sum += float(movie_rating)
+                    movie_with_votes_count += 1
+                except (TypeError, ValueError):
+                    pass
 
             try:
                 total_minutes += int(runtime)
@@ -81,6 +95,11 @@ class StatsService:
             "unique_titles": unique_titles,
             "total_rewatches": total_rewatches,
             "total_minutes": total_minutes,
+            "vote_average": (
+                votes_sum / movie_with_votes_count
+                if movie_with_votes_count > 0
+                else None
+            ),
         }
 
     def compute_distribution(self, logs: list) -> dict:
