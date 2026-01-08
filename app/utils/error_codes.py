@@ -3,13 +3,6 @@ from app.schemas.error_schema import ErrorSchema
 
 class ErrorCodes:
     # Authentication Errors
-    INVALID_EMAIL_OR_PASSWORD = ErrorSchema(
-        error_code_name="INVALID_EMAIL_OR_PASSWORD",
-        error_code=401,
-        error_message="Invalid email or password",
-        error_description="The email or password provided is incorrect.",
-    )
-
     HANDLE_ALREADY_TAKEN = ErrorSchema(
         error_code_name="HANDLE_ALREADY_TAKEN",
         error_code=409,

@@ -1,127 +1,104 @@
-import os
-import jwt
-from datetime import datetime, timedelta, UTC
-from unittest.mock import patch
-from freezegun import freeze_time
-from app.utils.access_token_utils import generate_access_token, is_valid_access_token
+import pytest
+from unittest.mock import patch, Mock
+from app.utils.access_token_utils import get_user_id_from_token
 
 
-class TestGenerateAccessToken:
-    """Test cases for the generate_access_token utility function."""
+class TestGetUserIdFromToken:
+    """Test cases for the get_user_id_from_token utility function."""
 
-    @patch.dict(os.environ, {"JWT_SECRET_KEY": "test_secret_key"})
-    @freeze_time("2023-10-01")
-    def test_generate_access_token_creates_valid_token(self):
-        """Test that generate_access_token creates a valid JWT token with correct payload."""
-        # Arrange
-        test_user_id = "test_user_123"
+    def test_get_user_id_no_token(self):
+        """Test that get_user_id_from_token raises ValueError for empty token."""
+        with pytest.raises(ValueError) as exc_info:
+            get_user_id_from_token(None)
+        assert "No token provided" in str(exc_info.value)
+
+    def test_get_user_id_empty_token(self):
+        """Test that get_user_id_from_token raises ValueError for empty string token."""
+        with pytest.raises(ValueError) as exc_info:
+            get_user_id_from_token("")
+        assert "No token provided" in str(exc_info.value)
+
+    @patch('app.repository.firebase_auth_repository.FirebaseAuthRepository.verify_id_token')
+    @patch('app.repository.user_repository.UserRepository.find_user_by_firebase_uid')
+    def test_get_user_id_success(self, mock_find_user, mock_verify_token):
+        """Test successful user ID extraction from token."""
+        mock_verify_token.return_value = {"uid": "firebase_uid_123"}
         
-        # Act
-        token = generate_access_token(test_user_id)
-        
-        # Assert
-        # Verify that a token is returned
-        assert token is not None
-        
-        # Decode the token to verify its contents
-        decoded_token = jwt.decode(
-            token, 
-            os.environ.get("JWT_SECRET_KEY"), 
-            algorithms=["HS256"]
-        )
-        
-        # Verify the user_id is in the token
-        assert decoded_token["sub"] == test_user_id
-        # Verify the expiration time
-        assert "exp" in decoded_token
-        # Verify the expiration time is set to 1 hour from now
-        expected_expiration = datetime.utcnow() + timedelta(hours=1)
-        assert decoded_token["exp"] == int(expected_expiration.timestamp())
-        
-    @patch.dict(os.environ, {"JWT_SECRET_KEY": "test_secret_key"})
-    @freeze_time("2023-10-01")
-    def test_token_expiration(self):
-        """Test that the token expires after the set time."""
-        # Arrange
-        test_user_id = "test_user_456"
-        
-        # Act
-        token = generate_access_token(test_user_id)
-        decoded_token = jwt.decode(
-            token, 
-            os.environ.get("JWT_SECRET_KEY"), 
-            algorithms=["HS256"]
-        )
-        
-        # Assert
-        # Verify the token has an expiration time
-        assert "exp" in decoded_token
-        # Verify the expiration time is set to 1 hour from now
-        expected_expiration = datetime.now(UTC) + timedelta(hours=1)
-        assert decoded_token["exp"] == int(expected_expiration.timestamp())
+        mock_user = Mock()
+        mock_user.id = Mock()
+        mock_user.id.__str__ = Mock(return_value="user123")
+        mock_find_user.return_value = mock_user
 
+        result = get_user_id_from_token("Bearer valid_token")
 
-class TestIsValidAccessToken:
-    """Test cases for the is_valid_access_token utility function."""
+        assert result == "user123"
+        mock_verify_token.assert_called_once_with("valid_token", check_revoked=True)
 
-    @patch.dict(os.environ, {"JWT_SECRET_KEY": "test_secret_key"})
-    def test_is_valid_access_token_valid_token(self):
-        """Test that is_valid_access_token returns True for a valid token."""
-        # Arrange
-        test_user_id = "test_user"
-        token = generate_access_token(test_user_id)
+    @patch('app.repository.firebase_auth_repository.FirebaseAuthRepository.verify_id_token')
+    @patch('app.repository.user_repository.UserRepository.find_user_by_firebase_uid')
+    def test_get_user_id_user_not_found(self, mock_find_user, mock_verify_token):
+        """Test get_user_id_from_token when user is not found in DB."""
+        mock_verify_token.return_value = {"uid": "firebase_uid_123"}
+        mock_find_user.return_value = None
 
-        is_valid = is_valid_access_token(token)
+        with pytest.raises(ValueError) as exc_info:
+            get_user_id_from_token("valid_token")
+        assert "User not found" in str(exc_info.value)
 
-        assert is_valid is True
+    @patch('app.repository.firebase_auth_repository.FirebaseAuthRepository.verify_id_token')
+    def test_get_user_id_no_uid_in_token(self, mock_verify_token):
+        """Test get_user_id_from_token when token has no UID."""
+        mock_verify_token.return_value = {}  # No uid
 
-    @patch.dict(os.environ, {"JWT_SECRET_KEY": "test_secret_key"})
-    def test_is_valid_with_empty_token(self):
-        """Test that is_valid_access_token returns False for an empty token."""
-        token = ""
+        with pytest.raises(ValueError) as exc_info:
+            get_user_id_from_token("valid_token")
+        assert "Token does not contain Firebase UID" in str(exc_info.value)
 
-        is_valid = is_valid_access_token(token)
+    @patch('app.repository.firebase_auth_repository.FirebaseAuthRepository.verify_id_token')
+    def test_get_user_id_invalid_token(self, mock_verify_token):
+        """Test get_user_id_from_token with invalid token."""
+        from firebase_admin import auth
+        mock_verify_token.side_effect = auth.InvalidIdTokenError("Invalid token")
 
-        assert is_valid is False
+        with pytest.raises(ValueError) as exc_info:
+            get_user_id_from_token("invalid_token")
+        assert "Invalid token" in str(exc_info.value)
 
-    @patch.dict(os.environ, {"JWT_SECRET_KEY": "test_secret_key"})
-    def test_is_valid_with_invalid_token(self):
-        """Test that is_valid_access_token returns False for an invalid token."""
+    @patch('app.repository.firebase_auth_repository.FirebaseAuthRepository.verify_id_token')
+    def test_get_user_id_expired_token(self, mock_verify_token):
+        """Test get_user_id_from_token with expired token."""
+        from firebase_admin import auth
+        mock_verify_token.side_effect = auth.ExpiredIdTokenError("Token expired", None)
 
-        expiration = datetime.now(UTC) + timedelta(hours=1)
-        payload = {
-            "sub": 'test_user_id',
-            "exp": expiration
-        }
+        with pytest.raises(ValueError) as exc_info:
+            get_user_id_from_token("expired_token")
+        assert "Token has expired" in str(exc_info.value)
 
-        token = jwt.encode(payload, 'CIAO', algorithm="HS256")
+    @patch('app.repository.firebase_auth_repository.FirebaseAuthRepository.verify_id_token')
+    def test_get_user_id_revoked_token(self, mock_verify_token):
+        """Test get_user_id_from_token with revoked token."""
+        from firebase_admin import auth
+        mock_verify_token.side_effect = auth.RevokedIdTokenError("Token revoked")
 
-        is_valid = is_valid_access_token(token)
+        with pytest.raises(ValueError) as exc_info:
+            get_user_id_from_token("revoked_token")
+        assert "Token has been revoked" in str(exc_info.value)
 
-        assert is_valid is False
+    @patch('app.repository.firebase_auth_repository.FirebaseAuthRepository.verify_id_token')
+    def test_get_user_id_disabled_user(self, mock_verify_token):
+        """Test get_user_id_from_token when user is disabled."""
+        from firebase_admin import auth
+        mock_verify_token.side_effect = auth.UserDisabledError("User disabled")
 
-    @patch.dict(os.environ, {"JWT_SECRET_KEY": "test_secret_key"})
-    def test_is_valid_with_expired_token(self):
-        """Test that is_valid_access_token returns False for an expired token."""
+        with pytest.raises(ValueError) as exc_info:
+            get_user_id_from_token("valid_token")
+        assert "User account is disabled" in str(exc_info.value)
 
-        test_user_id = "test_user"
-        with freeze_time("2023-10-01"):
-            token = generate_access_token(test_user_id)
+    @patch('app.repository.firebase_auth_repository.FirebaseAuthRepository.verify_id_token')
+    def test_get_user_id_general_exception(self, mock_verify_token):
+        """Test get_user_id_from_token with general exception."""
+        mock_verify_token.side_effect = Exception("Some error")
 
-        with freeze_time("2023-10-02"):
-            is_valid = is_valid_access_token(token)
-
-        assert is_valid is False
-
-
-    def test_if_secret_token_is_not_set(self):
-        """Test that is_valid_access_token raises an error if the secret key is not set."""
-
-        token = "some_invalid_token"
-
-        try:
-            is_valid_access_token(token)
-        except ValueError as e:
-            assert str(e) == "JWT_SECRET_KEY environment variable is not set."
-
-
+        with pytest.raises(ValueError) as exc_info:
+            get_user_id_from_token("valid_token")
+        assert "Token validation failed" in str(exc_info.value)
