@@ -165,3 +165,51 @@ class TestMovieRatingController:
         """Test getting movie rating without authentication."""
         response = client.get("/v1/movie-ratings/550")
         assert response.status_code == 401
+
+    @patch('app.controllers.movie_rating_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_create_movie_rating_token_extraction_error(
+        self,
+        mock_verify_token,
+        mock_get_user_id,
+        client,
+        mock_auth_token
+    ):
+        """Test create movie rating returns 401 when token extraction fails."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_get_user_id.side_effect = ValueError("Invalid token")
+
+        response = client.post(
+            "/v1/movie-ratings/",
+            json={
+                "tmdbId": "550",
+                "rating": 8,
+                "comment": "Great movie!"
+            },
+            headers={"Authorization": mock_auth_token}
+        )
+
+        assert response.status_code == 401
+        assert "Invalid token" in response.json()["detail"]
+
+    @patch('app.controllers.movie_rating_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_get_movie_rating_token_extraction_error(
+        self,
+        mock_verify_token,
+        mock_get_user_id,
+        client,
+        mock_auth_token
+    ):
+        """Test get movie rating returns 401 when token extraction fails (no user_id param)."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_get_user_id.side_effect = ValueError("Invalid token")
+
+        response = client.get(
+            "/v1/movie-ratings/550",
+            headers={"Authorization": mock_auth_token}
+        )
+
+        assert response.status_code == 401
+        assert "Invalid token" in response.json()["detail"]
+

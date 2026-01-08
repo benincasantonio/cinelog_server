@@ -276,3 +276,76 @@ class TestGetLogs:
         response = client.get("/v1/logs/")
 
         assert response.status_code == 401
+
+    @patch('app.controllers.log_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_get_logs_token_extraction_error(
+        self,
+        mock_verify_token,
+        mock_get_user_id,
+        client,
+        mock_auth_token
+    ):
+        """Test get logs returns 401 when token extraction fails."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_get_user_id.side_effect = ValueError("Invalid token")
+
+        response = client.get(
+            "/v1/logs/",
+            headers={"Authorization": mock_auth_token}
+        )
+
+        assert response.status_code == 401
+        assert "Invalid token" in response.json()["detail"]
+
+
+class TestLogControllerTokenErrors:
+    """Tests for token extraction errors in log controller."""
+
+    @patch('app.controllers.log_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_create_log_token_extraction_error(
+        self,
+        mock_verify_token,
+        mock_get_user_id,
+        client,
+        mock_auth_token,
+        sample_log_create_request
+    ):
+        """Test create log returns 401 when token extraction fails."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_get_user_id.side_effect = ValueError("Invalid token")
+
+        response = client.post(
+            "/v1/logs/",
+            json=sample_log_create_request,
+            headers={"Authorization": mock_auth_token}
+        )
+
+        assert response.status_code == 401
+        assert "Invalid token" in response.json()["detail"]
+
+    @patch('app.controllers.log_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_update_log_token_extraction_error(
+        self,
+        mock_verify_token,
+        mock_get_user_id,
+        client,
+        mock_auth_token
+    ):
+        """Test update log returns 401 when token extraction fails."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_get_user_id.side_effect = ValueError("Invalid token")
+
+        update_request = {"viewingNotes": "Updated notes"}
+
+        response = client.put(
+            "/v1/logs/log123",
+            json=update_request,
+            headers={"Authorization": mock_auth_token}
+        )
+
+        assert response.status_code == 401
+        assert "Invalid token" in response.json()["detail"]
+
