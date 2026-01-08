@@ -24,13 +24,13 @@ def auth_dependency(request: Request) -> bool:
     except ValueError:
         # Firebase not initialized
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except auth.InvalidIdTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
     except auth.ExpiredIdTokenError:
         raise HTTPException(status_code=401, detail="Token expired")
     except auth.RevokedIdTokenError:
         raise HTTPException(status_code=401, detail="Token revoked")
     except auth.UserDisabledError:
         raise HTTPException(status_code=401, detail="User account is disabled")
+    except auth.InvalidIdTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
     except Exception:
         raise HTTPException(status_code=401, detail="Unauthorized")

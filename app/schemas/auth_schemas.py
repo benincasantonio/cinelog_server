@@ -32,3 +32,15 @@ class RegisterResponse(BaseModel):
     email: EmailStr = Field(..., description="User's email address")
     handle: str = Field(..., description="User's unique handle")
     bio: Optional[str] = Field(None, description="User biography")
+
+
+class LoginRequest(BaseModel):
+    """Schema for user login request"""
+
+    emailOrHandle: str = Field(
+        ..., min_length=1, description="User's email address or handle"
+    )
+    password: str = Field(
+        ..., min_length=1, description="User's password"
+    )
+

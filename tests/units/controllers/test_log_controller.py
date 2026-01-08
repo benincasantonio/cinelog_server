@@ -11,6 +11,7 @@ from app.schemas.log_schemas import (
     LogListResponse,
     LogListItem
 )
+from app.schemas.movie_schemas import MovieResponse
 
 
 @pytest.fixture
@@ -29,7 +30,7 @@ def mock_auth_token():
 def sample_log_create_request():
     """Sample log creation request."""
     return {
-        "movieId": "movie123",
+        "movieId": "507f1f77bcf86cd799439011",
         "tmdbId": 550,
         "dateWatched": "2024-01-15",
         "viewingNotes": "Amazing film!",
@@ -39,11 +40,28 @@ def sample_log_create_request():
 
 
 @pytest.fixture
-def sample_log_response():
+def sample_movie_response():
+    """Sample movie response for log responses."""
+    return MovieResponse(
+        id="507f1f77bcf86cd799439011",
+        title="Fight Club",
+        tmdbId=550,
+        posterPath="/path/to/poster.jpg",
+        releaseDate=None,
+        overview="A description",
+        voteAverage=8.5,
+        runtime=139,
+        originalLanguage="en",
+    )
+
+
+@pytest.fixture
+def sample_log_response(sample_movie_response):
     """Sample log response."""
     return LogCreateResponse(
         id="log123",
-        movieId="movie123",
+        movieId="507f1f77bcf86cd799439011",
+        movie=sample_movie_response,
         tmdbId=550,
         dateWatched=date(2024, 1, 15),
         viewingNotes="Amazing film!",
@@ -53,24 +71,22 @@ def sample_log_response():
 
 
 @pytest.fixture
-def sample_log_list_response():
+def sample_log_list_response(sample_movie_response):
     """Sample log list response."""
     return LogListResponse(
         logs=[
             LogListItem(
                 id="log123",
-                movieId="movie123",
+                movieId="507f1f77bcf86cd799439011",
+                movie=sample_movie_response,
                 tmdbId=550,
                 dateWatched=date(2024, 1, 15),
                 viewingNotes="Amazing film!",
                 posterPath="/path/to/poster.jpg",
                 watchedWhere="cinema",
-                timeWatched=7200
+                movieRating=8
             )
         ],
-        totalCount=1,
-        page=1,
-        pageSize=10
     )
 
 
@@ -79,8 +95,10 @@ class TestCreateLog:
 
     @patch('app.controllers.log_controller.log_service.create_log')
     @patch('app.controllers.log_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_create_log_success(
         self,
+        mock_verify_token,
         mock_get_user_id,
         mock_create_log,
         client,
@@ -89,6 +107,7 @@ class TestCreateLog:
         sample_log_response
     ):
         """Test successful log creation."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
         mock_get_user_id.return_value = "user123"
         mock_create_log.return_value = sample_log_response
 
@@ -101,7 +120,7 @@ class TestCreateLog:
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == "log123"
-        assert data["movieId"] == "movie123"
+        assert data["movieId"] == "507f1f77bcf86cd799439011"
         assert data["tmdbId"] == 550
         assert data["watchedWhere"] == "cinema"
         mock_create_log.assert_called_once()
@@ -115,18 +134,21 @@ class TestCreateLog:
 
         assert response.status_code == 401
 
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     @patch('app.controllers.log_controller.get_user_id_from_token')
     def test_create_log_invalid_watched_where(
         self,
         mock_get_user_id,
+        mock_verify_token,
         client,
         mock_auth_token
     ):
         """Test log creation with invalid watchedWhere value."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
         mock_get_user_id.return_value = "user123"
 
         invalid_request = {
-            "movieId": "movie123",
+            "movieId": "507f1f77bcf86cd799439011",
             "tmdbId": 550,
             "dateWatched": "2024-01-15",
             "watchedWhere": "invalid_location"
@@ -146,8 +168,10 @@ class TestUpdateLog:
 
     @patch('app.controllers.log_controller.log_service.update_log')
     @patch('app.controllers.log_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_update_log_success(
         self,
+        mock_verify_token,
         mock_get_user_id,
         mock_update_log,
         client,
@@ -155,6 +179,7 @@ class TestUpdateLog:
         sample_log_response
     ):
         """Test successful log update."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
         mock_get_user_id.return_value = "user123"
         mock_update_log.return_value = sample_log_response
 
@@ -193,8 +218,10 @@ class TestGetLogs:
 
     @patch('app.controllers.log_controller.log_service.get_user_logs')
     @patch('app.controllers.log_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_get_logs_success(
         self,
+        mock_verify_token,
         mock_get_user_id,
         mock_get_logs,
         client,
@@ -202,6 +229,7 @@ class TestGetLogs:
         sample_log_list_response
     ):
         """Test successful log list retrieval."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
         mock_get_user_id.return_value = "user123"
         mock_get_logs.return_value = sample_log_list_response
 
@@ -212,16 +240,16 @@ class TestGetLogs:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["totalCount"] == 1
-        assert data["page"] == 1
         assert len(data["logs"]) == 1
         assert data["logs"][0]["id"] == "log123"
         mock_get_logs.assert_called_once()
 
     @patch('app.controllers.log_controller.log_service.get_user_logs')
     @patch('app.controllers.log_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_get_logs_with_filters(
         self,
+        mock_verify_token,
         mock_get_user_id,
         mock_get_logs,
         client,
@@ -229,17 +257,18 @@ class TestGetLogs:
         sample_log_list_response
     ):
         """Test log list retrieval with filters."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
         mock_get_user_id.return_value = "user123"
         mock_get_logs.return_value = sample_log_list_response
 
         response = client.get(
-            "/v1/logs/?page=1&pageSize=20&sortBy=dateWatched&sortOrder=asc&watchedWhere=cinema",
+            "/v1/logs/?sortBy=dateWatched&sortOrder=asc&watchedWhere=cinema",
             headers={"Authorization": mock_auth_token}
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["totalCount"] == 1
+        assert len(data["logs"]) == 1
         mock_get_logs.assert_called_once()
 
     def test_get_logs_unauthorized(self, client):

@@ -25,7 +25,6 @@ def test_user_creation():
         firstName="John",
         lastName="Doe",
         email="john.doe@example.com",
-        password="securepassword",
         dateOfBirth="1990-01-01",
         handle="johndoe"
     )
@@ -37,7 +36,6 @@ def test_required_fields():
     user = User(
         lastName="Doe",
         email="john.doe@example.com",
-        password="securepassword",
         dateOfBirth="1990-01-01",
         handle="johndoe"
     ) 
@@ -50,7 +48,6 @@ def test_email_uniqueness():
         firstName="John",
         lastName="Doe",
         email="john.doe@example.com",
-        password="securepassword",
         dateOfBirth="1990-01-01",
         handle="johndoe"
     )
@@ -60,7 +57,6 @@ def test_email_uniqueness():
         firstName="Jane",
         lastName="Smith",
         email="john.doe@example.com",
-        password="anotherpassword",
         dateOfBirth="1992-02-02",
         handle="janesmith"
     )
@@ -72,7 +68,6 @@ def test_handle_uniqueness():
         firstName="John",
         lastName="Doe",
         email="john.doe@example.com",
-        password="securepassword",
         dateOfBirth="1990-01-01",
         handle="johndoe"
     )
@@ -83,7 +78,6 @@ def test_handle_uniqueness():
         firstName="Jane",
         lastName="Smith",
         email="jane@example.com",
-        password="anotherpassword",
         dateOfBirth="1992-02-02",
         handle="johndoe"
     )
@@ -97,7 +91,6 @@ def test_created_at_field():
         firstName="John",
         lastName="Doe",
         email="john.doe@example.com",
-        password="securepassword",
         dateOfBirth="1990-01-01",
         handle="johndoe"
     )
@@ -111,7 +104,6 @@ def test_object_id_field():
         firstName="John",
         lastName="Doe",
         email="john.doe@example.com",
-        password="securepassword",
         dateOfBirth="1990-01-01",
         handle="johndoe"
     )
