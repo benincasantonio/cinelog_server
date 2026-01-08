@@ -235,3 +235,98 @@ class TestLogRepository:
         assert logs[0]['watchedWhere'] == log2.watched_where
         assert logs[0]['viewingNotes'] == log2.viewing_notes
         assert logs[0]['tmdbId'] == log2.tmdb_id
+
+    def test_find_log_by_id_not_found(self, user_id: str):
+        """Test find_log_by_id returns None when log not found."""
+        non_existent_id = str(ObjectId())
+        
+        result = self.log_repository.find_log_by_id(non_existent_id, user_id)
+        
+        assert result is None
+
+    def test_find_log_by_id_success(self, movie_create_request: LogCreateRequest, user_id: str):
+        """Test find_log_by_id returns log when found."""
+        log = self.log_repository.create_log(user_id, movie_create_request)
+        
+        result = self.log_repository.find_log_by_id(str(log.id), user_id)
+        
+        assert result is not None
+        assert result.id == log.id
+
+    def test_update_log_not_found(self, user_id: str):
+        """Test update_log returns None when log not found."""
+        from app.schemas.log_schemas import LogUpdateRequest
+        
+        non_existent_id = str(ObjectId())
+        update_request = LogUpdateRequest(viewing_notes="Updated notes")
+        
+        result = self.log_repository.update_log(non_existent_id, user_id, update_request)
+        
+        assert result is None
+
+    def test_update_log_success(self, movie_create_request: LogCreateRequest, user_id: str):
+        """Test update_log updates log successfully."""
+        from app.schemas.log_schemas import LogUpdateRequest
+        
+        log = self.log_repository.create_log(user_id, movie_create_request)
+        update_request = LogUpdateRequest(viewing_notes="Updated notes", watched_where="streaming")
+        
+        result = self.log_repository.update_log(str(log.id), user_id, update_request)
+        
+        assert result is not None
+        assert result.viewing_notes == "Updated notes"
+        assert result.watched_where == "streaming"
+
+    def test_delete_log_not_found(self, user_id: str):
+        """Test delete_log returns False when log not found."""
+        non_existent_id = str(ObjectId())
+        
+        result = self.log_repository.delete_log(non_existent_id, user_id)
+        
+        assert result is False
+
+    def test_delete_log_success(self, movie_create_request: LogCreateRequest, user_id: str):
+        """Test delete_log marks log as deleted."""
+        log = self.log_repository.create_log(user_id, movie_create_request)
+        
+        result = self.log_repository.delete_log(str(log.id), user_id)
+        
+        assert result is True
+        # Verify the log is marked as deleted
+        updated_log = Log.objects(id=log.id).first()
+        assert updated_log.deleted is True
+
+    def test_find_logs_by_user_id_empty(self, user_id: str):
+        """Test find_logs_by_user_id returns empty list when no logs exist."""
+        log_list_request = LogListRequest(
+            sort_by="dateWatched",
+            sort_order="desc"
+        )
+        
+        logs = self.log_repository.find_logs_by_user_id(user_id, log_list_request)
+        
+        assert logs == []
+
+    def test_find_logs_by_user_id_without_request(self, movie_create_request: LogCreateRequest, user_id: str):
+        """Test find_logs_by_user_id with no request parameter uses defaults."""
+        log = self.log_repository.create_log(user_id, movie_create_request)
+        
+        # Call without request parameter
+        logs = self.log_repository.find_logs_by_user_id(user_id)
+        
+        assert len(logs) == 1
+        assert logs[0]['id'] == str(log.id)
+
+    def test_find_logs_by_movie_id_with_user_filter(self, movie_create_request: LogCreateRequest, user_id: str):
+        """Test find_logs_by_movie_id with user_id filter."""
+        log = self.log_repository.create_log(user_id, movie_create_request)
+        other_user_id = str(ObjectId())
+        
+        # With matching user_id
+        logs = self.log_repository.find_logs_by_movie_id(movie_create_request.movie_id, user_id)
+        assert len(logs) == 1
+        
+        # With non-matching user_id
+        logs = self.log_repository.find_logs_by_movie_id(movie_create_request.movie_id, other_user_id)
+        assert len(logs) == 0
+

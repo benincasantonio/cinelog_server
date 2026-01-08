@@ -118,3 +118,77 @@ class TestAuthService:
                 auth_service.register(register_request)
             
             assert str(exc_info.value) == "Firebase Admin SDK is not initialized"
+
+    @patch('app.services.auth_service.is_firebase_initialized', return_value=True)
+    def test_register_firebase_email_already_exists(self, mock_is_firebase_init, auth_service, mock_user_repository, mock_firebase_auth_repository, register_request):
+        """Test register raises AppException when Firebase reports email already exists."""
+        from firebase_admin import auth
+        
+        # Arrange
+        mock_user_repository.find_user_by_email.return_value = None
+        mock_user_repository.find_user_by_handle.return_value = None
+        mock_firebase_auth_repository.create_user.side_effect = auth.EmailAlreadyExistsError(
+            message="Email already exists",
+            cause=None,
+            http_response=None
+        )
+        
+        # Act & Assert
+        with pytest.raises(AppException) as exc_info:
+            auth_service.register(register_request)
+        
+        assert exc_info.value.error.error_code_name == ErrorCodes.EMAIL_ALREADY_EXISTS.error_code_name
+
+    @patch('app.services.auth_service.is_firebase_initialized', return_value=True)
+    def test_register_firebase_generic_exception(self, mock_is_firebase_init, auth_service, mock_user_repository, mock_firebase_auth_repository, register_request):
+        """Test register raises AppException when Firebase throws generic exception."""
+        # Arrange
+        mock_user_repository.find_user_by_email.return_value = None
+        mock_user_repository.find_user_by_handle.return_value = None
+        mock_firebase_auth_repository.create_user.side_effect = Exception("Firebase error")
+        
+        # Act & Assert
+        with pytest.raises(AppException) as exc_info:
+            auth_service.register(register_request)
+        
+        assert exc_info.value.error.error_code_name == ErrorCodes.ERROR_CREATING_USER.error_code_name
+
+    @patch('app.services.auth_service.is_firebase_initialized', return_value=True)
+    def test_register_mongodb_failure_triggers_firebase_rollback(self, mock_is_firebase_init, auth_service, mock_user_repository, mock_firebase_auth_repository, register_request):
+        """Test register rolls back Firebase user when MongoDB creation fails."""
+        # Arrange
+        mock_firebase_user = Mock()
+        mock_firebase_user.uid = "firebase_test_uid"
+        
+        mock_user_repository.find_user_by_email.return_value = None
+        mock_user_repository.find_user_by_handle.return_value = None
+        mock_firebase_auth_repository.create_user.return_value = mock_firebase_user
+        mock_user_repository.create_user.side_effect = Exception("MongoDB error")
+        
+        # Act & Assert
+        with pytest.raises(AppException) as exc_info:
+            auth_service.register(register_request)
+        
+        assert exc_info.value.error.error_code_name == ErrorCodes.ERROR_CREATING_USER.error_code_name
+        # Verify rollback was attempted
+        mock_firebase_auth_repository.delete_user.assert_called_once_with("firebase_test_uid")
+
+    @patch('app.services.auth_service.is_firebase_initialized', return_value=True)
+    def test_register_mongodb_failure_rollback_also_fails(self, mock_is_firebase_init, auth_service, mock_user_repository, mock_firebase_auth_repository, register_request):
+        """Test register handles rollback failure gracefully."""
+        # Arrange
+        mock_firebase_user = Mock()
+        mock_firebase_user.uid = "firebase_test_uid"
+        
+        mock_user_repository.find_user_by_email.return_value = None
+        mock_user_repository.find_user_by_handle.return_value = None
+        mock_firebase_auth_repository.create_user.return_value = mock_firebase_user
+        mock_user_repository.create_user.side_effect = Exception("MongoDB error")
+        mock_firebase_auth_repository.delete_user.side_effect = Exception("Rollback failed")
+        
+        # Act & Assert - Should still raise the original error, not the rollback error
+        with pytest.raises(AppException) as exc_info:
+            auth_service.register(register_request)
+        
+        assert exc_info.value.error.error_code_name == ErrorCodes.ERROR_CREATING_USER.error_code_name
+

@@ -67,3 +67,52 @@ class TestAuthDependency:
 
             assert exc_info.value.status_code == 401
             assert exc_info.value.detail == "Token revoked"
+
+    def test_when_firebase_not_initialized(self):
+        """Test that auth_dependency raises HTTPException when Firebase is not initialized."""
+
+        mock_request = Mock()
+        mock_request.headers = {"Authorization": "Bearer valid_token"}
+
+        with patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token', side_effect=ValueError("Firebase not initialized")):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_dependency(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Unauthorized"
+
+    def test_when_user_is_disabled(self):
+        """Test that auth_dependency raises HTTPException when user account is disabled."""
+
+        mock_request = Mock()
+        mock_request.headers = {"Authorization": "Bearer valid_token"}
+
+        with patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token', side_effect=auth.UserDisabledError("User disabled")):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_dependency(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "User account is disabled"
+
+    def test_when_generic_exception_occurs(self):
+        """Test that auth_dependency raises HTTPException on generic exception."""
+
+        mock_request = Mock()
+        mock_request.headers = {"Authorization": "Bearer valid_token"}
+
+        with patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token', side_effect=Exception("Some error")):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_dependency(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Unauthorized"
+
+    def test_when_token_without_bearer_prefix(self):
+        """Test that auth_dependency works with token without Bearer prefix."""
+
+        mock_request = Mock()
+        mock_request.headers = {"Authorization": "raw_token_without_bearer"}
+
+        with patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token', return_value={"uid": "test_uid"}):
+            result = auth_dependency(mock_request)
+            assert result is True

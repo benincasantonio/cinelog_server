@@ -100,3 +100,50 @@ class TestMovieController:
         """Test getting movie details without authentication."""
         response = client.get("/v1/movies/550")
         assert response.status_code == 401
+
+    @patch('app.controllers.movie_controller.tmdb_service.search_movie')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_search_movies_app_exception(
+        self,
+        mock_verify_token,
+        mock_search,
+        client,
+        mock_auth_token
+    ):
+        """Test search movies re-raises AppException."""
+        from app.utils.exceptions import AppException
+        from app.utils.error_codes import ErrorCodes
+        
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_search.side_effect = AppException(ErrorCodes.MOVIE_NOT_FOUND)
+
+        response = client.get(
+            "/v1/movies/search?query=NonExistent",
+            headers={"Authorization": mock_auth_token}
+        )
+
+        assert response.status_code == ErrorCodes.MOVIE_NOT_FOUND.error_code
+
+    @patch('app.controllers.movie_controller.tmdb_service.get_movie_details')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_get_movie_details_app_exception(
+        self,
+        mock_verify_token,
+        mock_get_details,
+        client,
+        mock_auth_token
+    ):
+        """Test get movie details re-raises AppException."""
+        from app.utils.exceptions import AppException
+        from app.utils.error_codes import ErrorCodes
+        
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_get_details.side_effect = AppException(ErrorCodes.MOVIE_NOT_FOUND)
+
+        response = client.get(
+            "/v1/movies/999999",
+            headers={"Authorization": mock_auth_token}
+        )
+
+        assert response.status_code == ErrorCodes.MOVIE_NOT_FOUND.error_code
+

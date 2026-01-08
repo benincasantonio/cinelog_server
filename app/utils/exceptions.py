@@ -6,4 +6,4 @@ class AppException(Exception):
         self.error = error
         super().__init__(error.error_message)
     def __str__(self):
-        return {self.error.error_code_name}
+        return self.error.error_code_name

@@ -131,3 +131,76 @@ class TestStatsController:
         """Test stats without authentication."""
         response = client.get("/v1/stats/me")
         assert response.status_code == 401
+
+    @patch('app.controllers.stats_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_get_my_stats_token_extraction_error(
+        self,
+        mock_verify_token,
+        mock_get_user_id,
+        client,
+        mock_auth_token
+    ):
+        """Test stats returns 401 when token extraction fails."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_get_user_id.side_effect = ValueError("Invalid token")
+
+        response = client.get(
+            "/v1/stats/me",
+            headers={"Authorization": mock_auth_token}
+        )
+
+        assert response.status_code == 401
+        assert "Invalid token" in response.json()["detail"]
+
+    @patch('app.controllers.stats_controller.stats_service.get_user_stats')
+    @patch('app.controllers.stats_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_get_my_stats_not_implemented(
+        self,
+        mock_verify_token,
+        mock_get_user_id,
+        mock_get_stats,
+        client,
+        mock_auth_token
+    ):
+        """Test stats returns 501 when NotImplementedError is raised."""
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_get_user_id.return_value = "user123"
+        mock_get_stats.side_effect = NotImplementedError("Stats not implemented")
+
+        response = client.get(
+            "/v1/stats/me",
+            headers={"Authorization": mock_auth_token}
+        )
+
+        assert response.status_code == 501
+        assert "Stats endpoint not implemented yet" in response.json()["detail"]
+
+    @patch('app.controllers.stats_controller.stats_service.get_user_stats')
+    @patch('app.controllers.stats_controller.get_user_id_from_token')
+    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
+    def test_get_my_stats_app_exception(
+        self,
+        mock_verify_token,
+        mock_get_user_id,
+        mock_get_stats,
+        client,
+        mock_auth_token
+    ):
+        """Test stats re-raises AppException."""
+        from app.utils.exceptions import AppException
+        from app.utils.error_codes import ErrorCodes
+        
+        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        mock_get_user_id.return_value = "user123"
+        mock_get_stats.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
+
+        response = client.get(
+            "/v1/stats/me",
+            headers={"Authorization": mock_auth_token}
+        )
+
+        # AppException returns its own error code
+        assert response.status_code == ErrorCodes.USER_NOT_FOUND.error_code
+
