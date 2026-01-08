@@ -38,23 +38,23 @@ class TestLogRepository:
     @pytest.fixture
     def movie_create_request(self) -> LogCreateRequest:
         return LogCreateRequest(
-            movieId='507f1f77bcf86cd799439011',
-            watchedWhere='cinema',
-            dateWatched=datetime(2023, 10, 1, tzinfo=UTC).date(),
-            viewingNotes="Great movie!",
-            tmdbId=111111,
-            posterPath='/path/to/poster.jpg',
+            movie_id='507f1f77bcf86cd799439011',
+            watched_where='cinema',
+            date_watched=datetime(2023, 10, 1, tzinfo=UTC).date(),
+            viewing_notes="Great movie!",
+            tmdb_id=111111,
+            poster_path='/path/to/poster.jpg',
     )
 
     @pytest.fixture
     def movie_create_second_request_same_movie(self) -> LogCreateRequest:
         return LogCreateRequest(
-            movieId='507f1f77bcf86cd799439011',
-            watchedWhere='streaming',
-            dateWatched=datetime(2023, 10, 2, tzinfo=UTC).date(),
-            viewingNotes="Enjoyed it again!",
-            tmdbId=111111,
-            posterPath='/path/to/poster.jpg',
+            movie_id='507f1f77bcf86cd799439011',
+            watched_where='streaming',
+            date_watched=datetime(2023, 10, 2, tzinfo=UTC).date(),
+            viewing_notes="Enjoyed it again!",
+            tmdb_id=111111,
+            poster_path='/path/to/poster.jpg',
     )
 
     def test_log_creation(self, movie_create_request: LogCreateRequest, user_id: str):
@@ -63,15 +63,15 @@ class TestLogRepository:
         # Assertions
         assert log is not None
         assert log.id is not None
-        assert isinstance(log.movieId, ObjectId)
-        assert log.movieId.__str__() == movie_create_request.movieId
-        assert log.watchedWhere == movie_create_request.watchedWhere
+        assert isinstance(log.movie_id, ObjectId)
+        assert log.movie_id.__str__() == movie_create_request.movie_id
+        assert log.watched_where == movie_create_request.watched_where
         # Handle both datetime and date objects
-        log_date = log.dateWatched.date() if hasattr(log.dateWatched, 'date') else log.dateWatched
-        assert log_date == movie_create_request.dateWatched
-        assert log.viewingNotes == movie_create_request.viewingNotes
-        assert log.tmdbId == movie_create_request.tmdbId
-        assert log.posterPath == movie_create_request.posterPath
+        log_date = log.date_watched.date() if hasattr(log.date_watched, 'date') else log.date_watched
+        assert log_date == movie_create_request.date_watched
+        assert log.viewing_notes == movie_create_request.viewing_notes
+        assert log.tmdb_id == movie_create_request.tmdb_id
+        assert log.poster_path == movie_create_request.poster_path
         assert Log.objects.count() == 1
 
 
@@ -79,17 +79,17 @@ class TestLogRepository:
         # This test validates that Pydantic rejects invalid watchedWhere values
         with pytest.raises(Exception):  # Pydantic ValidationError
             LogCreateRequest(
-                movieId='507f1f77bcf86cd799439011',
-                watchedWhere='unknown',  # Invalid value
-                dateWatched=datetime(2023, 10, 1, tzinfo=UTC).date(),
-                tmdbId=111111,
+                movie_id='507f1f77bcf86cd799439011',
+                watched_where='unknown',  # Invalid value
+                date_watched=datetime(2023, 10, 1, tzinfo=UTC).date(),
+                tmdb_id=111111,
             )
 
 
     def test_find_logs_by_movie_id(self, movie_create_request: LogCreateRequest, user_id: str):
         log = self.log_repository.create_log(user_id, movie_create_request)
 
-        logs = self.log_repository.find_logs_by_movie_id(movie_create_request.movieId)
+        logs = self.log_repository.find_logs_by_movie_id(movie_create_request.movie_id)
 
         # Helper to extract date from datetime or date
         def get_date(d):
@@ -97,37 +97,37 @@ class TestLogRepository:
 
         assert len(logs) == 1
         assert logs[0].id == log.id
-        assert logs[0].movieId == log.movieId
-        assert logs[0].watchedWhere == log.watchedWhere
-        assert get_date(logs[0].dateWatched) == get_date(log.dateWatched)
-        assert logs[0].viewingNotes == log.viewingNotes
-        assert logs[0].tmdbId == log.tmdbId
+        assert logs[0].movie_id == log.movie_id
+        assert logs[0].watched_where == log.watched_where
+        assert get_date(logs[0].date_watched) == get_date(log.date_watched)
+        assert logs[0].viewing_notes == log.viewing_notes
+        assert logs[0].tmdb_id == log.tmdb_id
 
         second_time_log = self.log_repository.create_log(user_id, movie_create_request)
 
-        logs = self.log_repository.find_logs_by_movie_id(movie_create_request.movieId)
+        logs = self.log_repository.find_logs_by_movie_id(movie_create_request.movie_id)
 
         assert len(logs) == 2
         assert logs[0].id == log.id
         assert logs[1].id == second_time_log.id
-        assert logs[0].movieId == log.movieId
-        assert logs[1].movieId == second_time_log.movieId
-        assert logs[0].watchedWhere == log.watchedWhere
-        assert logs[1].watchedWhere == second_time_log.watchedWhere
-        assert get_date(logs[0].dateWatched) == get_date(log.dateWatched)
-        assert get_date(logs[1].dateWatched) == get_date(second_time_log.dateWatched)
-        assert logs[0].viewingNotes == log.viewingNotes
-        assert logs[1].viewingNotes == second_time_log.viewingNotes
-        assert logs[0].tmdbId == log.tmdbId
-        assert logs[1].tmdbId == second_time_log.tmdbId
+        assert logs[0].movie_id == log.movie_id
+        assert logs[1].movie_id == second_time_log.movie_id
+        assert logs[0].watched_where == log.watched_where
+        assert logs[1].watched_where == second_time_log.watched_where
+        assert get_date(logs[0].date_watched) == get_date(log.date_watched)
+        assert get_date(logs[1].date_watched) == get_date(second_time_log.date_watched)
+        assert logs[0].viewing_notes == log.viewing_notes
+        assert logs[1].viewing_notes == second_time_log.viewing_notes
+        assert logs[0].tmdb_id == log.tmdb_id
+        assert logs[1].tmdb_id == second_time_log.tmdb_id
 
     def test_log_list_without_filters(self, movie_create_request: LogCreateRequest, user_id: str):
         log = self.log_repository.create_log(user_id, movie_create_request)
 
         log_list_request = LogListRequest(
-            sortBy= "dateWatched",
-            sortOrder= "desc",
-            watchedWhere=None,
+            sort_by= "dateWatched",
+            sort_order= "desc",
+            watched_where=None,
             dateWatchedFrom=None,
             dateWatchedTo=None
         )
@@ -136,19 +136,19 @@ class TestLogRepository:
 
         assert len(logs) == 1
         assert logs[0]['id'] == str(log.id)
-        assert str(logs[0]['movieId']) == str(log.movieId)
-        assert logs[0]['watchedWhere'] == log.watchedWhere
-        assert logs[0]['viewingNotes'] == log.viewingNotes
-        assert logs[0]['tmdbId'] == log.tmdbId
+        assert str(logs[0]['movieId']) == str(log.movie_id)
+        assert logs[0]['watchedWhere'] == log.watched_where
+        assert logs[0]['viewingNotes'] == log.viewing_notes
+        assert logs[0]['tmdbId'] == log.tmdb_id
 
 
     def test_log_list_for_one_year(self, movie_create_request: LogCreateRequest, user_id: str):
         log = self.log_repository.create_log(user_id, movie_create_request)
 
         log_list_request = LogListRequest(
-            sortBy= "dateWatched",
-            sortOrder= "desc",
-            watchedWhere=None,
+            sort_by= "dateWatched",
+            sort_order= "desc",
+            watched_where=None,
             dateWatchedFrom=datetime(2023, 1, 1, tzinfo=UTC).date(),
             dateWatchedTo=datetime(2023, 12, 31, tzinfo=UTC).date()
         )
@@ -157,15 +157,15 @@ class TestLogRepository:
 
         assert len(logs) == 1
         assert logs[0]['id'] == str(log.id)
-        assert str(logs[0]['movieId']) == str(log.movieId)
-        assert logs[0]['watchedWhere'] == log.watchedWhere
-        assert logs[0]['viewingNotes'] == log.viewingNotes
-        assert logs[0]['tmdbId'] == log.tmdbId
+        assert str(logs[0]['movieId']) == str(log.movie_id)
+        assert logs[0]['watchedWhere'] == log.watched_where
+        assert logs[0]['viewingNotes'] == log.viewing_notes
+        assert logs[0]['tmdbId'] == log.tmdb_id
 
         log_list_request_2024 = LogListRequest(
-            sortBy= "dateWatched",
-            sortOrder= "desc",
-            watchedWhere=None,
+            sort_by= "dateWatched",
+            sort_order= "desc",
+            watched_where=None,
             dateWatchedFrom=datetime(2024, 1, 1, tzinfo=UTC).date(),
             dateWatchedTo=datetime(2024, 12, 31, tzinfo=UTC).date()
         )
@@ -178,13 +178,13 @@ class TestLogRepository:
     def test_sort_by_date_watched(self, movie_create_request: LogCreateRequest, user_id: str):
         log1 = self.log_repository.create_log(user_id, movie_create_request)
 
-        movie_create_request.dateWatched = datetime(2023, 10, 2, tzinfo=UTC).date()
+        movie_create_request.date_watched = datetime(2023, 10, 2, tzinfo=UTC).date()
         log2 = self.log_repository.create_log(user_id, movie_create_request)
 
         log_list_request = LogListRequest(
-            sortBy= "dateWatched",
-            sortOrder= "desc",
-            watchedWhere=None,
+            sort_by= "dateWatched",
+            sort_order= "desc",
+            watched_where=None,
             dateWatchedFrom=None,
             dateWatchedTo=None
         )
@@ -195,7 +195,7 @@ class TestLogRepository:
         assert logs_desc[0]['id'] == str(log2.id)
         assert logs_desc[1]['id'] == str(log1.id)
 
-        log_list_request.sortOrder = "asc"
+        log_list_request.sort_order = "asc"
 
         logs_asc = self.log_repository.find_logs_by_user_id(user_id, log_list_request)
 
@@ -209,9 +209,9 @@ class TestLogRepository:
         log2 = self.log_repository.create_log(user_id, movie_create_second_request_same_movie)
 
         log_list_request = LogListRequest(
-            sortBy= "dateWatched",
-            sortOrder= "desc",
-            watchedWhere="cinema",
+            sort_by= "dateWatched",
+            sort_order= "desc",
+            watched_where="cinema",
             dateWatchedFrom=None,
             dateWatchedTo=None
         )
@@ -220,18 +220,18 @@ class TestLogRepository:
 
         assert len(logs) == 1
         assert logs[0]['id'] == str(log1.id)
-        assert str(logs[0]['movieId']) == str(log1.movieId)
-        assert logs[0]['watchedWhere'] == log1.watchedWhere
-        assert logs[0]['viewingNotes'] == log1.viewingNotes
-        assert logs[0]['tmdbId'] == log1.tmdbId
+        assert str(logs[0]['movieId']) == str(log1.movie_id)
+        assert logs[0]['watchedWhere'] == log1.watched_where
+        assert logs[0]['viewingNotes'] == log1.viewing_notes
+        assert logs[0]['tmdbId'] == log1.tmdb_id
 
-        log_list_request.watchedWhere = "streaming"
+        log_list_request.watched_where = "streaming"
 
         logs = self.log_repository.find_logs_by_user_id(user_id, log_list_request)
 
         assert len(logs) == 1
         assert logs[0]['id'] == str(log2.id)
-        assert str(logs[0]['movieId']) == str(log2.movieId)
-        assert logs[0]['watchedWhere'] == log2.watchedWhere
-        assert logs[0]['viewingNotes'] == log2.viewingNotes
-        assert logs[0]['tmdbId'] == log2.tmdbId
+        assert str(logs[0]['movieId']) == str(log2.movie_id)
+        assert logs[0]['watchedWhere'] == log2.watched_where
+        assert logs[0]['viewingNotes'] == log2.viewing_notes
+        assert logs[0]['tmdbId'] == log2.tmdb_id

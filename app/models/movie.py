@@ -6,18 +6,18 @@ from app.models.base_entity import BaseEntity
 
 class Movie(BaseEntity):
     id = StringField(primary_key=True, default=lambda: str(ObjectId()))
-    tmdbId = IntField(required=True, unique=True)
+    tmdb_id = IntField(db_field='tmdbId', required=True, unique=True)
     title = StringField(required=True)
-    releaseDate = DateTimeField()
+    release_date = DateTimeField(db_field='releaseDate')
     overview = StringField()
-    posterPath = StringField()
-    voteAverage = FloatField()
+    poster_path = StringField(db_field='posterPath')
+    vote_average = FloatField(db_field='voteAverage')
     runtime = IntField()
-    originalLanguage = StringField()
+    original_language = StringField(db_field='originalLanguage')
 
     meta = {
         'collection': 'movies',
         'indexes': [
-            {'fields': ['tmdbId'], 'unique': True}
+            {'fields': ['tmdb_id'], 'unique': True}
         ]
     }

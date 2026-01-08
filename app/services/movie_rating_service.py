@@ -14,16 +14,16 @@ class MovieRatingService:
         self.movie_service = movie_service
 
     def create_update_movie_rating(
-        self, user_id: str, tmdbId: str, rating: int, comment: str
+        self, user_id: str, tmdb_id: str, rating: int, comment: str
     ):
         """
         Create or update a movie rating for a specific user and movie.
         """
 
-        movie = self.movie_service.find_or_create_movie(tmdb_id=tmdbId)
+        movie = self.movie_service.find_or_create_movie(tmdb_id=tmdb_id)
 
         movie_rating = self.movie_rating_repository.create_update_movie_rating(
-            user_id, movie_id=movie.id, rating=rating, comment=comment, tmdb_id=tmdbId
+            user_id, movie_id=movie.id, rating=rating, comment=comment, tmdb_id=tmdb_id
         )
 
         return self._get_movie_rating_response(movie_rating)
@@ -42,13 +42,13 @@ class MovieRatingService:
 
         return MovieRatingResponse(
             id=str(movie_rating.id),
-            userId=str(movie_rating.userId),
-            movieId=str(movie_rating.movieId),
-            tmdbId=str(movie_rating.tmdbId),
+            user_id=str(movie_rating.user_id),
+            movie_id=str(movie_rating.movie_id),
+            tmdb_id=str(movie_rating.tmdb_id),
             rating=movie_rating.rating,
             comment=movie_rating.review,
-            createdAt=movie_rating.createdAt,
-            updatedAt=movie_rating.updatedAt,
+            created_at=movie_rating.created_at,
+            updated_at=movie_rating.updated_at,
         )
 
     def get_movie_ratings_by_tmdb_id(self, user_id: str, tmdb_id: int):
@@ -68,11 +68,11 @@ class MovieRatingService:
     def _get_movie_rating_response(self, movie_rating) -> MovieRatingResponse:
         return MovieRatingResponse(
             id=str(movie_rating.id),
-            userId=str(movie_rating.userId),
-            movieId=str(movie_rating.movieId),
-            tmdbId=str(movie_rating.tmdbId),
+            user_id=str(movie_rating.user_id),
+            movie_id=str(movie_rating.movie_id),
+            tmdb_id=str(movie_rating.tmdb_id),
             rating=movie_rating.rating,
             comment=movie_rating.review,
-            createdAt=movie_rating.createdAt,
-            updatedAt=movie_rating.updatedAt,
+            created_at=movie_rating.created_at,
+            updated_at=movie_rating.updated_at,
         )

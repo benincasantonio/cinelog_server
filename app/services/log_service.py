@@ -34,13 +34,13 @@ class LogService:
         return MovieResponse(
             id=str(movie.id),
             title=movie.title,
-            tmdbId=movie.tmdbId,
-            posterPath=movie.posterPath,
-            releaseDate=movie.releaseDate,
+            tmdb_id=movie.tmdb_id,
+            poster_path=movie.poster_path,
+            release_date=movie.release_date,
             overview=movie.overview,
-            voteAverage=movie.voteAverage,
+            vote_average=movie.vote_average,
             runtime=movie.runtime,
-            originalLanguage=movie.originalLanguage,
+            original_language=movie.original_language,
         )
 
     def create_log(self, user_id: str, request: LogCreateRequest) -> LogCreateResponse:
@@ -51,14 +51,14 @@ class LogService:
         and created automatically.
         """
         # Ensure movie exists (find or create from TMDB)
-        movie = self.movie_service.find_or_create_movie(tmdb_id=request.tmdbId)
+        movie = self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
 
         # Update the movieId in the request with the actual database ID
-        request.movieId = str(movie.id)
+        request.movie_id = str(movie.id)
 
         # Auto-populate posterPath from movie if not provided
-        if not request.posterPath and movie.posterPath:
-            request.posterPath = movie.posterPath
+        if not request.poster_path and movie.poster_path:
+            request.poster_path = movie.poster_path
 
         log = self.log_repository.create_log(
             user_id=user_id, create_log_request=request
@@ -66,13 +66,13 @@ class LogService:
 
         return LogCreateResponse(
             id=str(log.id),
-            movieId=str(log.movieId),
+            movie_id=str(log.movie_id),
             movie=self._map_movie_to_response(movie),
-            tmdbId=log.tmdbId,
-            dateWatched=log.dateWatched,
-            viewingNotes=log.viewingNotes,
-            posterPath=log.posterPath,
-            watchedWhere=log.watchedWhere,
+            tmdb_id=log.tmdb_id,
+            date_watched=log.date_watched,
+            viewing_notes=log.viewing_notes,
+            poster_path=log.poster_path,
+            watched_where=log.watched_where,
         )
 
     def update_log(
@@ -89,17 +89,17 @@ class LogService:
             # Log not found or doesn't belong to user
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
 
-        movie = self.movie_service.get_movie_by_id(str(log.movieId))
+        movie = self.movie_service.get_movie_by_id(str(log.movie_id))
 
         return LogCreateResponse(
             id=str(log.id),
-            movieId=str(log.movieId),
+            movie_id=str(log.movie_id),
             movie=self._map_movie_to_response(movie),
-            tmdbId=log.tmdbId,
-            dateWatched=log.dateWatched,
-            viewingNotes=log.viewingNotes,
-            posterPath=log.posterPath,
-            watchedWhere=log.watchedWhere,
+            tmdb_id=log.tmdb_id,
+            date_watched=log.date_watched,
+            viewing_notes=log.viewing_notes,
+            poster_path=log.poster_path,
+            watched_where=log.watched_where,
         )
 
     def get_user_logs(self, user_id: str, request: LogListRequest) -> LogListResponse:
@@ -116,14 +116,14 @@ class LogService:
             log_items.append(
                 LogListItem(
                     id=log_data["id"],
-                    movieId=str(log_data["movieId"]),
+                    movie_id=str(log_data["movieId"]),
                     movie=self._map_movie_to_response(movie),
-                    movieRating=log_data.get("movieRating"),
-                    tmdbId=log_data["tmdbId"],
-                    dateWatched=log_data["dateWatched"],
-                    viewingNotes=log_data.get("viewingNotes"),
-                    posterPath=log_data.get("posterPath"),
-                    watchedWhere=log_data.get("watchedWhere"),
+                    movie_rating=log_data.get("movieRating"),
+                    tmdb_id=log_data["tmdbId"],
+                    date_watched=log_data["dateWatched"],
+                    viewing_notes=log_data.get("viewingNotes"),
+                    poster_path=log_data.get("posterPath"),
+                    watched_where=log_data.get("watchedWhere"),
                 )
             )
 

@@ -61,8 +61,8 @@ class TestStatsService:
         assert call_args is not None
         request = call_args.kwargs.get("request")
         assert request is not None
-        assert str(request.dateWatchedFrom) == "2023-01-01"
-        assert str(request.dateWatchedTo) == "2024-12-31"
+        assert str(request.date_watched_from) == "2023-01-01"
+        assert str(request.date_watched_to) == "2024-12-31"
 
     def test_compute_summary_with_invalid_runtime(self, stats_service):
         """Test compute_summary handles invalid runtime gracefully."""
@@ -107,7 +107,7 @@ class TestStatsService:
     def test_compute_distribution_with_object_logs(self, stats_service):
         """Test distribution with object logs instead of dicts."""
         mock_log = Mock()
-        mock_log.watchedWhere = "cinema"
+        mock_log.watched_where = "cinema"
 
         logs = [mock_log]
 

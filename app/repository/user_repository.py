@@ -44,7 +44,7 @@ class UserRepository:
     @staticmethod
     def find_user_by_firebase_uid(firebase_uid: str) -> User:
         """Find a user by Firebase UID."""
-        return User.objects(firebaseUid=firebase_uid).first()
+        return User.objects(firebase_uid=firebase_uid).first()
 
     @staticmethod
     def delete_user(user_id: str) -> bool:
@@ -52,7 +52,7 @@ class UserRepository:
         user = UserRepository.find_user_by_id(user_id)
 
         user.deleted = True
-        user.deletedAt = datetime.now(UTC)
+        user.deleted_at = datetime.now(UTC)
 
         user.save()
         return True
@@ -62,13 +62,13 @@ class UserRepository:
         """Obscure all the user information and delete the user logically."""
         user = UserRepository.find_user_by_id(user_id)
 
-        user.firstName = "Deleted"
-        user.lastName = "User"
+        user.first_name = "Deleted"
+        user.last_name = "User"
         user.email = ""
         user.handle = f"deleted_{user_id}"
-        user.dateOfBirth = None
+        user.date_of_birth = None
         user.deleted = True
-        user.deletedAt = datetime.now(UTC)
+        user.deleted_at = datetime.now(UTC)
         user.save()
 
         return True

@@ -37,13 +37,13 @@ class TestMovieRatingController:
         
         mock_create_rating.return_value = MovieRatingResponse(
             id="rating123",
-            userId="user123",
-            movieId="movie123",
-            tmdbId="550",
+            user_id="user123",
+            movie_id="movie123",
+            tmdb_id="550",
             rating=8,
             comment="Great movie!",
-            createdAt=datetime.now(),
-            updatedAt=datetime.now()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
 
         response = client.post(
@@ -89,13 +89,13 @@ class TestMovieRatingController:
         
         mock_get_rating.return_value = MovieRatingResponse(
             id="rating123",
-            userId="user123",
-            movieId="movie123",
-            tmdbId="550",
+            user_id="user123",
+            movie_id="movie123",
+            tmdb_id="550",
             rating=8,
             comment="Great movie!",
-            createdAt=datetime.now(),
-            updatedAt=datetime.now()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
 
         response = client.get(
@@ -144,13 +144,13 @@ class TestMovieRatingController:
         
         mock_get_rating.return_value = MovieRatingResponse(
             id="rating123",
-            userId="other_user",
-            movieId="movie123",
-            tmdbId="550",
+            user_id="other_user",
+            movie_id="movie123",
+            tmdb_id="550",
             rating=9,
             comment="Amazing!",
-            createdAt=datetime.now(),
-            updatedAt=datetime.now()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
 
         response = client.get(

@@ -9,12 +9,12 @@ class BaseEntity(Document):
     meta = {
         'abstract': True,
         'indexes': [
-            '-createdAt',
+            '-created_at',
             'deleted',
         ]
     }
     
     deleted = BooleanField(default=False)
-    deletedAt = DateTimeField()
-    createdAt = DateTimeField(default=lambda: datetime.now())
-    updatedAt = DateTimeField(default=lambda: datetime.now())
+    deleted_at = DateTimeField(db_field='deletedAt')
+    created_at = DateTimeField(db_field='createdAt', default=lambda: datetime.now())
+    updated_at = DateTimeField(db_field='updatedAt', default=lambda: datetime.now())

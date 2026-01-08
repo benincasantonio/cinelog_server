@@ -30,9 +30,9 @@ def get_my_stats(
 
     # Validate year bounds if both provided
     if (
-        stats_request.yearFrom is not None
-        and stats_request.yearTo is not None
-        and stats_request.yearFrom > stats_request.yearTo
+        stats_request.year_from is not None
+        and stats_request.year_to is not None
+        and stats_request.year_from > stats_request.year_to
     ):
         raise HTTPException(
             status_code=400, detail="yearFrom cannot be greater than yearTo"
@@ -41,8 +41,8 @@ def get_my_stats(
     try:
         return stats_service.get_user_stats(
             user_id=user_id,
-            year_from=stats_request.yearFrom,
-            year_to=stats_request.yearTo,
+            year_from=stats_request.year_from,
+            year_to=stats_request.year_to,
         )
     except NotImplementedError:
         raise HTTPException(

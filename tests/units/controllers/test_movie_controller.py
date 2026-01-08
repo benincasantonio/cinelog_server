@@ -66,24 +66,24 @@ class TestMovieController:
         mock_get_details.return_value = TMDBMovieDetails(
             id=550,
             title="Fight Club",
-            originalTitle="Fight Club",
+            original_title="Fight Club",
             overview="An insomniac office worker...",
-            releaseDate="1999-10-15",
-            posterPath="/poster.jpg",
-            backdropPath="/backdrop.jpg",
-            voteAverage=8.4,
-            voteCount=20000,
+            release_date="1999-10-15",
+            poster_path="/poster.jpg",
+            backdrop_path="/backdrop.jpg",
+            vote_average=8.4,
+            vote_count=20000,
             runtime=139,
             budget=63000000,
             revenue=100853753,
             status="Released",
-            originalLanguage="en",
+            original_language="en",
             popularity=50.5,
             adult=False,
             genres=[],
-            productionCompanies=[],
-            productionCountries=[],
-            spokenLanguages=[]
+            production_companies=[],
+            production_countries=[],
+            spoken_languages=[]
         )
 
         response = client.get(

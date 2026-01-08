@@ -46,7 +46,7 @@ class TestMovieService:
         """Test getting a movie by TMDB ID."""
         mock_movie = Mock()
         mock_movie.id = "movie123"
-        mock_movie.tmdbId = 550
+        mock_movie.tmdb_id = 550
         mock_movie_repository.find_movie_by_tmdb_id.return_value = mock_movie
 
         result = movie_service.get_movie_by_tmdb_id(550)

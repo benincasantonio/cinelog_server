@@ -30,7 +30,7 @@ class MovieRepository:
         if not movie:
             return None
 
-        movie.update(set__title=request.title, set__updatedAt=datetime.now(UTC))
+        movie.update(set__title=request.title, set__updated_at=datetime.now(UTC))
 
     @staticmethod
     def find_movie_by_id(movie_id: str) -> Movie:
@@ -40,7 +40,7 @@ class MovieRepository:
     @staticmethod
     def find_movie_by_tmdb_id(tmdb_id: int) -> Movie:
         """Find a movie by TMDB ID."""
-        return Movie.objects(tmdbId=tmdb_id).first()
+        return Movie.objects(tmdb_id=tmdb_id).first()
 
     @staticmethod
     def create_from_tmdb_data(tmdb_data: TMDBMovieDetails) -> Movie:
@@ -61,21 +61,21 @@ class MovieRepository:
 
         # Parse release date if present
         release_date = None
-        if tmdb_data.releaseDate:
+        if tmdb_data.release_date:
             try:
-                release_date = datetime.strptime(tmdb_data.releaseDate, "%Y-%m-%d")
+                release_date = datetime.strptime(tmdb_data.release_date, "%Y-%m-%d")
             except ValueError:
                 pass  # Keep as None if parsing fails
 
         movie = Movie(
-            tmdbId=tmdb_data.id,
+            tmdb_id=tmdb_data.id,
             title=tmdb_data.title,
-            releaseDate=release_date,
+            release_date=release_date,
             overview=tmdb_data.overview,
-            posterPath=tmdb_data.posterPath,
-            voteAverage=tmdb_data.voteAverage,
+            poster_path=tmdb_data.poster_path,
+            vote_average=tmdb_data.vote_average,
             runtime=tmdb_data.runtime,
-            originalLanguage=tmdb_data.originalLanguage,
+            original_language=tmdb_data.original_language,
         )
 
         movie.save()

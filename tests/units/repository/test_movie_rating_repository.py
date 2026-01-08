@@ -18,7 +18,7 @@ class TestMovieRatingRepository:
         result = MovieRatingRepository.find_movie_rating_by_user_and_movie("user123", "movie123")
 
         assert result == mock_rating
-        mock_movie_rating.objects.assert_called_once_with(userId="user123", movieId="movie123")
+        mock_movie_rating.objects.assert_called_once_with(user_id="user123", movie_id="movie123")
 
     @patch('app.repository.movie_rating_repository.MovieRating')
     def test_find_movie_rating_by_user_and_movie_not_found(self, mock_movie_rating):
@@ -39,7 +39,7 @@ class TestMovieRatingRepository:
         result = repo.find_movie_rating_by_user_and_tmdb("user123", "550")
 
         assert result == mock_rating
-        mock_movie_rating.objects.assert_called_once_with(userId="user123", tmdbId="550")
+        mock_movie_rating.objects.assert_called_once_with(user_id="user123", tmdb_id="550")
 
     @patch('app.repository.movie_rating_repository.MovieRatingRepository.find_movie_rating_by_user_and_movie')
     @patch('app.repository.movie_rating_repository.MovieRating')

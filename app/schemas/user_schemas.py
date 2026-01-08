@@ -1,46 +1,45 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import EmailStr, Field
 from datetime import date
 from typing import Optional
 
+from app.schemas.base_schema import BaseSchema
 
-class UserCreateRequest(BaseModel):
-    firstName: str = Field(..., min_length=1, max_length=50)
-    lastName: str = Field(..., min_length=1, max_length=50)
+
+class UserCreateRequest(BaseSchema):
+    first_name: str = Field(..., min_length=1, max_length=50)
+    last_name: str = Field(..., min_length=1, max_length=50)
     email: EmailStr = Field(...)
     handle: str = Field(None, min_length=3, max_length=20)
     bio: Optional[str] = Field(None, max_length=500, description="User biography")
-    dateOfBirth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
-    firebaseUid: str = Field(None, description="Firebase UID for the user")
+    date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
+    firebase_uid: str = Field(None, description="Firebase UID for the user")
 
 
-class UserCreateResponse(BaseModel):
+class UserCreateResponse(BaseSchema):
     id: str
-    firstName: str
-    lastName: str
+    first_name: str
+    last_name: str
     email: EmailStr
     handle: str
     bio: Optional[str] = None
-    dateOfBirth: date
+    date_of_birth: date
 
 
-from typing import Optional
-
-
-class FirebaseUserData(BaseModel):
+class FirebaseUserData(BaseSchema):
     email: Optional[str] = None
-    displayName: Optional[str] = None
-    photoUrl: Optional[str] = None
-    emailVerified: bool = False
+    display_name: Optional[str] = None
+    photo_url: Optional[str] = None
+    email_verified: bool = False
     disabled: bool = False
 
 
-class UserResponse(BaseModel):
+class UserResponse(BaseSchema):
     id: str
-    firstName: str
-    lastName: str
+    first_name: str
+    last_name: str
     email: EmailStr
     handle: str
     bio: Optional[str] = None
-    dateOfBirth: date
-    firebaseUid: Optional[str] = None
-    firebaseData: Optional[FirebaseUserData] = None
+    date_of_birth: date
+    firebase_uid: Optional[str] = None
+    firebase_data: Optional[FirebaseUserData] = None

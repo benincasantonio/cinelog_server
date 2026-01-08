@@ -6,13 +6,13 @@ from app.models.base_entity import BaseEntity
 
 class User(BaseEntity):
     id = ObjectIdField(primary_key=True, default=lambda: ObjectId())
-    firstName = StringField(required=True)
-    lastName = StringField(required=True)
+    first_name = StringField(db_field='firstName', required=True)
+    last_name = StringField(db_field='lastName', required=True)
     email = StringField(required=True, unique=True)
     handle = StringField(required=True, unique=True)
     bio = StringField()
-    dateOfBirth = DateTimeField()
-    firebaseUid = StringField(unique=True, sparse=True)
+    date_of_birth = DateTimeField(db_field='dateOfBirth')
+    firebase_uid = StringField(db_field='firebaseUid', unique=True, sparse=True)
 
     meta = {
         "collection": "users",

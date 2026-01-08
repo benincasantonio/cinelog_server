@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 from app import app
 from app.schemas.stats_schemas import StatsResponse
+from app.dependencies.auth_dependency import auth_dependency
 
 
 @pytest.fixture
@@ -64,8 +65,8 @@ class TestStatsController:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["summary"]["total_watches"] == 10
-        assert data["summary"]["unique_titles"] == 8
+        assert data["summary"]["totalWatches"] == 10
+        assert data["summary"]["uniqueTitles"] == 8
 
     @patch('app.controllers.stats_controller.stats_service.get_user_stats')
     @patch('app.controllers.stats_controller.get_user_id_from_token')
@@ -87,10 +88,15 @@ class TestStatsController:
             "pace": {"on_track_for": 0, "current_average": 0.0, "days_since_last_log": 0}
         }
 
+        # Override auth dependency
+        app.dependency_overrides[auth_dependency] = lambda: True
+
         response = client.get(
             "/v1/stats/me?yearFrom=2023&yearTo=2024",
             headers={"Authorization": mock_auth_token}
         )
+
+        app.dependency_overrides = {}
 
         assert response.status_code == 200
         mock_get_stats.assert_called_once_with(user_id="user123", year_from=2023, year_to=2024)
@@ -108,10 +114,15 @@ class TestStatsController:
         mock_verify_token.return_value = {"uid": "firebase_uid"}
         mock_get_user_id.return_value = "user123"
 
+        # Override auth dependency
+        app.dependency_overrides[auth_dependency] = lambda: True
+
         response = client.get(
             "/v1/stats/me?yearFrom=2024&yearTo=2023",
             headers={"Authorization": mock_auth_token}
         )
+        
+        app.dependency_overrides = {}
 
         assert response.status_code == 400
         assert "yearFrom cannot be greater than yearTo" in response.json()["detail"]

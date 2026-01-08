@@ -57,7 +57,7 @@ class AuthService:
         # Create user in Firebase first
         firebase_user = None
         try:
-            display_name = f"{request.firstName} {request.lastName}".strip()
+            display_name = f"{request.first_name} {request.last_name}".strip()
             firebase_user = self.firebase_auth_repository.create_user(
                 email=request.email.strip(),
                 password=request.password.strip(),
@@ -76,13 +76,13 @@ class AuthService:
         # Create user in MongoDB with Firebase UID
         try:
             user_create_request = UserCreateRequest(
-                firstName=request.firstName,
-                lastName=request.lastName,
+                first_name=request.first_name,
+                last_name=request.last_name,
                 email=request.email.strip(),
                 handle=request.handle.strip(),
                 bio=request.bio,
-                dateOfBirth=request.dateOfBirth,
-                firebaseUid=firebase_uid,
+                date_of_birth=request.date_of_birth,
+                firebase_uid=firebase_uid,
             )
             user = self.user_repository.create_user(request=user_create_request)
         except Exception as e:
@@ -96,8 +96,8 @@ class AuthService:
         # For now, return RegisterResponse (token generation may be updated later)
         response: RegisterResponse = RegisterResponse(
             email=user.email,
-            firstName=user.firstName,
-            lastName=user.lastName,
+            first_name=user.first_name,
+            last_name=user.last_name,
             handle=user.handle,
             bio=user.bio,
             user_id=user.id.__str__(),

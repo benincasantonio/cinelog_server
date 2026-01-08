@@ -19,9 +19,9 @@ class StatsService:
         request: LogListRequest | None = None
         request_kwargs = {}
         if year_from is not None:
-            request_kwargs["dateWatchedFrom"] = f"{year_from}-01-01"
+            request_kwargs["date_watched_from"] = f"{year_from}-01-01"
         if year_to is not None:
-            request_kwargs["dateWatchedTo"] = f"{year_to}-12-31"
+            request_kwargs["date_watched_to"] = f"{year_to}-12-31"
 
         if request_kwargs:
             request = LogListRequest(**request_kwargs)
@@ -129,7 +129,7 @@ class StatsService:
             if isinstance(log, dict):
                 watched_where = log.get("watchedWhere")
             else:
-                watched_where = getattr(log, "watchedWhere", None)
+                watched_where = getattr(log, "watched_where", None)
 
             if watched_where == "cinema":
                 distribution["by_method"]["cinema"] += 1

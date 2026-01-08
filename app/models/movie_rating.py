@@ -8,18 +8,18 @@ from bson import ObjectId
 
 class MovieRating(BaseEntity):
     id = ObjectIdField(primary_key=True, default=lambda: ObjectId())
-    movieId = ObjectIdField(required=True)
+    movie_id = ObjectIdField(db_field='movieId', required=True)
     review = StringField()
     rating = IntField(min_value=1, max_value=10)
-    userId = ObjectIdField(required=True)
-    tmdbId = IntField(required=True)
+    user_id = ObjectIdField(db_field='userId', required=True)
+    tmdb_id = IntField(db_field='tmdbId', required=True)
 
     meta = {
         "collection": "movie_ratings",
         "indexes": [
-            {"fields": ["movieId"]},
+            {"fields": ["movie_id"]},
             {"fields": ["rating"]},
-            {"fields": ["tmdbId"]},
-            {"fields": ["userId", "tmdbId"], "unique": True},
+            {"fields": ["tmdb_id"]},
+            {"fields": ["user_id", "tmdb_id"], "unique": True},
         ],
     }

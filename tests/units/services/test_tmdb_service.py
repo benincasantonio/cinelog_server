@@ -45,7 +45,7 @@ class TestTMDBService:
         result = tmdb_service.search_movie("Fight Club")
 
         assert isinstance(result, TMDBMovieSearchResult)
-        assert result.totalResults == 1
+        assert result.total_results == 1
         assert len(result.results) == 1
         assert result.results[0].title == "Fight Club"
         

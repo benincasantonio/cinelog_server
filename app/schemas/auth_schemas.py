@@ -1,15 +1,17 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import EmailStr, Field
 from datetime import date
 from typing import Optional
 
+from app.schemas.base_schema import BaseSchema
 
-class RegisterRequest(BaseModel):
+
+class RegisterRequest(BaseSchema):
     """Schema for user registration request"""
 
-    firstName: str = Field(
+    first_name: str = Field(
         ..., min_length=1, max_length=50, description="User's first name"
     )
-    lastName: str = Field(
+    last_name: str = Field(
         ..., min_length=1, max_length=50, description="User's last name"
     )
     email: EmailStr = Field(..., description="User's email address")
@@ -20,15 +22,15 @@ class RegisterRequest(BaseModel):
         ..., min_length=3, max_length=20, description="User's unique handle"
     )
     bio: Optional[str] = Field(None, max_length=500, description="User biography")
-    dateOfBirth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
+    date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
 
 
-class RegisterResponse(BaseModel):
+class RegisterResponse(BaseSchema):
     """Schema for user registration response"""
 
     user_id: str = Field(..., description="User's unique identifier")
-    firstName: str = Field(..., description="User's first name")
-    lastName: str = Field(..., description="User's last name")
+    first_name: str = Field(..., description="User's first name")
+    last_name: str = Field(..., description="User's last name")
     email: EmailStr = Field(..., description="User's email address")
     handle: str = Field(..., description="User's unique handle")
     bio: Optional[str] = Field(None, description="User biography")
