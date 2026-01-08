@@ -15,7 +15,7 @@ class LogRepository:
         Create a new log entry in the database.
         """
         log_data = create_log_request.model_dump()
-        log_data["userId"] = ObjectId(user_id)
+        log_data["user_id"] = ObjectId(user_id)
         log = Log(**log_data)
         log.save()
         return log
@@ -25,7 +25,7 @@ class LogRepository:
         """
         Find a log entry by its ID, ensuring it belongs to the user.
         """
-        return Log.objects(id=log_id, userId=user_id).first()
+        return Log.objects(id=log_id, user_id=user_id).first()
 
     @staticmethod
     def update_log(log_id: str, user_id: str, update_request: LogUpdateRequest) -> Log:
@@ -51,30 +51,30 @@ class LogRepository:
         Find all log entries for a specific user with optional filtering and sorting.
         Returns a list of dictionaries containing log data with joined movie data.
         """
-        query = Log.objects(userId=user_id)
+        query = Log.objects(user_id=user_id)
 
         if request:
             # Apply filters
-            if request.watchedWhere is not None:
-                query = query.filter(watchedWhere=request.watchedWhere)
+            if request.watched_where is not None:
+                query = query.filter(watched_where=request.watched_where)
 
-            if request.dateWatchedFrom is not None:
-                query = query.filter(dateWatched__gte=request.dateWatchedFrom)
+            if request.date_watched_from is not None:
+                query = query.filter(date_watched__gte=request.date_watched_from)
 
-            if request.dateWatchedTo is not None:
-                query = query.filter(dateWatched__lte=request.dateWatchedTo)
+            if request.date_watched_to is not None:
+                query = query.filter(date_watched__lte=request.date_watched_to)
 
             # Apply sorting
-            if request.sortBy:
+            if request.sort_by:
                 sort_order = (
-                    "-" + request.sortBy
-                    if request.sortOrder == "desc"
-                    else request.sortBy
+                    "-" + request.sort_by
+                    if request.sort_order == "desc"
+                    else request.sort_by
                 )
                 query = query.order_by(sort_order)
         else:
             # Default sorting by date watched descending
-            query = query.order_by("-dateWatched")
+            query = query.order_by("-date_watched")
 
         logs = list(query)
         if not logs:
@@ -82,10 +82,10 @@ class LogRepository:
 
         # Fetch related movies
         # Convert ObjectId to string for lookup if necessary, assuming Movie.id is StringField
-        movie_ids = list(set([str(log.movieId) for log in logs]))
+        movie_ids = list(set([str(log.movie_id) for log in logs]))
         movies = Movie.objects(id__in=movie_ids)
-        movie_ratings = MovieRating.objects(userId=user_id, movieId__in=movie_ids)
-        rating_map = {str(rating.movieId): rating.rating for rating in movie_ratings}
+        movie_ratings = MovieRating.objects(user_id=user_id, movie_id__in=movie_ids)
+        rating_map = {str(rating.movie_id): rating.rating for rating in movie_ratings}
         movie_map = {movie.id: movie for movie in movies}
 
         result = []
@@ -94,9 +94,9 @@ class LogRepository:
             # Flatten _id
             log_dict["id"] = str(log_dict["_id"])
             # Add movie object
-            movie = movie_map.get(str(log.movieId))
+            movie = movie_map.get(str(log.movie_id))
 
-            movieRating = rating_map.get(str(log.movieId))
+            movieRating = rating_map.get(str(log.movie_id))
             if movieRating is not None:
                 log_dict["movieRating"] = movieRating
 
@@ -113,9 +113,9 @@ class LogRepository:
         Find all log entries for a specific movie by its ID.
         Optionally filter by user_id.
         """
-        query_params = {"movieId": movie_id}
+        query_params = {"movie_id": movie_id}
         if user_id:
-            query_params["userId"] = user_id
+            query_params["user_id"] = user_id
 
         return Log.objects(**query_params).all()
 

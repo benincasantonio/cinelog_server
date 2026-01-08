@@ -27,14 +27,14 @@ class UserService:
             raise AppException(ErrorCodes.USER_NOT_FOUND)
 
         firebase_data = None
-        if user.firebaseUid and is_firebase_initialized():
+        if user.firebase_uid and is_firebase_initialized():
             try:
-                firebase_user = self.firebase_auth_repository.get_user(user.firebaseUid)
+                firebase_user = self.firebase_auth_repository.get_user(user.firebase_uid)
                 firebase_data = FirebaseUserData(
                     email=firebase_user.email,
-                    displayName=firebase_user.display_name,
-                    photoUrl=firebase_user.photo_url,
-                    emailVerified=firebase_user.email_verified,
+                    display_name=firebase_user.display_name,
+                    photo_url=firebase_user.photo_url,
+                    email_verified=firebase_user.email_verified,
                     disabled=firebase_user.disabled
                 )
             except Exception:
@@ -43,12 +43,12 @@ class UserService:
 
         return UserResponse(
             id=str(user.id),
-            firstName=user.firstName,
-            lastName=user.lastName,
+            first_name=user.first_name,
+            last_name=user.last_name,
             email=user.email,
             handle=user.handle,
             bio=user.bio,
-            dateOfBirth=user.dateOfBirth,
-            firebaseUid=user.firebaseUid,
-            firebaseData=firebase_data
+            date_of_birth=user.date_of_birth,
+            firebase_uid=user.firebase_uid,
+            firebase_data=firebase_data
         )

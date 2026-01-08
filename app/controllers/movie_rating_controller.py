@@ -47,7 +47,7 @@ def create_movie_rating(
         user_id=user_id,
         comment=request_body.comment,
         rating=request_body.rating,
-        tmdbId=request_body.tmdbId,
+        tmdb_id=request_body.tmdb_id,
     )
 
 

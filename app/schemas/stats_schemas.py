@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from app.schemas.base_schema import BaseSchema
 
 
-class Summary(BaseModel):
+class Summary(BaseSchema):
     total_watches: int
     unique_titles: int
     total_rewatches: int
@@ -9,7 +9,7 @@ class Summary(BaseModel):
     vote_average: float | None = None
 
 
-class ByMethod(BaseModel):
+class ByMethod(BaseSchema):
     cinema: int
     streaming: int
     home_video: int
@@ -17,25 +17,25 @@ class ByMethod(BaseModel):
     other: int
 
 
-class Distribution(BaseModel):
+class Distribution(BaseSchema):
     by_method: ByMethod
 
 
-class Pace(BaseModel):
+class Pace(BaseSchema):
     on_track_for: int
     current_average: float
     days_since_last_log: int
 
 
-class StatsRequest(BaseModel):
-    yearFrom: int | None = None
-    yearTo: int | None = None
+class StatsRequest(BaseSchema):
+    year_from: int | None = None
+    year_to: int | None = None
 
     class Config:
-        schema_extra = {"example": {"yearFrom": 2020, "yearTo": 2023}}
+        schema_extra = {"example": {"year_from": 2020, "year_to": 2023}}
 
 
-class StatsResponse(BaseModel):
+class StatsResponse(BaseSchema):
     summary: Summary
     distribution: Distribution
     pace: Pace

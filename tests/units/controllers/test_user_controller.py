@@ -38,14 +38,14 @@ class TestUserController:
         # Return actual UserResponse object
         mock_get_user_info.return_value = UserResponse(
             id="user123",
-            firstName="John",
-            lastName="Doe",
+            first_name="John",
+            last_name="Doe",
             email="john@example.com",
             handle="johndoe",
             bio="A bio",
-            dateOfBirth=date(1990, 1, 1),
-            firebaseUid="firebase_uid",
-            firebaseData=None
+            date_of_birth=date(1990, 1, 1),
+            firebase_uid="firebase_uid",
+            firebase_data=None
         )
 
         response = client.get(

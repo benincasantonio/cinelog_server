@@ -1,153 +1,141 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import Field, ConfigDict
+
+from app.schemas.base_schema import BaseSchema
 
 
-class TMDBMovieSearchResult(BaseModel):
-    """Results for movie search from TMDB"""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    page: int = Field(..., description="Current page of results")
-    totalResults: int = Field(
-        ...,
-        validation_alias="total_results",
-        description="Total number of results found",
-    )
-    totalPages: int = Field(
-        ...,
-        validation_alias="total_pages",
-        description="Total number of pages available",
-    )
-    results: list["TMDBMovieSearchResultItem"] = Field(
-        ..., description="List of movie search result items"
-    )
-
-
-class TMDBMovieSearchResultItem(BaseModel):
+class TMDBMovieSearchResultItem(BaseSchema):
     """Single movie item in TMDB search results"""
-
-    model_config = ConfigDict(populate_by_name=True)
 
     id: int = Field(..., description="Unique identifier for the movie")
     title: str = Field(..., description="Title of the movie")
     overview: str = Field(..., description="Overview of the movie")
-    releaseDate: str = Field(
+    release_date: str = Field(
         ...,
         validation_alias="release_date",
         description="Release date of the movie in YYYY-MM-DD format",
     )
-    posterPath: str | None = Field(
+    poster_path: str | None = Field(
         None,
         validation_alias="poster_path",
         description="Path to the movie poster image",
     )
-    voteAverage: float = Field(
+    vote_average: float = Field(
         ..., validation_alias="vote_average", description="Average rating of the movie"
     )
-    backdropPath: str | None = Field(
+    backdrop_path: str | None = Field(
         None,
         validation_alias="backdrop_path",
         description="Path to the movie backdrop image",
     )
-    genreIds: list[int] = Field(
+    genre_ids: list[int] = Field(
         ...,
         validation_alias="genre_ids",
         description="List of genre IDs associated with the movie",
     )
-    originalLanguage: str = Field(
+    original_language: str = Field(
         ...,
         validation_alias="original_language",
         description="Original language of the movie",
     )
-    originalTitle: str = Field(
+    original_title: str = Field(
         ...,
         validation_alias="original_title",
         description="Original title of the movie",
     )
 
 
-class TMDBGenre(BaseModel):
-    """Genre information from TMDB"""
+class TMDBMovieSearchResult(BaseSchema):
+    """Results for movie search from TMDB"""
 
-    model_config = ConfigDict(populate_by_name=True)
+    page: int = Field(..., description="Current page of results")
+    total_results: int = Field(
+        ...,
+        validation_alias="total_results",
+        description="Total number of results found",
+    )
+    total_pages: int = Field(
+        ...,
+        validation_alias="total_pages",
+        description="Total number of pages available",
+    )
+    results: list[TMDBMovieSearchResultItem] = Field(
+        ..., description="List of movie search result items"
+    )
+
+
+class TMDBGenre(BaseSchema):
+    """Genre information from TMDB"""
 
     id: int = Field(..., description="Unique identifier for the genre")
     name: str = Field(..., description="Name of the genre")
 
 
-class TMDBProductionCompany(BaseModel):
+class TMDBProductionCompany(BaseSchema):
     """Production company information from TMDB"""
-
-    model_config = ConfigDict(populate_by_name=True)
 
     id: int = Field(..., description="Unique identifier for the production company")
     name: str = Field(..., description="Name of the production company")
-    logoPath: str | None = Field(
+    logo_path: str | None = Field(
         None, validation_alias="logo_path", description="Path to the company logo"
     )
-    originCountry: str = Field(
+    origin_country: str = Field(
         ...,
         validation_alias="origin_country",
         description="Country of origin for the company",
     )
 
 
-class TMDBProductionCountry(BaseModel):
+class TMDBProductionCountry(BaseSchema):
     """Production country information from TMDB"""
 
-    model_config = ConfigDict(populate_by_name=True)
-
-    iso31661: str = Field(
+    iso_3166_1: str = Field(
         ..., validation_alias="iso_3166_1", description="ISO 3166-1 country code"
     )
     name: str = Field(..., description="Country name")
 
 
-class TMDBSpokenLanguage(BaseModel):
+class TMDBSpokenLanguage(BaseSchema):
     """Spoken language information from TMDB"""
 
-    model_config = ConfigDict(populate_by_name=True)
-
-    iso6391: str = Field(
+    iso_639_1: str = Field(
         ..., validation_alias="iso_639_1", description="ISO 639-1 language code"
     )
     name: str = Field(..., description="Language name")
-    englishName: str = Field(
+    english_name: str = Field(
         ..., validation_alias="english_name", description="English name of the language"
     )
 
 
-class TMDBMovieDetails(BaseModel):
+class TMDBMovieDetails(BaseSchema):
     """Full movie details from TMDB"""
-
-    model_config = ConfigDict(populate_by_name=True)
 
     id: int = Field(..., description="Unique identifier for the movie")
     title: str = Field(..., description="Title of the movie")
-    originalTitle: str = Field(
+    original_title: str = Field(
         ...,
         validation_alias="original_title",
         description="Original title of the movie",
     )
     overview: str = Field(..., description="Overview of the movie")
-    releaseDate: str = Field(
+    release_date: str = Field(
         ...,
         validation_alias="release_date",
         description="Release date of the movie in YYYY-MM-DD format",
     )
-    posterPath: str | None = Field(
+    poster_path: str | None = Field(
         None,
         validation_alias="poster_path",
         description="Path to the movie poster image",
     )
-    backdropPath: str | None = Field(
+    backdrop_path: str | None = Field(
         None,
         validation_alias="backdrop_path",
         description="Path to the movie backdrop image",
     )
-    voteAverage: float = Field(
+    vote_average: float = Field(
         ..., validation_alias="vote_average", description="Average rating of the movie"
     )
-    voteCount: int = Field(
+    vote_count: int = Field(
         ..., validation_alias="vote_count", description="Number of votes"
     )
     runtime: int | None = Field(None, description="Runtime in minutes")
@@ -156,8 +144,8 @@ class TMDBMovieDetails(BaseModel):
     status: str = Field(..., description="Release status of the movie")
     tagline: str | None = Field(None, description="Tagline of the movie")
     homepage: str | None = Field(None, description="Official homepage URL")
-    imdbId: str | None = Field(None, validation_alias="imdb_id", description="IMDB ID")
-    originalLanguage: str = Field(
+    imdb_id: str | None = Field(None, validation_alias="imdb_id", description="IMDB ID")
+    original_language: str = Field(
         ...,
         validation_alias="original_language",
         description="Original language of the movie",
@@ -165,16 +153,16 @@ class TMDBMovieDetails(BaseModel):
     popularity: float = Field(..., description="Popularity score")
     adult: bool = Field(..., description="Whether the movie is adult content")
     genres: list[TMDBGenre] = Field(..., description="List of genres")
-    productionCompanies: list[TMDBProductionCompany] = Field(
+    production_companies: list[TMDBProductionCompany] = Field(
         ...,
         validation_alias="production_companies",
         description="List of production companies",
     )
-    productionCountries: list[TMDBProductionCountry] = Field(
+    production_countries: list[TMDBProductionCountry] = Field(
         ...,
         validation_alias="production_countries",
         description="List of production countries",
     )
-    spokenLanguages: list[TMDBSpokenLanguage] = Field(
+    spoken_languages: list[TMDBSpokenLanguage] = Field(
         ..., validation_alias="spoken_languages", description="List of spoken languages"
     )

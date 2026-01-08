@@ -24,13 +24,13 @@ def clear_database():
 
 def test_log_creation():
     log = Log(
-        userId=ObjectId(),
-        movieId=ObjectId(),
-        tmdbId=10,
-        dateWatched="2023-10-01",
-        watchedWhere="cinema",
-        viewingNotes="Great movie!",
-        posterPath="/path/to/poster.jpg",
+        user_id=ObjectId(),
+        movie_id=ObjectId(),
+        tmdb_id=10,
+        date_watched="2023-10-01",
+        watched_where="cinema",
+        viewing_notes="Great movie!",
+        poster_path="/path/to/poster.jpg",
     )
 
     log.save()
@@ -41,7 +41,7 @@ def test_log_creation():
 
 def test_missing_required_fields():
     log = Log(
-        movieId=ObjectId(),
+        movie_id=ObjectId(),
     )
 
     with pytest.raises(Exception):
@@ -51,11 +51,11 @@ def test_missing_required_fields():
 
 def test_required_fields():
     log = Log(
-        userId=ObjectId(),
-        movieId=ObjectId(),
-        tmdbId=10,
-        dateWatched="2023-10-01",
-        watchedWhere="cinema",
+        user_id=ObjectId(),
+        movie_id=ObjectId(),
+        tmdb_id=10,
+        date_watched="2023-10-01",
+        watched_where="cinema",
     )
 
     log.save()
@@ -65,11 +65,11 @@ def test_required_fields():
 
 def test_wrong_watched_where():
     log = Log(
-        userId=ObjectId(),
-        movieId=ObjectId(),
-        tmdbId=10,
-        dateWatched="2023-10-01",
-        watchedWhere="unknown",
+        user_id=ObjectId(),
+        movie_id=ObjectId(),
+        tmdb_id=10,
+        date_watched="2023-10-01",
+        watched_where="unknown",
     )
 
     with pytest.raises(Exception):

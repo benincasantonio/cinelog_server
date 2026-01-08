@@ -30,24 +30,24 @@ def auth_service(mock_user_repository, mock_firebase_auth_repository):
 @pytest.fixture
 def user_create_request():
     return UserCreateRequest(
-        firstName="John",
-        lastName="Doe",
+        first_name="John",
+        last_name="Doe",
         email="john.doe@example.com",
         handle="johndoe",
-        dateOfBirth=date(1990, 1, 1),
-        firebaseUid="test_firebase_uid"
+        date_of_birth=date(1990, 1, 1),
+        firebase_uid="test_firebase_uid"
     )
 
 
 @pytest.fixture
 def register_request():
     return RegisterRequest(
-        firstName="John",
-        lastName="Doe",
+        first_name="John",
+        last_name="Doe",
         email="john.doe@example.com",
         password="securepassword",
         handle="johndoe",
-        dateOfBirth=date(1990, 1, 1)
+        date_of_birth=date(1990, 1, 1)
     )
 
 
@@ -58,8 +58,8 @@ class TestAuthService:
         mock_created_user = Mock()
         mock_created_user.id = uuid.uuid4()
         mock_created_user.email = register_request.email
-        mock_created_user.firstName = register_request.firstName
-        mock_created_user.lastName = register_request.lastName
+        mock_created_user.first_name = register_request.first_name
+        mock_created_user.last_name = register_request.last_name
         mock_created_user.handle = register_request.handle
         mock_created_user.bio = None
         
@@ -80,8 +80,8 @@ class TestAuthService:
         mock_firebase_auth_repository.create_user.assert_called_once()
         mock_user_repository.create_user.assert_called_once()
         assert result.email == register_request.email
-        assert result.firstName == register_request.firstName
-        assert result.lastName == register_request.lastName
+        assert result.first_name == register_request.first_name
+        assert result.last_name == register_request.last_name
         assert result.handle == register_request.handle
         assert result.user_id == mock_created_user.id.__str__()
 

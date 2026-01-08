@@ -35,20 +35,20 @@ class TestMovieRatingService:
 
         mock_rating = Mock()
         mock_rating.id = "rating123"
-        mock_rating.userId = "user123"
-        mock_rating.movieId = "movie123"
-        mock_rating.tmdbId = 550
+        mock_rating.user_id = "user123"
+        mock_rating.movie_id = "movie123"
+        mock_rating.tmdb_id = 550
         mock_rating.rating = 8
         mock_rating.review = "Great movie!"
-        mock_rating.createdAt = datetime.now()
-        mock_rating.updatedAt = datetime.now()
+        mock_rating.created_at = datetime.now()
+        mock_rating.updated_at = datetime.now()
 
         mock_movie_rating_repository.create_update_movie_rating.return_value = mock_rating
 
         # Execute
         result = movie_rating_service.create_update_movie_rating(
             user_id="user123",
-            tmdbId="550",
+            tmdb_id="550",
             rating=8,
             comment="Great movie!"
         )
@@ -63,13 +63,13 @@ class TestMovieRatingService:
         """Test getting an existing movie rating."""
         mock_rating = Mock()
         mock_rating.id = "rating123"
-        mock_rating.userId = "user123"
-        mock_rating.movieId = "movie123"
-        mock_rating.tmdbId = 550
+        mock_rating.user_id = "user123"
+        mock_rating.movie_id = "movie123"
+        mock_rating.tmdb_id = 550
         mock_rating.rating = 8
         mock_rating.review = "Great movie!"
-        mock_rating.createdAt = datetime.now()
-        mock_rating.updatedAt = datetime.now()
+        mock_rating.created_at = datetime.now()
+        mock_rating.updated_at = datetime.now()
 
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.return_value = mock_rating
 
@@ -91,13 +91,13 @@ class TestMovieRatingService:
         """Test getting movie rating by TMDB ID."""
         mock_rating = Mock()
         mock_rating.id = "rating123"
-        mock_rating.userId = "user123"
-        mock_rating.movieId = "movie123"
-        mock_rating.tmdbId = 550
+        mock_rating.user_id = "user123"
+        mock_rating.movie_id = "movie123"
+        mock_rating.tmdb_id = 550
         mock_rating.rating = 9
         mock_rating.review = "Excellent!"
-        mock_rating.createdAt = datetime.now()
-        mock_rating.updatedAt = datetime.now()
+        mock_rating.created_at = datetime.now()
+        mock_rating.updated_at = datetime.now()
 
         mock_movie_rating_repository.find_movie_rating_by_user_and_tmdb.return_value = mock_rating
 

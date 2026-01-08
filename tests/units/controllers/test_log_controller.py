@@ -45,13 +45,13 @@ def sample_movie_response():
     return MovieResponse(
         id="507f1f77bcf86cd799439011",
         title="Fight Club",
-        tmdbId=550,
-        posterPath="/path/to/poster.jpg",
-        releaseDate=None,
+        tmdb_id=550,
+        poster_path="/path/to/poster.jpg",
+        release_date=None,
         overview="A description",
-        voteAverage=8.5,
+        vote_average=8.5,
         runtime=139,
-        originalLanguage="en",
+        original_language="en",
     )
 
 
@@ -60,13 +60,13 @@ def sample_log_response(sample_movie_response):
     """Sample log response."""
     return LogCreateResponse(
         id="log123",
-        movieId="507f1f77bcf86cd799439011",
+        movie_id="507f1f77bcf86cd799439011",
         movie=sample_movie_response,
-        tmdbId=550,
-        dateWatched=date(2024, 1, 15),
-        viewingNotes="Amazing film!",
-        posterPath="/path/to/poster.jpg",
-        watchedWhere="cinema"
+        tmdb_id=550,
+        date_watched=date(2024, 1, 15),
+        viewing_notes="Amazing film!",
+        poster_path="/path/to/poster.jpg",
+        watched_where="cinema"
     )
 
 
@@ -77,14 +77,14 @@ def sample_log_list_response(sample_movie_response):
         logs=[
             LogListItem(
                 id="log123",
-                movieId="507f1f77bcf86cd799439011",
+                movie_id="507f1f77bcf86cd799439011",
                 movie=sample_movie_response,
-                tmdbId=550,
-                dateWatched=date(2024, 1, 15),
-                viewingNotes="Amazing film!",
-                posterPath="/path/to/poster.jpg",
-                watchedWhere="cinema",
-                movieRating=8
+                tmdb_id=550,
+                date_watched=date(2024, 1, 15),
+                viewing_notes="Amazing film!",
+                poster_path="/path/to/poster.jpg",
+                watched_where="cinema",
+                movie_rating=8
             )
         ],
     )
@@ -262,7 +262,7 @@ class TestGetLogs:
         mock_get_logs.return_value = sample_log_list_response
 
         response = client.get(
-            "/v1/logs/?sortBy=dateWatched&sortOrder=asc&watchedWhere=cinema",
+            "/v1/logs/?sort_by=dateWatched&sort_order=asc&watched_where=cinema",
             headers={"Authorization": mock_auth_token}
         )
 

@@ -25,7 +25,7 @@ def clear_database():
 def movie_create_request() -> MovieCreateRequest:
     return MovieCreateRequest(
         title='Inception',
-        tmdbId=111111
+        tmdb_id=111111
     )
 
 @pytest.fixture
@@ -43,7 +43,7 @@ def test_movie_creation(movie_create_request: MovieCreateRequest):
     assert movie is not None
     assert movie.id is not None
     assert movie.title == movie_create_request.title
-    assert movie.tmdbId == movie_create_request.tmdbId
+    assert movie.tmdb_id == movie_create_request.tmdb_id
     assert Movie.objects.count() == 1
 
 
@@ -72,7 +72,7 @@ def test_find_movie_by_id(movie_create_request: MovieCreateRequest):
     assert found_movie is not None
     assert found_movie.id == movie.id
     assert found_movie.title == movie_create_request.title
-    assert found_movie.tmdbId == movie_create_request.tmdbId
+    assert found_movie.tmdb_id == movie_create_request.tmdb_id
 
 
 def test_find_movie_by_tmdb_id(movie_create_request: MovieCreateRequest):
@@ -80,11 +80,11 @@ def test_find_movie_by_tmdb_id(movie_create_request: MovieCreateRequest):
     repository = MovieRepository()
     movie = repository.create_movie(movie_create_request)
 
-    found_movie = repository.find_movie_by_tmdb_id(movie.tmdbId)
+    found_movie = repository.find_movie_by_tmdb_id(movie.tmdb_id)
 
     # Assertions
     assert found_movie is not None
     assert found_movie.id == movie.id
     assert found_movie.title == movie_create_request.title
-    assert found_movie.tmdbId == movie_create_request.tmdbId
+    assert found_movie.tmdb_id == movie_create_request.tmdb_id
 

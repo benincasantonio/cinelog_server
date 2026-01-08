@@ -24,7 +24,7 @@ def clear_database():
 
 def test_movie_creation():
     movie = Movie(
-        tmdbId="123456",
+        tmdb_id="123456",
         title="Inception"
     )
     movie.save()
@@ -41,13 +41,13 @@ def test_required_fields():
 
 def test_tmdb_id_uniqueness():
     movie1 = Movie(
-        tmdbId="123456",
+        tmdb_id="123456",
         title="Inception"
     )
     movie1.save()
 
     movie2 = Movie(
-        tmdbId="123456",
+        tmdb_id="123456",
         title="The Matrix"
     )
     with pytest.raises(Exception):

@@ -22,10 +22,10 @@ def clear_database():
 
 def test_user_creation():
     user = User(
-        firstName="John",
-        lastName="Doe",
+        first_name="John",
+        last_name="Doe",
         email="john.doe@example.com",
-        dateOfBirth="1990-01-01",
+        date_of_birth="1990-01-01",
         handle="johndoe"
     )
     user.save()
@@ -34,9 +34,9 @@ def test_user_creation():
 
 def test_required_fields():
     user = User(
-        lastName="Doe",
+        last_name="Doe",
         email="john.doe@example.com",
-        dateOfBirth="1990-01-01",
+        date_of_birth="1990-01-01",
         handle="johndoe"
     ) 
     with pytest.raises(Exception):
@@ -45,19 +45,19 @@ def test_required_fields():
 
 def test_email_uniqueness():
     user1 = User(
-        firstName="John",
-        lastName="Doe",
+        first_name="John",
+        last_name="Doe",
         email="john.doe@example.com",
-        dateOfBirth="1990-01-01",
+        date_of_birth="1990-01-01",
         handle="johndoe"
     )
     user1.save()
 
     user2 = User(
-        firstName="Jane",
-        lastName="Smith",
+        first_name="Jane",
+        last_name="Smith",
         email="john.doe@example.com",
-        dateOfBirth="1992-02-02",
+        date_of_birth="1992-02-02",
         handle="janesmith"
     )
     with pytest.raises(Exception):
@@ -65,20 +65,20 @@ def test_email_uniqueness():
 
 def test_handle_uniqueness():
     user1 = User(
-        firstName="John",
-        lastName="Doe",
+        first_name="John",
+        last_name="Doe",
         email="john.doe@example.com",
-        dateOfBirth="1990-01-01",
+        date_of_birth="1990-01-01",
         handle="johndoe"
     )
 
     user1.save()
 
     user2 = User(
-        firstName="Jane",
-        lastName="Smith",
+        first_name="Jane",
+        last_name="Smith",
         email="jane@example.com",
-        dateOfBirth="1992-02-02",
+        date_of_birth="1992-02-02",
         handle="johndoe"
     )
 
@@ -88,23 +88,23 @@ def test_handle_uniqueness():
 
 def test_created_at_field():
     user = User(
-        firstName="John",
-        lastName="Doe",
+        first_name="John",
+        last_name="Doe",
         email="john.doe@example.com",
-        dateOfBirth="1990-01-01",
+        date_of_birth="1990-01-01",
         handle="johndoe"
     )
     user.save()
     
-    assert user.createdAt is not None
-    assert isinstance(user.createdAt, datetime)
+    assert user.created_at is not None
+    assert isinstance(user.created_at, datetime)
 
 def test_object_id_field():
     user = User(
-        firstName="John",
-        lastName="Doe",
+        first_name="John",
+        last_name="Doe",
         email="john.doe@example.com",
-        dateOfBirth="1990-01-01",
+        date_of_birth="1990-01-01",
         handle="johndoe"
     )
     user.save()

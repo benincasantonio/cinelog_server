@@ -24,12 +24,12 @@ def clear_database():
 @pytest.fixture
 def user_create_request():
     return UserCreateRequest(
-        firstName="John",
-        lastName="Doe",
+        first_name="John",
+        last_name="Doe",
         email="john.doe@example.com",
         password="securepassword",
         handle="johndoe",
-        dateOfBirth=date(1990, 1, 1)
+        date_of_birth=date(1990, 1, 1)
     )
 
 def test_create_user(user_create_request):
@@ -40,8 +40,8 @@ def test_create_user(user_create_request):
     # Assertions
     assert user is not None
     assert user.id is not None
-    assert user.firstName == user_create_request.firstName
-    assert user.lastName == user_create_request.lastName
+    assert user.first_name == user_create_request.first_name
+    assert user.last_name == user_create_request.last_name
     assert user.email == user_create_request.email
     assert User.objects.count() == 1
 
@@ -49,21 +49,21 @@ def test_cannot_create_user_with_same_email():
     # Test creating a user with the same email
     repository = UserRepository()
     user_request1 = UserCreateRequest(
-        firstName="Alice",
-        lastName="Smith",
+        first_name="Alice",
+        last_name="Smith",
         email="alice.smith@example.com",
         password="securepassword",
         handle="alicesmith",
-        dateOfBirth=date(1992, 5, 15)
+        date_of_birth=date(1992, 5, 15)
     )
 
     user_request2 = UserCreateRequest(
-        firstName="Bob",
-        lastName="Johnson",
+        first_name="Bob",
+        last_name="Johnson",
         email="alice.smith@example.com",
         password="anotherpassword",
         handle="bobjohnson",
-        dateOfBirth=date(1988, 10, 5)
+        date_of_birth=date(1988, 10, 5)
     )
 
     repository.create_user(user_request1)
@@ -74,12 +74,12 @@ def test_cannot_create_user_with_same_email():
 def test_find_user_by_email():
     repository = UserRepository()
     user_request = UserCreateRequest(
-        firstName="Jane",
-        lastName="Smith",
+        first_name="Jane",
+        last_name="Smith",
         email="jane.smith@example.com",
         password="secure123",
         handle="janesmith",
-        dateOfBirth=date(1992, 5, 15)
+        date_of_birth=date(1992, 5, 15)
     )
     created_user = repository.create_user(user_request)
     
@@ -96,12 +96,12 @@ def test_logical_delete_user():
     # Create a test user first
     repository = UserRepository()
     user_request = UserCreateRequest(
-        firstName="Alice",
-        lastName="Johnson",
+        first_name="Alice",
+        last_name="Johnson",
         email="alice.johnson@example.com",
         password="secure456",
         handle="alicej",
-        dateOfBirth=date(1985, 3, 20)
+        date_of_birth=date(1985, 3, 20)
     )
     created_user = repository.create_user(user_request)
     
@@ -121,12 +121,12 @@ def test_oblivion_user():
     # Create a test user first
     repository = UserRepository()
     user_request = UserCreateRequest(
-        firstName="Bob",
-        lastName="Williams",
+        first_name="Bob",
+        last_name="Williams",
         email="bob.williams@example.com",
         password="secure789",
         handle="bobw",
-        dateOfBirth=date(1988, 10, 5)
+        date_of_birth=date(1988, 10, 5)
     )
     created_user = repository.create_user(user_request)
     
@@ -139,19 +139,19 @@ def test_oblivion_user():
     assert success is True
     
     assert user is not None 
-    assert user.firstName == "Deleted"
-    assert user.lastName == "User"
+    assert user.first_name == "Deleted"
+    assert user.last_name == "User"
     assert user.email == ""
 
 def test_find_user_by_handle():
     repository = UserRepository()
     user_request = UserCreateRequest(
-        firstName="Charlie",
-        lastName="Brown",
+        first_name="Charlie",
+        last_name="Brown",
         email="test@example.com",
         password="securepassword",
         handle="charliebrown",
-        dateOfBirth=date(1990, 1, 1)
+        date_of_birth=date(1990, 1, 1)
     )
 
     created_user = repository.create_user(user_request)
@@ -164,12 +164,12 @@ def test_find_user_by_handle():
 def test_find_user_by_email_or_handle():
     repository = UserRepository()
     user_request = UserCreateRequest(
-        firstName="David",
-        lastName="Smith",
+        first_name="David",
+        last_name="Smith",
         email="example@example.com",
         password="securepassword",
         handle="david_smith",
-        dateOfBirth=date(1990, 1, 1)
+        date_of_birth=date(1990, 1, 1)
     )
     created_user = repository.create_user(user_request)
     found_user_by_email = repository.find_user_by_email_or_handle("example@example.com")

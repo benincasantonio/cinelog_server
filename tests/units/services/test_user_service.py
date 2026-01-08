@@ -37,13 +37,13 @@ def create_mock_user(
     """Helper to create a mock user with proper attributes."""
     mock_user = Mock()
     mock_user.id = user_id
-    mock_user.firstName = first_name
-    mock_user.lastName = last_name
+    mock_user.first_name = first_name
+    mock_user.last_name = last_name
     mock_user.email = email
     mock_user.handle = handle
     mock_user.bio = bio
-    mock_user.dateOfBirth = date_of_birth or date(1990, 1, 1)
-    mock_user.firebaseUid = firebase_uid
+    mock_user.date_of_birth = date_of_birth or date(1990, 1, 1)
+    mock_user.firebase_uid = firebase_uid
     return mock_user
 
 
@@ -72,10 +72,10 @@ class TestUserService:
 
         # Verify
         assert result.id == "user123"
-        assert result.firstName == "John"
-        assert result.lastName == "Doe"
-        assert result.firebaseData is not None
-        assert result.firebaseData.emailVerified is True
+        assert result.first_name == "John"
+        assert result.last_name == "Doe"
+        assert result.firebase_data is not None
+        assert result.firebase_data.email_verified is True
 
     def test_get_user_info_user_not_found(self, user_service, mock_user_repository):
         """Test get_user_info when user is not found."""
@@ -93,7 +93,7 @@ class TestUserService:
         result = user_service.get_user_info("user123")
 
         # Firebase data should be None when Firebase is not initialized
-        assert result.firebaseData is None
+        assert result.firebase_data is None
         mock_firebase_auth_repository.get_user.assert_not_called()
 
     @patch('app.services.user_service.is_firebase_initialized', return_value=True)
@@ -107,7 +107,7 @@ class TestUserService:
 
         # Should still return user info, just without Firebase data
         assert result.id == "user123"
-        assert result.firebaseData is None
+        assert result.firebase_data is None
 
     @patch('app.services.user_service.is_firebase_initialized', return_value=True)
     def test_get_user_info_no_firebase_uid(self, mock_firebase_init, user_service, mock_user_repository, mock_firebase_auth_repository):
@@ -118,5 +118,5 @@ class TestUserService:
         result = user_service.get_user_info("user123")
 
         # Firebase data should be None when user has no Firebase UID
-        assert result.firebaseData is None
+        assert result.firebase_data is None
         mock_firebase_auth_repository.get_user.assert_not_called()
