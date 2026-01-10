@@ -7,7 +7,11 @@ import pytest
 import httpx
 import os
 import requests
+from dotenv import load_dotenv
 from mongoengine import disconnect, connect
+
+# Load .env file to get TMDB_API_KEY for log tests
+load_dotenv()
 
 # Set e2e environment variables BEFORE importing app
 os.environ["MONGODB_HOST"] = "localhost"
@@ -32,10 +36,14 @@ def e2e_mongo():
 
 
 @pytest.fixture(autouse=True)
-def clean_db(e2e_mongo):
+def clean_db():
     """Clean all collections and Firebase emulator data before each test."""
     from app.models.user import User
+    from app.models.log import Log
+    from app.models.movie import Movie
     User.objects.delete()
+    Log.objects.delete()
+    Movie.objects.delete()
     
     # Clear Firebase Auth Emulator data
     project_id = os.environ.get("FIREBASE_PROJECT_ID", "demo-cinelog-e2e")

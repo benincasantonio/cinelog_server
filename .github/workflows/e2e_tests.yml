@@ -66,3 +66,4 @@ jobs:
           MONGODB_DB: cinelog_e2e_db
           FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
           FIREBASE_PROJECT_ID: demo-cinelog-e2e
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
