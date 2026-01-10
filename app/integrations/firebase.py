@@ -24,6 +24,9 @@ def initialize_firebase_admin() -> Optional[firebase_admin.App]:
     - FIREBASE_DATABASE_URL: Firebase Realtime Database URL
     - FIREBASE_STORAGE_BUCKET: Firebase Storage bucket name
 
+    For emulator mode:
+    - FIREBASE_AUTH_EMULATOR_HOST: When set, skips credential validation
+
     Returns:
         firebase_admin.App instance if initialized, None otherwise
     """
@@ -32,6 +35,14 @@ def initialize_firebase_admin() -> Optional[firebase_admin.App]:
         return firebase_admin.get_app()
     except ValueError:
         pass  # App not initialized yet, continue
+
+    # Check if using Firebase Emulator (no real credentials needed)
+    emulator_host = os.getenv("FIREBASE_AUTH_EMULATOR_HOST")
+    if emulator_host:
+        project_id = os.getenv("FIREBASE_PROJECT_ID", "demo-cinelog-e2e")
+        options = {"projectId": project_id}
+        # Initialize without credentials for emulator mode
+        return firebase_admin.initialize_app(options=options)
 
     # Use individual environment variables
     if _has_individual_credentials():
