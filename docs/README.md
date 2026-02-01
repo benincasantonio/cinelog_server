@@ -11,4 +11,4 @@ Welcome to the Cinelog Server documentation.
 ## Quick Links
 
 - **API Base URL**: `http://localhost:5009`
-- **Main README**: [../README.md](../CLAUDE.md)
+- **Main README**: [CLAUDE.md](../CLAUDE.md)

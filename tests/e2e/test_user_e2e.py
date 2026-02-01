@@ -2,32 +2,7 @@
 E2E tests for user controller endpoints.
 Tests the full stack: FastAPI -> UserService -> Firebase + MongoDB.
 """
-import requests
-import os
-
-
-
-def get_firebase_id_token(email: str, password: str) -> str:
-    """
-    Get a Firebase ID token from the emulator for testing.
-    Uses the Firebase Auth Emulator REST API.
-    """
-    emulator_host = os.environ.get("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
-    
-    # Sign in with email/password to get ID token
-    url = f"http://{emulator_host}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-    response = requests.post(
-        url,
-        params={"key": "fake-api-key"},  # Emulator accepts any key
-        json={
-            "email": email,
-            "password": password,
-            "returnSecureToken": True
-        },
-        timeout=5
-    )
-    response.raise_for_status()
-    return response.json()["idToken"]
+from tests.e2e.conftest import get_firebase_id_token
 
 
 class TestUserE2E:

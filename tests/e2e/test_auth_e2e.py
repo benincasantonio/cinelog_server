@@ -2,9 +2,6 @@
 E2E tests for authentication endpoints.
 Tests the full stack: FastAPI -> AuthService -> Firebase + MongoDB.
 """
-
-import pytest
-
 from app.utils.error_codes import ErrorCodes
 
 

@@ -2,30 +2,7 @@
 E2E tests for log controller endpoints.
 Tests the full stack: FastAPI -> LogService -> MongoDB.
 """
-import os
-import requests
-
-
-def get_firebase_id_token(email: str, password: str) -> str:
-    """
-    Get a Firebase ID token from the emulator for testing.
-    Uses the Firebase Auth Emulator REST API.
-    """
-    emulator_host = os.environ.get("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
-    
-    url = f"http://{emulator_host}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-    response = requests.post(
-        url,
-        params={"key": "fake-api-key"},
-        json={
-            "email": email,
-            "password": password,
-            "returnSecureToken": True
-        },
-        timeout=5
-    )
-    response.raise_for_status()
-    return response.json()["idToken"]
+from tests.e2e.conftest import get_firebase_id_token
 
 
 class TestLogE2E:
