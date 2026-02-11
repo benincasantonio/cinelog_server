@@ -12,6 +12,7 @@ import app.controllers.movie_rating_controller as movie_rating_controller
 import app.controllers.stats_controller as stats_controller
 from app.utils.exceptions import AppException
 from app.integrations.firebase import initialize_firebase_admin
+from app.config.cors import get_cors_config
 
 app = FastAPI(
     title="Cinelog API",
@@ -19,10 +20,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    **get_cors_config()
 )
 
 firebase_app = initialize_firebase_admin()
