@@ -17,17 +17,12 @@ def test_get_cors_origins_from_env_filters_empty_values():
 
 def test_get_cors_origins_dev_defaults():
     with patch.dict(os.environ, {"ENVIRONMENT": "development"}, clear=True):
-        # Ensure CORS_ORIGINS is not set
-        if "CORS_ORIGINS" in os.environ:
-            del os.environ["CORS_ORIGINS"]
         origins = get_cors_origins()
         assert "http://localhost:3000" in origins
         assert "http://localhost:5173" in origins
 
 def test_get_cors_origins_production_empty():
     with patch.dict(os.environ, {"ENVIRONMENT": "production"}, clear=True):
-        if "CORS_ORIGINS" in os.environ:
-            del os.environ["CORS_ORIGINS"]
         origins = get_cors_origins()
         assert origins == []
 
