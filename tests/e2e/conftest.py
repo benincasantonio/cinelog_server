@@ -6,7 +6,6 @@ Uses httpx ASGITransport for direct FastAPI testing.
 import pytest
 import httpx
 import os
-import requests
 from dotenv import load_dotenv
 from mongoengine import disconnect, connect
 
@@ -17,17 +16,10 @@ load_dotenv()
 os.environ["MONGODB_HOST"] = "localhost"
 os.environ["MONGODB_PORT"] = "27018"
 os.environ["MONGODB_DB"] = "cinelog_e2e_db"
-os.environ["FIREBASE_AUTH_EMULATOR_HOST"] = "localhost:9099"
-os.environ["FIREBASE_PROJECT_ID"] = "demo-cinelog-e2e"
+os.environ["MONGODB_DB"] = "cinelog_e2e_db"
 
 
-from app.services.token_service import TokenService
 
-def get_test_token(user_id: str) -> str:
-    """
-    Generate a local JWT access token for testing.
-    """
-    return TokenService.create_access_token({"sub": user_id})
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -66,16 +58,6 @@ def clean_db(e2e_mongo):
         import warnings
         warnings.warn(f"Could not clean MongoDB collections: {e}")
     
-    # Clear Firebase Auth Emulator data
-    project_id = os.environ.get("FIREBASE_PROJECT_ID", "demo-cinelog-e2e")
-    emulator_host = os.environ.get("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
-    try:
-        requests.delete(
-            f"http://{emulator_host}/emulator/v1/projects/{project_id}/accounts",
-            timeout=5
-        )
-    except requests.exceptions.RequestException:
-        pass  # Emulator might not be running, continue anyway
     
     yield
 

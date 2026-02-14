@@ -1,8 +1,7 @@
 """
 E2E tests for user controller endpoints.
-Tests the full stack: FastAPI -> UserService -> Firebase + MongoDB.
+Tests the full stack: FastAPI -> UserService -> MongoDB.
 """
-from tests.e2e.conftest import get_test_token
 
 
 class TestUserE2E:
@@ -26,14 +25,8 @@ class TestUserE2E:
         user_data = register_response.json()
         user_id = user_data["userId"]
         
-        # Get test token
-        id_token = get_test_token(user_id)
-        
-        # Get user info
-        response = await async_client.get(
-            "/v1/users/info",
-            headers={"Authorization": f"Bearer {id_token}"}
-        )
+        # Get user info (cookies auto-sent)
+        response = await async_client.get("/v1/users/info")
         
         assert response.status_code == 200
         data = response.json()
@@ -51,10 +44,10 @@ class TestUserE2E:
 
     async def test_get_user_info_invalid_token(self, async_client):
         """Test getting user info with invalid token."""
-        response = await async_client.get(
-            "/v1/users/info",
-            headers={"Authorization": "Bearer invalid-token"}
-        )
+        # Set invalid cookie manually
+        async_client.cookies.set("access_token", "invalid-token")
+        
+        response = await async_client.get("/v1/users/info")
         
         assert response.status_code == 401
 
@@ -76,14 +69,8 @@ class TestUserE2E:
         user_data = register_response.json()
         user_id = user_data["userId"]
         
-        # Get test token
-        id_token = get_test_token(user_id)
-        
-        # Get user logs
-        response = await async_client.get(
-            f"/v1/users/{user_id}/logs",
-            headers={"Authorization": f"Bearer {id_token}"}
-        )
+        # Get user logs (cookies auto-sent)
+        response = await async_client.get(f"/v1/users/{user_id}/logs")
         
         assert response.status_code == 200
         data = response.json()
@@ -109,21 +96,16 @@ class TestUserE2E:
                 "dateOfBirth": "1990-01-01"
             }
         )
-        assert register_response.status_code == 200
-        user_data = register_response.json()
-        user_id = user_data["userId"]
-        
         assert register_response.status_code == 201
         user_data = register_response.json()
         user_id = user_data["userId"]
         
-        # Get test token
-        id_token = get_test_token(user_id)
+        csrf_token = async_client.cookies.get("csrf_token")
         
         # Create a log entry (this creates a movie too)
         log_response = await async_client.post(
             "/v1/logs/",
-            headers={"Authorization": f"Bearer {id_token}"},
+            headers={"X-CSRF-Token": csrf_token},
             json={
                 "tmdbId": 550,  # Fight Club
                 "dateWatched": "2024-01-15",
@@ -134,10 +116,7 @@ class TestUserE2E:
         assert log_response.status_code == 200
         
         # Get user logs via user controller endpoint
-        response = await async_client.get(
-            f"/v1/users/{user_id}/logs",
-            headers={"Authorization": f"Bearer {id_token}"}
-        )
+        response = await async_client.get(f"/v1/users/{user_id}/logs")
         
         assert response.status_code == 200
         data = response.json()
