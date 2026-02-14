@@ -1,6 +1,7 @@
 from fastapi import Response
 from datetime import timedelta
 import os
+import secrets
 
 from app.services.token_service import TokenService
 
@@ -44,3 +45,19 @@ def set_auth_cookies(response: Response, user_id: str):
     )
     
     return access_token, refresh_token
+
+
+def set_csrf_cookie(response: Response):
+    """
+    Generate and set CSRF token cookie.
+    """
+    csrf_token = secrets.token_hex(32)
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        httponly=False,
+        secure=True,
+        samesite="lax",
+        max_age=3600 * 24 # 1 day
+    )
+    return csrf_token

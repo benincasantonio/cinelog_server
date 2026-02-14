@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Response, Depends, status, HTTPException, Request, Body
 from typing import Annotated
-import secrets
+
 
 from app.repository.user_repository import UserRepository
 from app.schemas.auth_schemas import (
@@ -9,7 +9,7 @@ from app.schemas.auth_schemas import (
 )
 from app.services.auth_service import AuthService
 from app.services.token_service import TokenService
-from app.utils.auth_utils import set_auth_cookies
+from app.utils.auth_utils import set_auth_cookies, set_csrf_cookie
 from app.utils.error_codes import ErrorCodes
 from app.utils.exceptions import AppException
 from datetime import timedelta
@@ -115,20 +115,8 @@ async def reset_password(request: ResetPasswordRequest):
     return {"message": "Password reset successfully"}
 
 
-def set_csrf_cookie(response: Response):
-    """
-    Generate and set CSRF token cookie.
-    """
-    csrf_token = secrets.token_hex(32)
-    response.set_cookie(
-        key="csrf_token",
-        value=csrf_token,
-        httponly=False,  # Must be accessible by JS to send in header
-        secure=True,     # Determine based on env in real app, but Secure for now
-        samesite="lax",  # Strict or Lax
-        max_age=3600 * 24 # 1 day
-    )
-    return csrf_token
+    return {"message": "Password reset successfully"}
+
 
 @router.get("/csrf")
 async def get_csrf_token(response: Response):
