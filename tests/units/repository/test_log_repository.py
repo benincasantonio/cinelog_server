@@ -22,7 +22,7 @@ class TestLogRepository:
         # Disconnect from any existing connections first
         disconnect()
         # Connect to a test database using mongomock
-        connect('mongoenginetest', host='localhost', mongo_client_class=mongomock.MongoClient)
+        connect('mongoenginetest', host='localhost', mongo_client_class=mongomock.MongoClient, uuidRepresentation="standard")
         yield
         # Disconnect from the test database
         disconnect()
