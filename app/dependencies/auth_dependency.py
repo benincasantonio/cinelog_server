@@ -10,12 +10,6 @@ def auth_dependency(request: Request) -> str:
     token = request.cookies.get("access_token")
 
     if not token:
-        # Fallback to Authorization header for flexibility (optional but good for testing/portability)
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-             token = auth_header[len("Bearer ") :]
-    
-    if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
@@ -31,5 +25,7 @@ def auth_dependency(request: Request) -> str:
         
         return user_id
         
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=401, detail="Unauthorized")

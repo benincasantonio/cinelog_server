@@ -39,7 +39,8 @@ def e2e_mongo():
             db="cinelog_e2e_db",
             host="localhost",
             port=27018,
-            alias="default"
+            alias="default",
+            uuidRepresentation="standard"
         )
     except Exception as e:
         import warnings

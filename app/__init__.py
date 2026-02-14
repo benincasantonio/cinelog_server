@@ -30,14 +30,14 @@ mongodb_uri = os.getenv("MONGODB_URI")
 if mongodb_uri:
     mongo_client = MongoClient(mongodb_uri)
     mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
-    connect(host=mongodb_uri, db=mongodb_db)
+    connect(host=mongodb_uri, db=mongodb_db, uuidRepresentation="standard")
 else:
     mongodb_host = os.getenv("MONGODB_HOST", "localhost")
     mongodb_port = int(os.getenv("MONGODB_PORT", "27017"))
     mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
 
     mongo_client = MongoClient(f"mongodb://{mongodb_host}:{mongodb_port}/{mongodb_db}")
-    connect(mongodb_db, host=mongodb_host, port=mongodb_port)
+    connect(mongodb_db, host=mongodb_host, port=mongodb_port, uuidRepresentation="standard")
 
 
 @app.exception_handler(AppException)

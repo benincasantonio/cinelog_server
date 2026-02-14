@@ -17,7 +17,7 @@ log_repository = LogRepository()
 log_service = LogService(log_repository)
 
 
-@router.post("/", response_model=LogCreateResponse)
+@router.post("/", response_model=LogCreateResponse, status_code=201)
 def create_log(
     request_body: LogCreateRequest,
     request: Request,

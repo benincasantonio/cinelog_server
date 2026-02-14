@@ -5,7 +5,9 @@ from datetime import date
 
 from app import app
 from app.schemas.user_schemas import UserResponse
-
+from app.dependencies.auth_dependency import auth_dependency
+from app.utils.exceptions import AppException
+from app.utils.error_codes import ErrorCodes
 
 @pytest.fixture
 def client():
@@ -13,28 +15,24 @@ def client():
 
 
 @pytest.fixture
-def mock_auth_token():
-    return "Bearer mock_valid_token"
+def override_auth():
+    """Mock successful authentication."""
+    return lambda: "user123"
 
 
 class TestUserController:
     """Tests for user controller endpoints."""
 
     @patch('app.controllers.user_controller.user_service.get_user_info')
-    @patch('app.controllers.user_controller.get_user_id_from_token')
-    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_get_user_info_success(
         self,
-        mock_verify_token,
-        mock_get_user_id,
         mock_get_user_info,
         client,
-        mock_auth_token
+        override_auth
     ):
         """Test successful user info retrieval."""
-        mock_verify_token.return_value = {"uid": "firebase_uid"}
-        mock_get_user_id.return_value = "user123"
-
+        app.dependency_overrides[auth_dependency] = override_auth
+        
         # Return actual UserResponse object
         mock_get_user_info.return_value = UserResponse(
             id="user123",
@@ -50,8 +48,10 @@ class TestUserController:
 
         response = client.get(
             "/v1/users/info",
-            headers={"Authorization": mock_auth_token}
+            cookies={"access_token": "token"}
         )
+
+        app.dependency_overrides = {}
 
         assert response.status_code == 200
         data = response.json()
@@ -60,30 +60,51 @@ class TestUserController:
 
     def test_get_user_info_unauthorized(self, client):
         """Test user info without authentication."""
+        app.dependency_overrides = {}
         response = client.get("/v1/users/info")
         assert response.status_code == 401
 
+    @patch('app.controllers.user_controller.user_service.get_user_info')
+    def test_get_user_info_not_found(
+        self,
+        mock_get_user_info,
+        client,
+        override_auth
+    ):
+        """Test user info retrieval when user not found."""
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_get_user_info.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
+
+        response = client.get(
+            "/v1/users/info",
+            cookies={"access_token": "token"}
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 404
+
     @patch('app.controllers.user_controller.log_service.get_user_logs')
-    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_get_user_logs_success(
         self,
-        mock_verify_token,
         mock_get_user_logs,
         client,
-        mock_auth_token
+        override_auth
     ):
         """Test successful user logs retrieval."""
         from app.schemas.log_schemas import LogListResponse
         
-        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        app.dependency_overrides[auth_dependency] = override_auth
 
         # Return actual LogListResponse object
         mock_get_user_logs.return_value = LogListResponse(logs=[])
 
         response = client.get(
             "/v1/users/user123/logs",
-            headers={"Authorization": mock_auth_token}
+            cookies={"access_token": "token"}
         )
+
+        app.dependency_overrides = {}
 
         assert response.status_code == 200
         data = response.json()
@@ -92,27 +113,6 @@ class TestUserController:
 
     def test_get_user_logs_unauthorized(self, client):
         """Test user logs without authentication."""
+        app.dependency_overrides = {}
         response = client.get("/v1/users/user123/logs")
         assert response.status_code == 401
-
-    @patch('app.controllers.user_controller.get_user_id_from_token')
-    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
-    def test_get_user_info_token_extraction_error(
-        self,
-        mock_verify_token,
-        mock_get_user_id,
-        client,
-        mock_auth_token
-    ):
-        """Test get user info returns 401 when token extraction fails."""
-        mock_verify_token.return_value = {"uid": "firebase_uid"}
-        mock_get_user_id.side_effect = ValueError("Invalid token")
-
-        response = client.get(
-            "/v1/users/info",
-            headers={"Authorization": mock_auth_token}
-        )
-
-        assert response.status_code == 401
-        assert "Invalid token" in response.json()["detail"]
-

@@ -21,12 +21,6 @@ def client():
 
 
 @pytest.fixture
-def mock_auth_token():
-    """Mock JWT token for authentication."""
-    return "Bearer mock_valid_token"
-
-
-@pytest.fixture
 def sample_log_create_request():
     """Sample log creation request."""
     return {
@@ -117,12 +111,12 @@ class TestCreateLog:
         response = client.post(
             "/v1/logs/",
             json=sample_log_create_request,
-            headers={"Authorization": "Bearer token"}
+            cookies={"access_token": "token"}
         )
 
         app.dependency_overrides = {}
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["id"] == "log123"
         mock_create_log.assert_called_once()
@@ -155,7 +149,7 @@ class TestCreateLog:
         response = client.post(
             "/v1/logs/",
             json=invalid_request,
-            headers={"Authorization": "Bearer token"}
+            cookies={"access_token": "token"}
         )
         
         app.dependency_overrides = {}
@@ -186,7 +180,7 @@ class TestUpdateLog:
         response = client.put(
             "/v1/logs/log123",
             json=update_request,
-            headers={"Authorization": "Bearer token"}
+            cookies={"access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -228,7 +222,7 @@ class TestGetLogs:
 
         response = client.get(
             "/v1/logs/",
-            headers={"Authorization": "Bearer token"}
+            cookies={"access_token": "token"}
         )
         
         app.dependency_overrides = {}
@@ -252,7 +246,7 @@ class TestGetLogs:
 
         response = client.get(
             "/v1/logs/?sort_by=dateWatched&sort_order=asc&watched_where=cinema",
-            headers={"Authorization": "Bearer token"}
+            cookies={"access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -266,4 +260,3 @@ class TestGetLogs:
         response = client.get("/v1/logs/")
 
         assert response.status_code == 401
-
