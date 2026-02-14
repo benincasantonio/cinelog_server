@@ -15,6 +15,7 @@ class UserRepository:
 
         # Convert Pydantic model to dict and unpack into User model
         user_data = request.model_dump()
+        
         user = User(**user_data)
         user.save()
         return user
@@ -41,10 +42,8 @@ class UserRepository:
         """Find a user by ID."""
         return User.objects(id=user_id).first()
 
-    @staticmethod
-    def find_user_by_firebase_uid(firebase_uid: str) -> User:
-        """Find a user by Firebase UID."""
-        return User.objects(firebase_uid=firebase_uid).first()
+
+
 
     @staticmethod
     def delete_user(user_id: str) -> bool:

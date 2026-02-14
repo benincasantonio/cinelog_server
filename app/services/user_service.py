@@ -1,5 +1,5 @@
 from app.repository.user_repository import UserRepository
-from app.schemas.user_schemas import UserResponse, FirebaseUserData
+from app.schemas.user_schemas import UserResponse
 from app.utils.exceptions import AppException
 from app.utils.error_codes import ErrorCodes
 
@@ -29,6 +29,4 @@ class UserService:
             handle=user.handle,
             bio=user.bio,
             date_of_birth=user.date_of_birth,
-            firebase_uid=user.firebase_uid,
-            firebase_data=None # Legacy field, can be removed from schema later
         )

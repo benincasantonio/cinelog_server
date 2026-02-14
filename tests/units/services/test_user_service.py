@@ -58,7 +58,7 @@ class TestUserService:
         assert result.id == "user123"
         assert result.first_name == "John"
         assert result.last_name == "Doe"
-        assert result.firebase_data is None
+        assert result.firebase_uid is None
         mock_user_repository.find_user_by_id.assert_called_once_with("user123")
 
     def test_get_user_info_user_not_found(self, user_service, mock_user_repository):
