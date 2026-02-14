@@ -14,8 +14,28 @@ class TestAuthService:
         return MagicMock()
 
     @pytest.fixture
-    def auth_service(self, mock_user_repo):
-        return AuthService(user_repository=mock_user_repo)
+    def mock_email_service(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def auth_service(self, mock_user_repo, mock_email_service):
+        return AuthService(
+            user_repository=mock_user_repo,
+            email_service=mock_email_service
+        )
+
+    def test_forgot_password_success(self, auth_service, mock_user_repo, mock_email_service):
+        email = "test@example.com"
+        mock_user = User(email=email)
+        mock_user_repo.find_user_by_email.return_value = mock_user
+
+        auth_service.forgot_password(email)
+
+        mock_user_repo.set_reset_password_code.assert_called_once()
+        mock_email_service.send_reset_password_email.assert_called_once_with(
+            email, 
+            mock_user_repo.set_reset_password_code.call_args[0][1] # Verify the code passed to repo is same passed to email
+        )
 
     def test_register_success(self, auth_service, mock_user_repo):
         request = RegisterRequest(

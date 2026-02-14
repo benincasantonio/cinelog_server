@@ -9,18 +9,22 @@ from app.schemas.auth_schemas import (
 from app.schemas.user_schemas import UserCreateRequest
 from app.services.password_service import PasswordService
 from app.services.token_service import TokenService
+from app.services.email_service import EmailService
 from app.utils.error_codes import ErrorCodes
 from app.utils.exceptions import AppException
 
 
 class AuthService:
     user_repository: UserRepository
+    email_service: EmailService
 
     def __init__(
         self,
         user_repository: UserRepository,
+        email_service: EmailService = None,
     ):
         self.user_repository = user_repository
+        self.email_service = email_service or EmailService()
 
     def register(self, request: RegisterRequest) -> RegisterResponse:
         """
@@ -110,9 +114,8 @@ class AuthService:
 
         self.user_repository.set_reset_password_code(user, reset_code, expires_at)
         
-        # TODO: Integrate with EmailService to send the code
-        # For now, we just print it or log it (in dev)
-        print(f"RESET CODE for {email}: {reset_code}")
+        # Send email via EmailService
+        self.email_service.send_reset_password_email(email, reset_code)
 
     def reset_password(self, email: str, code: str, new_password: str):
         """
