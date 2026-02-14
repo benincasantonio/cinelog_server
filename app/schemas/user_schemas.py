@@ -13,6 +13,7 @@ class UserCreateRequest(BaseSchema):
     bio: Optional[str] = Field(None, max_length=500, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
     firebase_uid: str = Field(None, description="Firebase UID for the user")
+    password_hash: Optional[str] = Field(None, description="Hashed password for local auth")
 
 
 class UserCreateResponse(BaseSchema):

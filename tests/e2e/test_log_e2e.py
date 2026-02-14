@@ -2,7 +2,7 @@
 E2E tests for log controller endpoints.
 Tests the full stack: FastAPI -> LogService -> MongoDB.
 """
-from tests.e2e.conftest import get_firebase_id_token
+from tests.e2e.conftest import get_test_token
 
 
 class TestLogE2E:
@@ -22,10 +22,12 @@ class TestLogE2E:
                 "dateOfBirth": "1990-01-01"
             }
         )
-        assert register_response.status_code == 200
+        assert register_response.status_code == 201
+        user_data = register_response.json()
+        user_id = user_data["userId"]
         
-        # Get Firebase ID token
-        id_token = get_firebase_id_token("createlog_test@example.com", "securepassword123")
+        # Get test token
+        id_token = get_test_token(user_id)
         
         # Create a log entry (using a real TMDB ID for a movie)
         response = await async_client.post(
@@ -77,9 +79,11 @@ class TestLogE2E:
                 "dateOfBirth": "1990-01-01"
             }
         )
-        assert register_response.status_code == 200
+        assert register_response.status_code == 201
+        user_data = register_response.json()
+        user_id = user_data["userId"]
         
-        id_token = get_firebase_id_token("getlogs_test@example.com", "securepassword123")
+        id_token = get_test_token(user_id)
         
         # Create a log entry
         await async_client.post(
@@ -118,9 +122,12 @@ class TestLogE2E:
                 "dateOfBirth": "1990-01-01"
             }
         )
-        assert register_response.status_code == 200
+        assert register_response.status_code == 201
+        user_data = register_response.json()
+        user_id = user_data["userId"]
         
-        id_token = get_firebase_id_token("updatelog_test@example.com", "securepassword123")
+        # Get test token
+        id_token = get_test_token(user_id)
         
         # Create a log entry
         create_response = await async_client.post(

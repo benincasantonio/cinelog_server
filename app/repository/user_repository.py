@@ -72,3 +72,26 @@ class UserRepository:
         user.save()
 
         return True
+
+    @staticmethod
+    def update_password(user: User, password_hash: str) -> User:
+        """Update user password."""
+        user.password_hash = password_hash
+        user.save()
+        return user
+
+    @staticmethod
+    def set_reset_password_code(user: User, code: str, expires_at: datetime) -> User:
+        """Set reset password code and expiration."""
+        user.reset_password_code = code
+        user.reset_password_expires = expires_at
+        user.save()
+        return user
+
+    @staticmethod
+    def clear_reset_password_code(user: User) -> User:
+        """Clear reset password code."""
+        user.reset_password_code = None
+        user.reset_password_expires = None
+        user.save()
+        return user

@@ -21,27 +21,13 @@ os.environ["FIREBASE_AUTH_EMULATOR_HOST"] = "localhost:9099"
 os.environ["FIREBASE_PROJECT_ID"] = "demo-cinelog-e2e"
 
 
-def get_firebase_id_token(email: str, password: str) -> str:
+from app.services.token_service import TokenService
+
+def get_test_token(user_id: str) -> str:
     """
-    Get a Firebase ID token from the emulator for testing.
-    Uses the Firebase Auth Emulator REST API.
+    Generate a local JWT access token for testing.
     """
-    emulator_host = os.environ.get("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
-    
-    # Sign in with email/password to get ID token
-    url = f"http://{emulator_host}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-    response = requests.post(
-        url,
-        params={"key": "fake-api-key"},  # Emulator accepts any key
-        json={
-            "email": email,
-            "password": password,
-            "returnSecureToken": True
-        },
-        timeout=5
-    )
-    response.raise_for_status()
-    return response.json()["idToken"]
+    return TokenService.create_access_token({"sub": user_id})
 
 
 @pytest.fixture(scope="session", autouse=True)

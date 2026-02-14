@@ -22,7 +22,7 @@ class TestAuthE2E:
             }
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["email"] == "e2e_test@example.com"
         assert data["firstName"] == "E2E"

@@ -2,7 +2,7 @@
 E2E tests for user controller endpoints.
 Tests the full stack: FastAPI -> UserService -> Firebase + MongoDB.
 """
-from tests.e2e.conftest import get_firebase_id_token
+from tests.e2e.conftest import get_test_token
 
 
 class TestUserE2E:
@@ -22,11 +22,12 @@ class TestUserE2E:
                 "dateOfBirth": "1990-01-01"
             }
         )
-        assert register_response.status_code == 200
+        assert register_response.status_code == 201
         user_data = register_response.json()
+        user_id = user_data["userId"]
         
-        # Get Firebase ID token from emulator
-        id_token = get_firebase_id_token("userinfo_test@example.com", "securepassword123")
+        # Get test token
+        id_token = get_test_token(user_id)
         
         # Get user info
         response = await async_client.get(
@@ -71,12 +72,12 @@ class TestUserE2E:
                 "dateOfBirth": "1990-01-01"
             }
         )
-        assert register_response.status_code == 200
+        assert register_response.status_code == 201
         user_data = register_response.json()
         user_id = user_data["userId"]
         
-        # Get Firebase ID token
-        id_token = get_firebase_id_token("userlogs_test@example.com", "securepassword123")
+        # Get test token
+        id_token = get_test_token(user_id)
         
         # Get user logs
         response = await async_client.get(
@@ -112,8 +113,12 @@ class TestUserE2E:
         user_data = register_response.json()
         user_id = user_data["userId"]
         
-        # Get Firebase ID token
-        id_token = get_firebase_id_token("userlogs_data@example.com", "securepassword123")
+        assert register_response.status_code == 201
+        user_data = register_response.json()
+        user_id = user_data["userId"]
+        
+        # Get test token
+        id_token = get_test_token(user_id)
         
         # Create a log entry (this creates a movie too)
         log_response = await async_client.post(

@@ -11,7 +11,6 @@ import app.controllers.user_controller as user_controller
 import app.controllers.movie_rating_controller as movie_rating_controller
 import app.controllers.stats_controller as stats_controller
 from app.utils.exceptions import AppException
-from app.integrations.firebase import initialize_firebase_admin
 from app.config.cors import get_cors_config
 
 app = FastAPI(
@@ -23,7 +22,7 @@ app.add_middleware(
     **get_cors_config()
 )
 
-firebase_app = initialize_firebase_admin()
+
 
 
 mongodb_uri = os.getenv("MONGODB_URI")

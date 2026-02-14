@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 
 from app.dependencies.auth_dependency import auth_dependency
-from app.utils.access_token_utils import get_user_id_from_token
 from app.services.stats_service import StatsService
 from app.schemas.stats_schemas import StatsResponse, StatsRequest
 from app.utils.exceptions import AppException
@@ -15,19 +14,14 @@ stats_service = StatsService()
 def get_my_stats(
     request: Request,
     stats_request: StatsRequest = Depends(),
-    _: bool = Depends(auth_dependency),
+    user_id: str = Depends(auth_dependency),
 ) -> StatsResponse:
     """
     Get stats for the logged in user.
 
     Requires authentication via Bearer token.
     """
-    token = request.headers.get("Authorization")
-    try:
-        user_id = get_user_id_from_token(token)
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
-
+    
     # Validate year bounds if both provided
     if (
         stats_request.year_from is not None
