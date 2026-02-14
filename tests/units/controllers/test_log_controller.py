@@ -111,7 +111,8 @@ class TestCreateLog:
         response = client.post(
             "/v1/logs/",
             json=sample_log_create_request,
-            cookies={"access_token": "token"}
+            cookies={"access_token": "token", "csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"}
         )
 
         app.dependency_overrides = {}
@@ -126,7 +127,9 @@ class TestCreateLog:
         app.dependency_overrides = {} # Ensure no override
         response = client.post(
             "/v1/logs/",
-            json=sample_log_create_request
+            json=sample_log_create_request,
+            cookies={"csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"}
         )
 
         assert response.status_code == 401
@@ -149,7 +152,8 @@ class TestCreateLog:
         response = client.post(
             "/v1/logs/",
             json=invalid_request,
-            cookies={"access_token": "token"}
+            cookies={"access_token": "token", "csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"}
         )
         
         app.dependency_overrides = {}
@@ -180,7 +184,8 @@ class TestUpdateLog:
         response = client.put(
             "/v1/logs/log123",
             json=update_request,
-            cookies={"access_token": "token"}
+            cookies={"access_token": "token", "csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"}
         )
 
         app.dependency_overrides = {}
@@ -199,7 +204,9 @@ class TestUpdateLog:
 
         response = client.put(
             "/v1/logs/log123",
-            json=update_request
+            json=update_request,
+            cookies={"csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"}
         )
 
         assert response.status_code == 401

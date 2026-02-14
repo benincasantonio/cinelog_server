@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Response, Depends, status, HTTPException, Request, Body
 from typing import Annotated
+import secrets
 
 from app.repository.user_repository import UserRepository
 from app.schemas.auth_schemas import (
@@ -29,6 +30,7 @@ async def register(request: RegisterRequest, response: Response) -> RegisterResp
     
     # Set Cookies
     set_auth_cookies(response, register_response.user_id)
+    set_csrf_cookie(response)
     
     return register_response
 
@@ -45,6 +47,7 @@ async def login(request: LoginRequest, response: Response):
     
     # Set Cookies
     set_auth_cookies(response, str(user.id))
+    set_csrf_cookie(response)
     
     # Return user info (excluding sensitive data)
     return {
@@ -110,3 +113,27 @@ class ResetPasswordRequest(BaseModel):
 async def reset_password(request: ResetPasswordRequest):
     auth_service.reset_password(request.email, request.code, request.new_password)
     return {"message": "Password reset successfully"}
+
+
+def set_csrf_cookie(response: Response):
+    """
+    Generate and set CSRF token cookie.
+    """
+    csrf_token = secrets.token_hex(32)
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        httponly=False,  # Must be accessible by JS to send in header
+        secure=True,     # Determine based on env in real app, but Secure for now
+        samesite="lax",  # Strict or Lax
+        max_age=3600 * 24 # 1 day
+    )
+    return csrf_token
+
+@router.get("/csrf")
+async def get_csrf_token(response: Response):
+    """
+    Get CSRF token (sets cookie).
+    """
+    csrf_token = set_csrf_cookie(response)
+    return {"csrf_token": csrf_token}

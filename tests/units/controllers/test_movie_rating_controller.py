@@ -49,7 +49,8 @@ class TestMovieRatingController:
                 "rating": 8,
                 "comment": "Great movie!"
             },
-            cookies={"access_token": "token"}
+            cookies={"access_token": "token", "csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"}
         )
 
         app.dependency_overrides = {}
@@ -67,7 +68,9 @@ class TestMovieRatingController:
                 "tmdbId": "550",
                 "rating": 8,
                 "comment": "Great movie!"
-            }
+            },
+            cookies={"csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"}
         )
         assert response.status_code == 401
 

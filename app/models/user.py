@@ -12,6 +12,7 @@ class User(BaseEntity):
     handle = StringField(required=True, unique=True)
     bio = StringField()
     date_of_birth = DateTimeField(db_field='dateOfBirth')
+    firebase_uid = StringField(db_field='firebaseUid', unique=True, sparse=True)
 
     # Auth fields for local authentication
     password_hash = StringField(db_field='passwordHash')

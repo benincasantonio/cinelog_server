@@ -39,4 +39,4 @@ def test_get_cors_config_defaults():
     config = get_cors_config()
     assert "allow_origins" in config
     assert config["allow_methods"] == ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
-    assert config["allow_headers"] == ["Authorization", "Content-Type", "Accept"]
+    assert config["allow_headers"] == ["Authorization", "Content-Type", "Accept", "X-CSRF-Token"]

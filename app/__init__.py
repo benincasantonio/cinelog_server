@@ -22,6 +22,12 @@ app.add_middleware(
     **get_cors_config()
 )
 
+from app.middleware.csrf_middleware import CSRFMiddleware
+app.add_middleware(
+    CSRFMiddleware, 
+    exempt_paths=["/v1/auth/login", "/v1/auth/register", "/docs", "/openapi.json", "/v1/auth/csrf"]
+)
+
 
 
 

@@ -38,5 +38,5 @@ def get_cors_config() -> CORSConfig:
         "allow_origins": get_cors_origins(),
         "allow_credentials": allow_credentials,
         "allow_methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        "allow_headers": ["Authorization", "Content-Type", "Accept"],
+        "allow_headers": ["Authorization", "Content-Type", "Accept", "X-CSRF-Token"],
     }
