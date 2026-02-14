@@ -8,6 +8,7 @@ Welcome to the Cinelog Server documentation.
 |----------|-------------|
 | [E2E Testing](e2e-testing.md) | Setup and run end-to-end tests |
 | [CORS Configuration](cors-configuration.md) | CORS environment and behavior specification |
+| [Authentication](authentication.md) | **NEW** Auth system (JWT, Cookies, CSRF) |
 
 ## Quick Links
 
