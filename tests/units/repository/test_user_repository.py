@@ -184,32 +184,4 @@ def test_find_user_by_email_or_handle():
     assert found_user_by_email.id == found_user_by_handle.id
 
 
-def test_find_user_by_firebase_uid():
-    """Test finding a user by Firebase UID."""
-    repository = UserRepository()
-    user_request = UserCreateRequest(
-        first_name="Firebase",
-        last_name="User",
-        email="firebase.user@example.com",
-        password="securepassword",
-        handle="firebaseuser",
-        date_of_birth=date(1990, 1, 1),
-        firebase_uid="firebase_uid_123"
-    )
-    created_user = repository.create_user(user_request)
-    
-    found_user = repository.find_user_by_firebase_uid("firebase_uid_123")
-    
-    assert found_user is not None
-    assert found_user.id == created_user.id
-    assert found_user.firebase_uid == "firebase_uid_123"
-
-
-def test_find_user_by_firebase_uid_not_found():
-    """Test finding a non-existent user by Firebase UID."""
-    repository = UserRepository()
-    
-    found_user = repository.find_user_by_firebase_uid("non_existent_uid")
-    
-    assert found_user is None
 

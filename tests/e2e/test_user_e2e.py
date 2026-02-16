@@ -113,7 +113,7 @@ class TestUserE2E:
                 "watchedWhere": "cinema"
             }
         )
-        assert log_response.status_code == 200
+        assert log_response.status_code == 201
         
         # Get user logs via user controller endpoint
         response = await async_client.get(f"/v1/users/{user_id}/logs")

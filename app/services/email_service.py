@@ -18,7 +18,7 @@ class EmailService:
         Send reset password email via SMTP.
         If SMTP configuration is missing, log the code to console (dev mode).
         """
-        if not self.smtp_server or not self.smtp_user or not self.smtp_password:
+        if not self.smtp_server:
             self.logger.warning(f"SMTP not configured. Reset code for {to_email}: {code}")
             # print to stdout ensuring it's visible in docker logs/console during dev
             print(f"--- EMAIL MOCK ---\nTo: {to_email}\nSubject: Password Reset\nCode: {code}\n------------------")
@@ -45,10 +45,13 @@ class EmailService:
 
             message.attach(part1)
             message.attach(part2)
-
+            
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_user, self.smtp_password)
+                # server.starttls() # Mailpit/Local often doesn't need/support TLS on 1025 unless configured
+                if self.smtp_user and self.smtp_password:
+                     server.starttls()
+                     server.login(self.smtp_user, self.smtp_password)
+                
                 server.sendmail(self.smtp_from_email, to_email, message.as_string())
             
             self.logger.info(f"Reset password email sent to {to_email}")

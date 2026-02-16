@@ -11,13 +11,4 @@ services:
     tmpfs:
       - /data/db
 
-  firebase_emulator:
-    image: andreysenov/firebase-tools:latest
-    container_name: cinelog_firebase_emulator
-    ports:
-      - "9099:9099"   # Auth emulator
-      - "4000:4000"   # Emulator UI
-    volumes:
-      - ./firebase.e2e.json:/app/firebase.json:ro
-    working_dir: /app
-    command: firebase emulators:start --only auth --project demo-cinelog-e2e
+

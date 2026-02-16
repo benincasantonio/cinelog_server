@@ -124,4 +124,4 @@ async def get_csrf_token(response: Response):
     Get CSRF token (sets cookie).
     """
     csrf_token = set_csrf_cookie(response)
-    return {"csrf_token": csrf_token}
+    return {"csrfToken": csrf_token}

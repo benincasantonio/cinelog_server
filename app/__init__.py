@@ -65,6 +65,9 @@ def index():
     return "Welcome to the Cinelog API!"
 
 
+
+
+
 app.include_router(auth_controller.router, prefix="/v1/auth", tags=["Auth"])
 app.include_router(movie_controller.router, prefix="/v1/movies", tags=["Movies"])
 app.include_router(log_controller.router, prefix="/v1/logs", tags=["Logs"])

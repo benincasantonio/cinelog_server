@@ -39,7 +39,7 @@ class TestLogE2E:
             }
         )
         
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["tmdbId"] == 550
         assert data["dateWatched"] == "2024-01-15"
@@ -147,7 +147,7 @@ class TestLogE2E:
                 "watchedWhere": "cinema"
             }
         )
-        assert create_response.status_code == 200
+        assert create_response.status_code == 201
         log_id = create_response.json()["id"]
         
         # Update the log

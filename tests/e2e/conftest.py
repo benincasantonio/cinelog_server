@@ -67,6 +67,6 @@ async def async_client():
     """Async HTTP client using ASGITransport for direct app testing."""
     from app import app
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
         yield client
 
