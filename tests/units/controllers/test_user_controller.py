@@ -48,7 +48,7 @@ class TestUserController:
 
         response = client.get(
             "/v1/users/info",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -77,7 +77,7 @@ class TestUserController:
 
         response = client.get(
             "/v1/users/info",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -101,7 +101,7 @@ class TestUserController:
 
         response = client.get(
             "/v1/users/user123/logs",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}

@@ -25,7 +25,15 @@ app.add_middleware(
 from app.middleware.csrf_middleware import CSRFMiddleware
 app.add_middleware(
     CSRFMiddleware, 
-    exempt_paths=["/v1/auth/login", "/v1/auth/register", "/docs", "/openapi.json", "/v1/auth/csrf"]
+    exempt_paths=[
+        "/v1/auth/login",
+        "/v1/auth/register",
+        "/v1/auth/forgot-password",
+        "/v1/auth/reset-password",
+        "/v1/auth/csrf",
+        "/docs",
+        "/openapi.json",
+    ]
 )
 
 

@@ -49,7 +49,7 @@ class TestMovieRatingController:
                 "rating": 8,
                 "comment": "Great movie!"
             },
-            cookies={"access_token": "token", "csrf_token": "test-token"},
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"}
         )
 
@@ -69,7 +69,7 @@ class TestMovieRatingController:
                 "rating": 8,
                 "comment": "Great movie!"
             },
-            cookies={"csrf_token": "test-token"},
+            cookies={"__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"}
         )
         assert response.status_code == 401
@@ -97,7 +97,7 @@ class TestMovieRatingController:
 
         response = client.get(
             "/v1/movie-ratings/550",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -119,7 +119,7 @@ class TestMovieRatingController:
 
         response = client.get(
             "/v1/movie-ratings/999",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -151,7 +151,7 @@ class TestMovieRatingController:
 
         response = client.get(
             "/v1/movie-ratings/550?user_id=other_user",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}

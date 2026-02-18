@@ -70,3 +70,18 @@ async def async_client():
     async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
         yield client
 
+
+async def register_and_login(client, user_data: dict) -> dict:
+    """
+    Helper: Register a user, then login to get auth cookies + CSRF token.
+    Returns the login response JSON (includes csrfToken).
+    """
+    reg_resp = await client.post("/v1/auth/register", json=user_data)
+    assert reg_resp.status_code == 201
+
+    login_resp = await client.post(
+        "/v1/auth/login",
+        json={"email": user_data["email"], "password": user_data["password"]}
+    )
+    assert login_resp.status_code == 200
+    return login_resp.json()

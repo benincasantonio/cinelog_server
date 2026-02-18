@@ -67,7 +67,7 @@ class TestMovieController:
 
         response = client.get(
             "/v1/movies/search?query=Fight Club",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -130,7 +130,7 @@ class TestMovieController:
 
         response = client.get(
             "/v1/movies/550",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -160,7 +160,7 @@ class TestMovieController:
 
         response = client.get(
             "/v1/movies/search?query=NonExistent",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
         
         app.dependency_overrides = {}
@@ -180,7 +180,7 @@ class TestMovieController:
 
         response = client.get(
             "/v1/movies/999999",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
         
         app.dependency_overrides = {}

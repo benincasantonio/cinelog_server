@@ -111,7 +111,7 @@ class TestCreateLog:
         response = client.post(
             "/v1/logs/",
             json=sample_log_create_request,
-            cookies={"access_token": "token", "csrf_token": "test-token"},
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"}
         )
 
@@ -128,7 +128,7 @@ class TestCreateLog:
         response = client.post(
             "/v1/logs/",
             json=sample_log_create_request,
-            cookies={"csrf_token": "test-token"},
+            cookies={"__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"}
         )
 
@@ -152,7 +152,7 @@ class TestCreateLog:
         response = client.post(
             "/v1/logs/",
             json=invalid_request,
-            cookies={"access_token": "token", "csrf_token": "test-token"},
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"}
         )
         
@@ -184,7 +184,7 @@ class TestUpdateLog:
         response = client.put(
             "/v1/logs/log123",
             json=update_request,
-            cookies={"access_token": "token", "csrf_token": "test-token"},
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"}
         )
 
@@ -205,7 +205,7 @@ class TestUpdateLog:
         response = client.put(
             "/v1/logs/log123",
             json=update_request,
-            cookies={"csrf_token": "test-token"},
+            cookies={"__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"}
         )
 
@@ -229,7 +229,7 @@ class TestGetLogs:
 
         response = client.get(
             "/v1/logs/",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
         
         app.dependency_overrides = {}
@@ -253,7 +253,7 @@ class TestGetLogs:
 
         response = client.get(
             "/v1/logs/?sort_by=dateWatched&sort_order=asc&watched_where=cinema",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}

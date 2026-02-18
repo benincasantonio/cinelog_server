@@ -10,7 +10,7 @@ class TestAuthDependency:
     def test_when_cookie_is_valid(self):
         """Test that auth_dependency allows access when a valid cookie is provided."""
         mock_request = Mock()
-        mock_request.cookies = {"access_token": "valid_token"}
+        mock_request.cookies = {"__Host-access_token": "valid_token"}
         mock_request.headers = {}
 
         with patch('app.dependencies.auth_dependency.TokenService.decode_token') as mock_decode:
@@ -36,7 +36,7 @@ class TestAuthDependency:
     def test_when_token_is_invalid(self):
         """Test function raises HTTPException when token is invalid."""
         mock_request = Mock()
-        mock_request.cookies = {"access_token": "invalid_token"}
+        mock_request.cookies = {"__Host-access_token": "invalid_token"}
         mock_request.headers = {}
 
         with patch('app.dependencies.auth_dependency.TokenService.decode_token', side_effect=InvalidTokenError):
@@ -49,7 +49,7 @@ class TestAuthDependency:
     def test_when_token_is_expired(self):
         """Test function raises HTTPException when token is expired."""
         mock_request = Mock()
-        mock_request.cookies = {"access_token": "expired_token"}
+        mock_request.cookies = {"__Host-access_token": "expired_token"}
         mock_request.headers = {}
 
         with patch('app.dependencies.auth_dependency.TokenService.decode_token', side_effect=ExpiredSignatureError):
@@ -62,7 +62,7 @@ class TestAuthDependency:
     def test_when_token_type_is_invalid(self):
         """Test function raises HTTPException when token type is not 'access'."""
         mock_request = Mock()
-        mock_request.cookies = {"access_token": "refresh_token"}
+        mock_request.cookies = {"__Host-access_token": "refresh_token"}
         mock_request.headers = {}
 
         with patch('app.dependencies.auth_dependency.TokenService.decode_token') as mock_decode:
@@ -77,7 +77,7 @@ class TestAuthDependency:
     def test_when_token_payload_missing_sub(self):
         """Test function raises HTTPException when token payload is missing 'sub'."""
         mock_request = Mock()
-        mock_request.cookies = {"access_token": "valid_token"}
+        mock_request.cookies = {"__Host-access_token": "valid_token"}
         mock_request.headers = {}
 
         with patch('app.dependencies.auth_dependency.TokenService.decode_token') as mock_decode:

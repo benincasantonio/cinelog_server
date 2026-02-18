@@ -38,7 +38,7 @@ def test_csrf_middleware_protection():
     assert response.json() == {"detail": "CSRF token mismatch or missing"}
 
     # 3. POST with cookie but missing header should be forbidden
-    client.cookies.set("csrf_token", "valid_token")
+    client.cookies.set("__Host-csrf_token", "valid_token")
     response = client.post("/protected")
     assert response.status_code == 403
 
@@ -48,12 +48,12 @@ def test_csrf_middleware_protection():
     assert response.status_code == 403
 
     # 5. POST with mismatching tokens should be forbidden
-    client.cookies.set("csrf_token", "token_a")
+    client.cookies.set("__Host-csrf_token", "token_a")
     response = client.post("/protected", headers={"X-CSRF-Token": "token_b"})
     assert response.status_code == 403
 
     # 6. POST with matching tokens should be allowed
-    client.cookies.set("csrf_token", "valid_token")
+    client.cookies.set("__Host-csrf_token", "valid_token")
     response = client.post("/protected", headers={"X-CSRF-Token": "valid_token"})
     assert response.status_code == 200
     assert response.json() == {"message": "Protected Resource Accessed"}

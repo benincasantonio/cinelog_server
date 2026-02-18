@@ -1,5 +1,6 @@
 from fastapi import Request, HTTPException
 from app.services.token_service import TokenService
+from app.utils.auth_utils import ACCESS_TOKEN_COOKIE
 
 
 def auth_dependency(request: Request) -> str:
@@ -7,7 +8,7 @@ def auth_dependency(request: Request) -> str:
     Auth dependency check if the user is authenticated via local JWT cookie.
     Returns the user_id (sub) from the token.
     """
-    token = request.cookies.get("access_token")
+    token = request.cookies.get(ACCESS_TOKEN_COOKIE)
 
     if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")

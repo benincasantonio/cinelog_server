@@ -56,7 +56,7 @@ class TestStatsController:
 
         response = client.get(
             "/v1/stats/me",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -84,7 +84,7 @@ class TestStatsController:
 
         response = client.get(
             "/v1/stats/me?yearFrom=2023&yearTo=2024",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -102,7 +102,7 @@ class TestStatsController:
 
         response = client.get(
             "/v1/stats/me?yearFrom=2024&yearTo=2023",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
         
         app.dependency_overrides = {}
@@ -129,7 +129,7 @@ class TestStatsController:
 
         response = client.get(
             "/v1/stats/me",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -153,7 +153,7 @@ class TestStatsController:
 
         response = client.get(
             "/v1/stats/me",
-            cookies={"access_token": "token"}
+            cookies={"__Host-access_token": "token"}
         )
         
         app.dependency_overrides = {}
