@@ -46,13 +46,28 @@ class EmailService:
             message.attach(part1)
             message.attach(part2)
             
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                # server.starttls() # Mailpit/Local often doesn't need/support TLS on 1025 unless configured
-                if self.smtp_user and self.smtp_password:
-                     server.starttls()
-                     server.login(self.smtp_user, self.smtp_password)
-                
-                server.sendmail(self.smtp_from_email, to_email, message.as_string())
+            use_ssl = os.getenv("SMTP_USE_SSL", "false").lower() == "true" or self.smtp_port == 465
+
+            if use_ssl:
+                with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
+                    # Explicitly identify ourselves, ensuring AUTH extension is advertised
+                    server.ehlo()
+                    if self.smtp_user and self.smtp_password:
+                        server.login(self.smtp_user, self.smtp_password)
+                    server.sendmail(self.smtp_from_email, to_email, message.as_string())
+            else:
+                with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                    # Identify ourselves to smtp client
+                    server.ehlo()
+                    # If we can encrypt, do so
+                    if server.has_extn("STARTTLS"):
+                        server.starttls()
+                        server.ehlo() # re-identify after encryption
+                    
+                    if self.smtp_user and self.smtp_password:
+                        server.login(self.smtp_user, self.smtp_password)
+                    
+                    server.sendmail(self.smtp_from_email, to_email, message.as_string())
             
             self.logger.info(f"Reset password email sent to {to_email}")
 
