@@ -26,7 +26,7 @@ def create_log(
     """
     Create a new viewing log entry.
 
-    Requires authentication via Bearer token.
+    Requires authentication via Cookie token.
     """
     return log_service.create_log(user_id=user_id, request=request_body)
 
@@ -41,7 +41,7 @@ def update_log(
     """
     Update an existing viewing log entry.
 
-    Requires authentication via Bearer token.
+    Requires authentication via Cookie token.
     Only the owner of the log can update it.
     """
     return log_service.update_log(user_id=user_id, log_id=log_id, request=request_body)
@@ -56,7 +56,7 @@ def get_logs(
     """
     Get list of user's viewing logs.
 
-    Requires authentication via Bearer token.
+    Requires authentication via Cookie token.
     Returns all logs filtered and sorted according to query parameters.
     """
     return log_service.get_user_logs(user_id=user_id, request=list_request)

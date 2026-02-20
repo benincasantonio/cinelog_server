@@ -33,7 +33,7 @@ def create_movie_rating(
     """
     Create or update a new movie rating entry.
 
-    Requires authentication via Bearer token.
+    Requires authentication via Cookie token.
     """
     return movie_rating_service.create_update_movie_rating(
         user_id=user_id,
@@ -55,7 +55,7 @@ def get_movie_rating(
 
     If user_id is not provided, it will use the current authenticated user's ID.
 
-    Requires authentication via Bearer token.
+    Requires authentication via Cookie token.
     """
     target_user_id = user_id if user_id else current_user_id
 

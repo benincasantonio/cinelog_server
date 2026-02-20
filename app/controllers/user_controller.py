@@ -23,7 +23,7 @@ def get_user_info(
     """
     Get current user information from MongoDB.
     
-    Requires authentication via Cookie or Bearer token.
+    Requires authentication via Cookie token.
     """
     return user_service.get_user_info(user_id)
 
@@ -37,7 +37,7 @@ def get_user_logs(
     """
     Get list of a specific user's viewing logs.
 
-    Requires authentication via Bearer token.
+    Requires authentication via Cookie token.
     Returns all logs filtered and sorted according to query parameters.
     """
     return log_service.get_user_logs(user_id=user_id, request=list_request)

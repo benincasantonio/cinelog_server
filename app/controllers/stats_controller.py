@@ -19,7 +19,7 @@ def get_my_stats(
     """
     Get stats for the logged in user.
 
-    Requires authentication via Bearer token.
+    Requires authentication via Cookie token.
     """
     
     # Validate year bounds if both provided

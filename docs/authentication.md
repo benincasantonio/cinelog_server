@@ -5,8 +5,8 @@ As of February 2026, Cinelog Server has migrated from Firebase Authentication to
 ## Overview
 
 - **Protocol**: JWT (JSON Web Tokens)
-- **Storage**: `HttpOnly`, `Secure`, `SameSite=Strict` Cookies (No LocalStorage/SessionStorage)
-- **CSRF Protection**: Double Submit Cookie Pattern
+- **Storage**: `HttpOnly`, `Secure`, `SameSite=Strict` Cookies (for tokens)
+- **CSRF Protection**: Double Submit Cookie Pattern via `__Host-csrf_token`
 - **Password Hashing**: bcrypt
 
 ## Authentication Flow
@@ -17,24 +17,25 @@ As of February 2026, Cinelog Server has migrated from Firebase Authentication to
 1.  Client sends user details (email, password, etc.).
 2.  Server hashes password using `bcrypt`.
 3.  Server creates user in MongoDB.
-4.  Server issues two HttpOnly cookies:
-    -   `access_token`: Short-lived (15 mins).
-    -   `refresh_token`: Long-lived (7 days).
-5.  Server sets a `csrf_token` cookie (HttpOnly=False) for CSRF protection.
+4.  Server returns the newly created user details via JSON response.
+
+*Note: Registration does not automatically log the user in. The client must make a subsequent call to `/v1/auth/login` to obtain authentication and CSRF cookies.*
 
 ### Login
 **Endpoint**: `POST /v1/auth/login`
 
 1.  Client sends email and password.
 2.  Server verifies password hash.
-3.  Server issues `access_token` and `refresh_token` cookies.
-4.  Server sets `csrf_token` cookie.
+3.  Server issues two `HttpOnly` token cookies:
+    -   `__Host-access_token`: Short-lived (15 mins), scoped to root (`/`).
+    -   `refresh_token`: Long-lived (7 days), scoped to `/v1/auth/refresh`.
+4.  Server sets a `__Host-csrf_token` cookie (`HttpOnly=True`) and returns the token in the JSON response body.
 
 ### Accessing Protected Resources
 **Middleware**: `app/dependencies/auth_dependency.py`
 
 1.  Client makes a request to a protected route (e.g., `POST /v1/logs`).
-2.  Browser automatically attaches `access_token` cookie.
+2.  Browser automatically attaches the `__Host-access_token` cookie.
 3.  Server verifies the JWT signature and expiration.
     -   If valid: Request proceeds.
     -   If invalid/expired: Server returns `401 Unauthorized`.
@@ -45,15 +46,15 @@ As of February 2026, Cinelog Server has migrated from Firebase Authentication to
 If the client receives a `401`, it should attempt to refresh the token:
 
 1.  Client calls `/v1/auth/refresh`.
-2.  Browser attaches the `refresh_token` cookie (scoped to `/v1/auth/refresh` if supported, otherwise global).
+2.  Browser automatically attaches the `/v1/auth/refresh`-scoped `refresh_token` cookie.
 3.  Server verifies the refresh token.
-4.  Server issues a new `access_token` (and rotates `refresh_token`).
+4.  Server issues a new `__Host-access_token` (and rotates `refresh_token`).
 5.  Client retries the original request.
 
 ### Logout
 **Endpoint**: `POST /v1/auth/logout`
 
-1.  Server clears `access_token` and `refresh_token` cookies.
+1.  Server clears `__Host-access_token`, `refresh_token`, and `__Host-csrf_token` cookies.
 
 ---
 
@@ -62,9 +63,9 @@ If the client receives a `401`, it should attempt to refresh the token:
 Since we use cookies for authentication, we must protect against Cross-Site Request Forgery (CSRF).
 
 ### Mechanism
-1.  **Cookie**: The server sets a `csrf_token` cookie (readable by JavaScript).
-2.  **Header**: For every "unsafe" request (`POST`, `PUT`, `DELETE`, `PATCH`), the client **must** read the `csrf_token` cookie and send its value in the `X-CSRF-Token` header.
-3.  **Validation**: The `CSRFMiddleware` verifies that the cookie value matches the header value.
+1.  **Cookie & Body**: The server sets a `__Host-csrf_token` cookie (`HttpOnly=True`) AND returns the token string in the JSON response body (e.g., during login or `/v1/auth/csrf`).
+2.  **Header**: For every "unsafe" request (`POST`, `PUT`, `DELETE`, `PATCH`), the client **must** store the token from the previous JSON response and send its value in the `X-CSRF-Token` header.
+3.  **Validation**: The `CSRFMiddleware` verifies that the `__Host-csrf_token` HttpOnly cookie value strictly matches the `X-CSRF-Token` header value.
 
 ### Implementation Details
 -   **Safe Methods** (`GET`, `HEAD`, `OPTIONS`): Exempt from CSRF checks.
@@ -72,15 +73,17 @@ Since we use cookies for authentication, we must protect against Cross-Site Requ
 
 **Example (Frontend Logic):**
 ```javascript
-// Get token from cookie
-const csrfToken = getCookie("csrf_token");
+// 1. Get token from login or /csrf response body
+const loginResponse = await fetch("/v1/auth/login", { ... });
+const { csrf_token } = await loginResponse.json();
+// Store csrf_token in memory or state
 
-// Attach to request
+// 2. Attach to subsequent mutation requests
 fetch("/v1/logs", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    "X-CSRF-Token": csrfToken 
+    "X-CSRF-Token": csrf_token 
   },
   body: JSON.stringify(data)
 });

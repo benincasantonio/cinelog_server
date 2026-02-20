@@ -16,11 +16,6 @@ load_dotenv()
 os.environ["MONGODB_HOST"] = "localhost"
 os.environ["MONGODB_PORT"] = "27018"
 os.environ["MONGODB_DB"] = "cinelog_e2e_db"
-os.environ["MONGODB_DB"] = "cinelog_e2e_db"
-
-
-
-
 
 @pytest.fixture(scope="session", autouse=True)
 def e2e_mongo():
