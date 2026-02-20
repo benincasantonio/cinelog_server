@@ -6,8 +6,6 @@ from bson import ObjectId
 
 
 class LogRepository:
-    def __init__(self):
-        pass
 
     @staticmethod
     def create_log(user_id: str, create_log_request: LogCreateRequest) -> Log:

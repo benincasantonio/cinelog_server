@@ -6,9 +6,6 @@ from datetime import datetime, UTC
 class UserRepository:
     """Repository class for User-related operations."""
 
-    def __init__(self):
-        pass
-
     @staticmethod
     def create_user(request: UserCreateRequest) -> User:
         """Create a new user in the database."""

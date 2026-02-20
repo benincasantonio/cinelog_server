@@ -1,3 +1,4 @@
+from mongoengine.errors import NotUniqueError
 from app.models.movie import Movie
 from app.schemas.movie_schemas import (
     MovieCreateRequest,
@@ -78,5 +79,8 @@ class MovieRepository:
             original_language=tmdb_data.original_language,
         )
 
-        movie.save()
-        return movie
+        try:
+            movie.save()
+            return movie
+        except NotUniqueError:
+            return MovieRepository.find_movie_by_tmdb_id(tmdb_data.id)

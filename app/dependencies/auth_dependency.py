@@ -22,7 +22,6 @@ def auth_dependency(request: Request) -> str:
         if not user_id:
              raise HTTPException(status_code=401, detail="Invalid token payload")
              
-        # TODO: Add CSRF check here if needed (e.g. verify X-CSRF-Token matches cookie)
         
         return user_id
         
