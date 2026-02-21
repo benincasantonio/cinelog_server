@@ -31,8 +31,9 @@ class AuthService:
         Register a new user in MongoDB.
         """
         # Check if email already exists in MongoDB
+        email_lowercase = request.email.strip().lower()
         existing_user_by_email = self.user_repository.find_user_by_email(
-            request.email.strip()
+            email_lowercase
         )
         if existing_user_by_email:
             raise AppException(ErrorCodes.EMAIL_ALREADY_EXISTS)
@@ -52,7 +53,7 @@ class AuthService:
             user_create_request = UserCreateRequest(
                 first_name=request.first_name,
                 last_name=request.last_name,
-                email=request.email.strip(),
+                email=email_lowercase,
                 handle=request.handle.strip(),
                 bio=request.bio,
                 date_of_birth=request.date_of_birth,
@@ -77,7 +78,8 @@ class AuthService:
         """
         Authenticate user and return user object if successful.
         """
-        user = self.user_repository.find_user_by_email(email.strip())
+        email_lowercase = email.strip().lower()
+        user = self.user_repository.find_user_by_email(email_lowercase)
         
         if not user:
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
@@ -102,7 +104,8 @@ class AuthService:
         """
         Generate reset code and send email (mocked).
         """
-        user = self.user_repository.find_user_by_email(email.strip())
+        email_lowercase = email.strip().lower()
+        user = self.user_repository.find_user_by_email(email_lowercase)
         if not user:
             # Security: Don't reveal if user exists. 
             # But for migration UX, maybe we return success anyway.
@@ -115,13 +118,14 @@ class AuthService:
         self.user_repository.set_reset_password_code(user, reset_code, expires_at)
         
         # Send email via EmailService
-        self.email_service.send_reset_password_email(email, reset_code)
+        self.email_service.send_reset_password_email(email_lowercase, reset_code)
 
     def reset_password(self, email: str, code: str, new_password: str):
         """
         Verify reset code and set new password.
         """
-        user = self.user_repository.find_user_by_email(email.strip())
+        email_lowercase = email.strip().lower()
+        user = self.user_repository.find_user_by_email(email_lowercase)
         if not user:
              raise AppException(ErrorCodes.INVALID_CREDENTIALS)
         

@@ -113,3 +113,51 @@ class TestAuthService:
             auth_service.login("old@example.com", "anypassword")
             
         assert exc.value.error.error_code == 401
+
+    def test_register_email_case_insensitivity(self, auth_service, mock_user_repo):
+        request = RegisterRequest(
+            first_name="Jane",
+            last_name="Doe",
+            email="Jane.Doe@EXAMPLE.com",
+            password="password123",
+            handle="janedoe",
+            date_of_birth=date(1995, 1, 1)
+        )
+        
+        mock_user_repo.find_user_by_email.return_value = None
+        mock_user_repo.find_user_by_handle.return_value = None
+        
+        mock_created_user = User(
+            id="507f1f77bcf86cd799439012",
+            email="jane.doe@example.com",
+            first_name="Jane",
+            last_name="Doe",
+            handle="janedoe",
+            date_of_birth=date(1995, 1, 1)
+        )
+        mock_user_repo.create_user.return_value = mock_created_user
+
+        response = auth_service.register(request)
+
+        assert response.email == "jane.doe@example.com"
+        mock_user_repo.find_user_by_email.assert_called_with("jane.doe@example.com")
+        
+        call_args = mock_user_repo.create_user.call_args[1]
+        assert call_args['request'].email == "jane.doe@example.com"
+
+    def test_login_email_case_insensitivity(self, auth_service, mock_user_repo):
+        email_input = "John@EXAMPLE.com"
+        email_stored = "john@example.com"
+        password = "password123"
+        hashed_pw = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
+        
+        mock_user = User(email=email_stored, password_hash=hashed_pw)
+        mock_user_repo.find_user_by_email.return_value = mock_user
+        
+        with pytest.MonkeyPatch.context() as m:
+            from app.services.password_service import PasswordService
+            m.setattr(PasswordService, "verify_password", lambda p, h: p == "password123")
+            
+            user = auth_service.login(email_input, password)
+            assert user == mock_user
+            mock_user_repo.find_user_by_email.assert_called_with(email_stored)

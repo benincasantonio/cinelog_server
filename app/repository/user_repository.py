@@ -19,8 +19,8 @@ class UserRepository:
 
     @staticmethod
     def find_user_by_email(email: str) -> User:
-        """Find a user by email."""
-        return User.objects(email=email).first()
+        """Find a user by email (case-insensitive)."""
+        return User.objects(email__iexact=email).first()
 
     @staticmethod
     def find_user_by_handle(handle: str) -> User:
