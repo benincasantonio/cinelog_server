@@ -24,9 +24,20 @@ services:
       - MONGODB_HOST=mongo
       - MONGODB_PORT=27017
       - MONGODB_DB=cinelog_db
+      - SMTP_SERVER=mailpit
+      - SMTP_PORT=1025
+    command: uvicorn app:app --host 0.0.0.0 --port 5009 --reload
     depends_on:
       - mongo
-    command: uvicorn app:app --host 0.0.0.0 --port 5009 --reload
+      - mailpit
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: cinelog_mailpit_local
+    ports:
+      - "1025:1025" # SMTP server
+      - "8025:8025" # Web UI
+
 
 volumes:
   mongo_data:

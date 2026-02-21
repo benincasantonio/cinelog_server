@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pymongo import MongoClient
 from mongoengine import connect
 import os
 import app.controllers.auth_controller as auth_controller
@@ -11,7 +10,6 @@ import app.controllers.user_controller as user_controller
 import app.controllers.movie_rating_controller as movie_rating_controller
 import app.controllers.stats_controller as stats_controller
 from app.utils.exceptions import AppException
-from app.integrations.firebase import initialize_firebase_admin
 from app.config.cors import get_cors_config
 
 app = FastAPI(
@@ -23,22 +21,35 @@ app.add_middleware(
     **get_cors_config()
 )
 
-firebase_app = initialize_firebase_admin()
+from app.middleware.csrf_middleware import CSRFMiddleware
+app.add_middleware(
+    CSRFMiddleware, 
+    exempt_paths=[
+        "/v1/auth/login",
+        "/v1/auth/register",
+        "/v1/auth/forgot-password",
+        "/v1/auth/reset-password",
+        "/v1/auth/csrf",
+        "/v1/auth/refresh",
+        "/docs",
+        "/openapi.json",
+    ]
+)
+
+
 
 
 mongodb_uri = os.getenv("MONGODB_URI")
 
 if mongodb_uri:
-    mongo_client = MongoClient(mongodb_uri)
     mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
-    connect(host=mongodb_uri, db=mongodb_db)
+    connect(host=mongodb_uri, db=mongodb_db, uuidRepresentation="standard")
 else:
     mongodb_host = os.getenv("MONGODB_HOST", "localhost")
     mongodb_port = int(os.getenv("MONGODB_PORT", "27017"))
     mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
 
-    mongo_client = MongoClient(f"mongodb://{mongodb_host}:{mongodb_port}/{mongodb_db}")
-    connect(mongodb_db, host=mongodb_host, port=mongodb_port)
+    connect(mongodb_db, host=mongodb_host, port=mongodb_port, uuidRepresentation="standard")
 
 
 @app.exception_handler(AppException)
@@ -58,6 +69,9 @@ async def app_exception_handler(request: Request, exc: AppException):
 @app.get("/", tags=["Root"], summary="Cinelog API Root")
 def index():
     return "Welcome to the Cinelog API!"
+
+
+
 
 
 app.include_router(auth_controller.router, prefix="/v1/auth", tags=["Auth"])

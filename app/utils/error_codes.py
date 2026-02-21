@@ -31,6 +31,13 @@ class ErrorCodes:
         error_description="The requested user was not found.",
     )
 
+    INVALID_CREDENTIALS = ErrorSchema(
+        error_code_name="INVALID_CREDENTIALS",
+        error_code=401,
+        error_message="Invalid credentials",
+        error_description="The email or password provided is incorrect.",
+    )
+
     # Movie Errors
 
     MOVIE_NOT_FOUND = ErrorSchema(

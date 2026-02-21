@@ -19,10 +19,7 @@ def search_movies(
     """
     Search for movies using TMDB API.
     """
-    try:
-        return tmdb_service.search_movie(query=query)
-    except AppException as e:
-        raise e
+    return tmdb_service.search_movie(query=query)
 
 
 @router.get("/{tmdb_id}")
@@ -32,7 +29,4 @@ def get_movie_details(
     """
     Get full movie details from TMDB by movie ID.
     """
-    try:
-        return tmdb_service.get_movie_details(tmdb_id=tmdb_id)
-    except AppException as e:
-        raise e
+    return tmdb_service.get_movie_details(tmdb_id=tmdb_id)

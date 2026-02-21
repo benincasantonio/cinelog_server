@@ -6,15 +6,13 @@ from datetime import datetime, UTC
 class UserRepository:
     """Repository class for User-related operations."""
 
-    def __init__(self):
-        pass
-
     @staticmethod
     def create_user(request: UserCreateRequest) -> User:
         """Create a new user in the database."""
 
         # Convert Pydantic model to dict and unpack into User model
         user_data = request.model_dump()
+        
         user = User(**user_data)
         user.save()
         return user
@@ -41,10 +39,10 @@ class UserRepository:
         """Find a user by ID."""
         return User.objects(id=user_id).first()
 
-    @staticmethod
-    def find_user_by_firebase_uid(firebase_uid: str) -> User:
-        """Find a user by Firebase UID."""
-        return User.objects(firebase_uid=firebase_uid).first()
+
+
+
+
 
     @staticmethod
     def delete_user(user_id: str) -> bool:
@@ -72,3 +70,26 @@ class UserRepository:
         user.save()
 
         return True
+
+    @staticmethod
+    def update_password(user: User, password_hash: str) -> User:
+        """Update user password."""
+        user.password_hash = password_hash
+        user.save()
+        return user
+
+    @staticmethod
+    def set_reset_password_code(user: User, code: str, expires_at: datetime) -> User:
+        """Set reset password code and expiration."""
+        user.reset_password_code = code
+        user.reset_password_expires = expires_at
+        user.save()
+        return user
+
+    @staticmethod
+    def clear_reset_password_code(user: User) -> User:
+        """Clear reset password code."""
+        user.reset_password_code = None
+        user.reset_password_expires = None
+        user.save()
+        return user

@@ -6,7 +6,6 @@ Uses httpx ASGITransport for direct FastAPI testing.
 import pytest
 import httpx
 import os
-import requests
 from dotenv import load_dotenv
 from mongoengine import disconnect, connect
 
@@ -17,32 +16,6 @@ load_dotenv()
 os.environ["MONGODB_HOST"] = "localhost"
 os.environ["MONGODB_PORT"] = "27018"
 os.environ["MONGODB_DB"] = "cinelog_e2e_db"
-os.environ["FIREBASE_AUTH_EMULATOR_HOST"] = "localhost:9099"
-os.environ["FIREBASE_PROJECT_ID"] = "demo-cinelog-e2e"
-
-
-def get_firebase_id_token(email: str, password: str) -> str:
-    """
-    Get a Firebase ID token from the emulator for testing.
-    Uses the Firebase Auth Emulator REST API.
-    """
-    emulator_host = os.environ.get("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
-    
-    # Sign in with email/password to get ID token
-    url = f"http://{emulator_host}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-    response = requests.post(
-        url,
-        params={"key": "fake-api-key"},  # Emulator accepts any key
-        json={
-            "email": email,
-            "password": password,
-            "returnSecureToken": True
-        },
-        timeout=5
-    )
-    response.raise_for_status()
-    return response.json()["idToken"]
-
 
 @pytest.fixture(scope="session", autouse=True)
 def e2e_mongo():
@@ -53,7 +26,8 @@ def e2e_mongo():
             db="cinelog_e2e_db",
             host="localhost",
             port=27018,
-            alias="default"
+            alias="default",
+            uuidRepresentation="standard"
         )
     except Exception as e:
         import warnings
@@ -79,16 +53,6 @@ def clean_db(e2e_mongo):
         import warnings
         warnings.warn(f"Could not clean MongoDB collections: {e}")
     
-    # Clear Firebase Auth Emulator data
-    project_id = os.environ.get("FIREBASE_PROJECT_ID", "demo-cinelog-e2e")
-    emulator_host = os.environ.get("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
-    try:
-        requests.delete(
-            f"http://{emulator_host}/emulator/v1/projects/{project_id}/accounts",
-            timeout=5
-        )
-    except requests.exceptions.RequestException:
-        pass  # Emulator might not be running, continue anyway
     
     yield
 
@@ -98,6 +62,21 @@ async def async_client():
     """Async HTTP client using ASGITransport for direct app testing."""
     from app import app
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
         yield client
 
+
+async def register_and_login(client, user_data: dict) -> dict:
+    """
+    Helper: Register a user, then login to get auth cookies + CSRF token.
+    Returns the login response JSON (includes csrfToken).
+    """
+    reg_resp = await client.post("/v1/auth/register", json=user_data)
+    assert reg_resp.status_code == 201
+
+    login_resp = await client.post(
+        "/v1/auth/login",
+        json={"email": user_data["email"], "password": user_data["password"]}
+    )
+    assert login_resp.status_code == 200
+    return login_resp.json()

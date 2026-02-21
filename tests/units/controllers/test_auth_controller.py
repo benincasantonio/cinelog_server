@@ -43,7 +43,7 @@ class TestAuthController:
             }
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["email"] == "test@example.com"
         assert data["firstName"] == "John"

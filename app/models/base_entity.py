@@ -1,5 +1,5 @@
 from mongoengine import Document, DateTimeField, BooleanField
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class BaseEntity(Document):
@@ -16,5 +16,9 @@ class BaseEntity(Document):
     
     deleted = BooleanField(default=False)
     deleted_at = DateTimeField(db_field='deletedAt')
-    created_at = DateTimeField(db_field='createdAt', default=lambda: datetime.now())
-    updated_at = DateTimeField(db_field='updatedAt', default=lambda: datetime.now())
+    created_at = DateTimeField(db_field='createdAt', default=lambda: datetime.now(timezone.utc))
+    updated_at = DateTimeField(db_field='updatedAt', default=lambda: datetime.now(timezone.utc))
+
+    def save(self, *args, **kwargs):
+        self.updated_at = datetime.now(timezone.utc)
+        return super().save(*args, **kwargs)

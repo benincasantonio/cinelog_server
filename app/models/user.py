@@ -14,6 +14,11 @@ class User(BaseEntity):
     date_of_birth = DateTimeField(db_field='dateOfBirth')
     firebase_uid = StringField(db_field='firebaseUid', unique=True, sparse=True)
 
+    # Auth fields for local authentication
+    password_hash = StringField(db_field='passwordHash')
+    reset_password_code = StringField(db_field='resetPasswordCode')
+    reset_password_expires = DateTimeField(db_field='resetPasswordExpires')
+
     meta = {
         "collection": "users",
     }

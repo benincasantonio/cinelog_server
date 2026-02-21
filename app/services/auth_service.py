@@ -1,45 +1,35 @@
+from datetime import datetime, timedelta, timezone
+import secrets
+
 from app.repository.user_repository import UserRepository
-from app.repository.firebase_auth_repository import FirebaseAuthRepository
 from app.schemas.auth_schemas import (
     RegisterRequest,
     RegisterResponse,
 )
 from app.schemas.user_schemas import UserCreateRequest
+from app.services.password_service import PasswordService
+from app.services.token_service import TokenService
+from app.services.email_service import EmailService
 from app.utils.error_codes import ErrorCodes
 from app.utils.exceptions import AppException
-from app.integrations.firebase import is_firebase_initialized
-from firebase_admin import auth
 
 
 class AuthService:
     user_repository: UserRepository
-    firebase_auth_repository: FirebaseAuthRepository
+    email_service: EmailService
 
     def __init__(
         self,
         user_repository: UserRepository,
-        firebase_auth_repository: FirebaseAuthRepository,
+        email_service: EmailService = None,
     ):
         self.user_repository = user_repository
-        self.firebase_auth_repository = firebase_auth_repository
+        self.email_service = email_service or EmailService()
 
     def register(self, request: RegisterRequest) -> RegisterResponse:
         """
-        Register a new user by creating them in Firebase first, then in MongoDB.
-
-        Args:
-            request: Registration request with user details
-
-        Returns:
-            RegisterResponse with user information
-
-        Raises:
-            AppException: If email/handle already exists or Firebase operations fail
-            ValueError: If Firebase is not initialized
+        Register a new user in MongoDB.
         """
-        if not is_firebase_initialized():
-            raise ValueError("Firebase Admin SDK is not initialized")
-
         # Check if email already exists in MongoDB
         existing_user_by_email = self.user_repository.find_user_by_email(
             request.email.strip()
@@ -54,26 +44,10 @@ class AuthService:
         if existing_user_by_handle:
             raise AppException(ErrorCodes.HANDLE_ALREADY_TAKEN)
 
-        # Create user in Firebase first
-        firebase_user = None
-        try:
-            display_name = f"{request.first_name} {request.last_name}".strip()
-            firebase_user = self.firebase_auth_repository.create_user(
-                email=request.email.strip(),
-                password=request.password.strip(),
-                display_name=display_name,
-                email_verified=False,
-                disabled=False,
-            )
-        except auth.EmailAlreadyExistsError:
-            raise AppException(ErrorCodes.EMAIL_ALREADY_EXISTS)
-        except Exception as e:
-            raise AppException(ErrorCodes.ERROR_CREATING_USER) from e
+        # Hash password
+        hashed_password = PasswordService.get_password_hash(request.password.strip())
 
-        # Get Firebase UID
-        firebase_uid = firebase_user.uid
-
-        # Create user in MongoDB with Firebase UID
+        # Create user in MongoDB
         try:
             user_create_request = UserCreateRequest(
                 first_name=request.first_name,
@@ -82,25 +56,83 @@ class AuthService:
                 handle=request.handle.strip(),
                 bio=request.bio,
                 date_of_birth=request.date_of_birth,
-                firebase_uid=firebase_uid,
+                password_hash=hashed_password,
             )
             user = self.user_repository.create_user(request=user_create_request)
         except Exception as e:
-            # Rollback: Delete Firebase user if MongoDB creation fails
-            try:
-                self.firebase_auth_repository.delete_user(firebase_uid)
-            except Exception:
-                pass  # Log error but don't fail on rollback
             raise AppException(ErrorCodes.ERROR_CREATING_USER) from e
 
-        # For now, return RegisterResponse (token generation may be updated later)
         response: RegisterResponse = RegisterResponse(
             email=user.email,
             first_name=user.first_name,
             last_name=user.last_name,
             handle=user.handle,
             bio=user.bio,
-            user_id=user.id.__str__(),
+            user_id=str(user.id),
         )
 
         return response
+
+    def login(self, email: str, password: str):
+        """
+        Authenticate user and return user object if successful.
+        """
+        user = self.user_repository.find_user_by_email(email.strip())
+        
+        if not user:
+            raise AppException(ErrorCodes.INVALID_CREDENTIALS)
+            
+        # Check migration status
+        if not user.password_hash:
+            # User exists but has no password hash -> Legacy Firebase user
+            # In a real app we might return a specific error code to trigger a frontend flow
+            # For now, let's treat it as invalid credentials or a specific migration error if defined
+            # The plan says: "Account migration required. Please reset your password."
+            # We can use INVALID_CREDENTIALS with a custom message or a new error code.
+            # Let's use a generic generic credential error for security, or specific if UX demands it.
+            # Given the plan, let's Raise a clear error.
+            raise AppException(ErrorCodes.INVALID_CREDENTIALS) 
+
+        if not PasswordService.verify_password(password, user.password_hash):
+            raise AppException(ErrorCodes.INVALID_CREDENTIALS)
+
+        return user
+
+    def forgot_password(self, email: str):
+        """
+        Generate reset code and send email (mocked).
+        """
+        user = self.user_repository.find_user_by_email(email.strip())
+        if not user:
+            # Security: Don't reveal if user exists. 
+            # But for migration UX, maybe we return success anyway.
+            return
+
+        # Generate 6-digit code
+        reset_code = secrets.token_hex(3).upper() # 6 chars
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+        self.user_repository.set_reset_password_code(user, reset_code, expires_at)
+        
+        # Send email via EmailService
+        self.email_service.send_reset_password_email(email, reset_code)
+
+    def reset_password(self, email: str, code: str, new_password: str):
+        """
+        Verify reset code and set new password.
+        """
+        user = self.user_repository.find_user_by_email(email.strip())
+        if not user:
+             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
+        
+        if not user.reset_password_code or user.reset_password_code != code:
+             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
+             
+        if user.reset_password_expires.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+             raise AppException(ErrorCodes.INVALID_CREDENTIALS) # Expired
+
+        hashed_password = PasswordService.get_password_hash(new_password.strip())
+        self.user_repository.update_password(user, hashed_password)
+        self.user_repository.clear_reset_password_code(user)
+
+        return True

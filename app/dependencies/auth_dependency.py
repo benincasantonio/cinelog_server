@@ -1,36 +1,31 @@
 from fastapi import Request, HTTPException
+from app.services.token_service import TokenService
+from app.utils.auth_utils import ACCESS_TOKEN_COOKIE
 
-from app.repository.firebase_auth_repository import FirebaseAuthRepository
-from firebase_admin import auth
 
-
-def auth_dependency(request: Request) -> bool:
+def auth_dependency(request: Request) -> str:
     """
-    Auth dependency check if the user is authenticated via Firebase ID token.
+    Auth dependency check if the user is authenticated via local JWT cookie.
+    Returns the user_id (sub) from the token.
     """
-    token = request.headers.get("Authorization")
+    token = request.cookies.get(ACCESS_TOKEN_COOKIE)
 
     if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Remove "Bearer " prefix if present
-    if token.startswith("Bearer "):
-        token = token[len("Bearer ") :]
-
     try:
-        # Verify Firebase ID token
-        FirebaseAuthRepository.verify_id_token(token, check_revoked=True)
-        return True
-    except ValueError:
-        # Firebase not initialized
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    except auth.ExpiredIdTokenError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except auth.RevokedIdTokenError:
-        raise HTTPException(status_code=401, detail="Token revoked")
-    except auth.UserDisabledError:
-        raise HTTPException(status_code=401, detail="User account is disabled")
-    except auth.InvalidIdTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        payload = TokenService.decode_token(token)
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+            
+        user_id = payload.get("sub")
+        if not user_id:
+             raise HTTPException(status_code=401, detail="Invalid token payload")
+             
+        
+        return user_id
+        
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=401, detail="Unauthorized")

@@ -12,7 +12,8 @@ class UserCreateRequest(BaseSchema):
     handle: str = Field(None, min_length=3, max_length=20)
     bio: Optional[str] = Field(None, max_length=500, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
-    firebase_uid: str = Field(None, description="Firebase UID for the user")
+    firebase_uid: Optional[str] = Field(None, description="Firebase UID (deprecated, for reference)")
+    password_hash: Optional[str] = Field(None, description="Hashed password for local auth")
 
 
 class UserCreateResponse(BaseSchema):
@@ -25,14 +26,6 @@ class UserCreateResponse(BaseSchema):
     date_of_birth: date
 
 
-class FirebaseUserData(BaseSchema):
-    email: Optional[str] = None
-    display_name: Optional[str] = None
-    photo_url: Optional[str] = None
-    email_verified: bool = False
-    disabled: bool = False
-
-
 class UserResponse(BaseSchema):
     id: str
     first_name: str
@@ -42,4 +35,3 @@ class UserResponse(BaseSchema):
     bio: Optional[str] = None
     date_of_birth: date
     firebase_uid: Optional[str] = None
-    firebase_data: Optional[FirebaseUserData] = None

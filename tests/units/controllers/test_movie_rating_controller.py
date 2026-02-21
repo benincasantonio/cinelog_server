@@ -11,29 +11,25 @@ from app.schemas.movie_rating_schemas import MovieRatingResponse
 def client():
     return TestClient(app)
 
+from app.dependencies.auth_dependency import auth_dependency
 
 @pytest.fixture
-def mock_auth_token():
-    return "Bearer mock_valid_token"
-
+def override_auth():
+    """Mock successful authentication."""
+    return lambda: "user123"
 
 class TestMovieRatingController:
     """Tests for movie rating controller endpoints."""
 
     @patch('app.controllers.movie_rating_controller.movie_rating_service.create_update_movie_rating')
-    @patch('app.controllers.movie_rating_controller.get_user_id_from_token')
-    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_create_movie_rating_success(
         self,
-        mock_verify_token,
-        mock_get_user_id,
         mock_create_rating,
         client,
-        mock_auth_token
+        override_auth
     ):
         """Test creating a movie rating."""
-        mock_verify_token.return_value = {"uid": "firebase_uid"}
-        mock_get_user_id.return_value = "user123"
+        app.dependency_overrides[auth_dependency] = override_auth
         
         mock_create_rating.return_value = MovieRatingResponse(
             id="rating123",
@@ -53,8 +49,11 @@ class TestMovieRatingController:
                 "rating": 8,
                 "comment": "Great movie!"
             },
-            headers={"Authorization": mock_auth_token}
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"}
         )
+
+        app.dependency_overrides = {}
 
         assert response.status_code == 200
         data = response.json()
@@ -62,30 +61,28 @@ class TestMovieRatingController:
 
     def test_create_movie_rating_unauthorized(self, client):
         """Test creating movie rating without authentication."""
+        app.dependency_overrides = {}
         response = client.post(
             "/v1/movie-ratings/",
             json={
                 "tmdbId": "550",
                 "rating": 8,
                 "comment": "Great movie!"
-            }
+            },
+            cookies={"__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"}
         )
         assert response.status_code == 401
 
     @patch('app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id')
-    @patch('app.controllers.movie_rating_controller.get_user_id_from_token')
-    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_get_movie_rating_success(
         self,
-        mock_verify_token,
-        mock_get_user_id,
         mock_get_rating,
         client,
-        mock_auth_token
+        override_auth
     ):
         """Test getting a movie rating."""
-        mock_verify_token.return_value = {"uid": "firebase_uid"}
-        mock_get_user_id.return_value = "user123"
+        app.dependency_overrides[auth_dependency] = override_auth
         
         mock_get_rating.return_value = MovieRatingResponse(
             id="rating123",
@@ -100,47 +97,46 @@ class TestMovieRatingController:
 
         response = client.get(
             "/v1/movie-ratings/550",
-            headers={"Authorization": mock_auth_token}
+            cookies={"__Host-access_token": "token"}
         )
+
+        app.dependency_overrides = {}
 
         assert response.status_code == 200
         data = response.json()
         assert data["rating"] == 8
 
     @patch('app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id')
-    @patch('app.controllers.movie_rating_controller.get_user_id_from_token')
-    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_get_movie_rating_not_found(
         self,
-        mock_verify_token,
-        mock_get_user_id,
         mock_get_rating,
         client,
-        mock_auth_token
+        override_auth
     ):
         """Test getting a movie rating that doesn't exist."""
-        mock_verify_token.return_value = {"uid": "firebase_uid"}
-        mock_get_user_id.return_value = "user123"
+        app.dependency_overrides[auth_dependency] = override_auth
         mock_get_rating.return_value = None
 
         response = client.get(
             "/v1/movie-ratings/999",
-            headers={"Authorization": mock_auth_token}
+            cookies={"__Host-access_token": "token"}
         )
+
+        app.dependency_overrides = {}
 
         assert response.status_code == 404
 
     @patch('app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id')
-    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
     def test_get_movie_rating_with_user_id_param(
         self,
-        mock_verify_token,
         mock_get_rating,
         client,
-        mock_auth_token
+        override_auth
     ):
         """Test getting a movie rating with explicit user_id parameter."""
-        mock_verify_token.return_value = {"uid": "firebase_uid"}
+        # Even with explicit user_id, we might need auth if the endpoint requires it.
+        # Checking implementation: endpoints use auth_dependency.
+        app.dependency_overrides[auth_dependency] = override_auth
         
         mock_get_rating.return_value = MovieRatingResponse(
             id="rating123",
@@ -155,61 +151,17 @@ class TestMovieRatingController:
 
         response = client.get(
             "/v1/movie-ratings/550?user_id=other_user",
-            headers={"Authorization": mock_auth_token}
+            cookies={"__Host-access_token": "token"}
         )
+
+        app.dependency_overrides = {}
 
         assert response.status_code == 200
         mock_get_rating.assert_called_once_with(user_id="other_user", tmdb_id=550)
 
     def test_get_movie_rating_unauthorized(self, client):
         """Test getting movie rating without authentication."""
+        app.dependency_overrides = {}
         response = client.get("/v1/movie-ratings/550")
         assert response.status_code == 401
-
-    @patch('app.controllers.movie_rating_controller.get_user_id_from_token')
-    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
-    def test_create_movie_rating_token_extraction_error(
-        self,
-        mock_verify_token,
-        mock_get_user_id,
-        client,
-        mock_auth_token
-    ):
-        """Test create movie rating returns 401 when token extraction fails."""
-        mock_verify_token.return_value = {"uid": "firebase_uid"}
-        mock_get_user_id.side_effect = ValueError("Invalid token")
-
-        response = client.post(
-            "/v1/movie-ratings/",
-            json={
-                "tmdbId": "550",
-                "rating": 8,
-                "comment": "Great movie!"
-            },
-            headers={"Authorization": mock_auth_token}
-        )
-
-        assert response.status_code == 401
-        assert "Invalid token" in response.json()["detail"]
-
-    @patch('app.controllers.movie_rating_controller.get_user_id_from_token')
-    @patch('app.dependencies.auth_dependency.FirebaseAuthRepository.verify_id_token')
-    def test_get_movie_rating_token_extraction_error(
-        self,
-        mock_verify_token,
-        mock_get_user_id,
-        client,
-        mock_auth_token
-    ):
-        """Test get movie rating returns 401 when token extraction fails (no user_id param)."""
-        mock_verify_token.return_value = {"uid": "firebase_uid"}
-        mock_get_user_id.side_effect = ValueError("Invalid token")
-
-        response = client.get(
-            "/v1/movie-ratings/550",
-            headers={"Authorization": mock_auth_token}
-        )
-
-        assert response.status_code == 401
-        assert "Invalid token" in response.json()["detail"]
 
