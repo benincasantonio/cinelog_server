@@ -16,14 +16,9 @@ app = FastAPI(
     title="Cinelog API",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    **get_cors_config()
-)
-
 from app.middleware.csrf_middleware import CSRFMiddleware
 app.add_middleware(
-    CSRFMiddleware, 
+    CSRFMiddleware,
     exempt_paths=[
         "/v1/auth/login",
         "/v1/auth/register",
@@ -34,6 +29,11 @@ app.add_middleware(
         "/docs",
         "/openapi.json",
     ]
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    **get_cors_config()
 )
 
 
