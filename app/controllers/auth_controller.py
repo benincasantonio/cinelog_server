@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response, status, HTTPException, Request
+from fastapi import APIRouter, Response, status, HTTPException, Request, Depends
 import jwt
 
 from app.repository.user_repository import UserRepository
@@ -14,15 +14,18 @@ from app.schemas.auth_schemas import (
     ResetPasswordRequest,
     ResetPasswordResponse,
     CsrfTokenResponse,
+    AuthStatusResponse,
 )
 from app.services.auth_service import AuthService
 from app.services.token_service import TokenService
+from app.dependencies.auth_dependency import auth_dependency
 from app.utils.auth_utils import (
     set_auth_cookies,
     set_csrf_cookie,
     ACCESS_TOKEN_COOKIE,
     CSRF_TOKEN_COOKIE,
     REFRESH_TOKEN_COOKIE,
+    is_authenticated,
 )
 
 router = APIRouter()
@@ -130,3 +133,14 @@ async def get_csrf_token(response: Response) -> CsrfTokenResponse:
     """
     csrf_token = set_csrf_cookie(response)
     return CsrfTokenResponse(csrf_token=csrf_token)
+
+@router.get("/status", response_model=AuthStatusResponse)
+async def check_auth_status(request: Request) -> AuthStatusResponse:
+    """
+    Check if the user is currently authenticated via cookies.
+    Returns the user_id if valid, or an empty string and is_authenticated=False otherwise.
+    """
+    user_id = is_authenticated(request)
+    if user_id:
+        return AuthStatusResponse(user_id=user_id, is_authenticated=True)
+    return AuthStatusResponse(user_id="", is_authenticated=False)
