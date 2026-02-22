@@ -1,4 +1,4 @@
-from fastapi import Response, Request
+from fastapi import Response
 from datetime import timedelta
 import os
 import secrets
@@ -69,20 +69,3 @@ def set_csrf_cookie(response: Response):
         path="/",
     )
     return csrf_token
-
-def is_authenticated(request: Request) -> str | None:
-    """
-    Check if the user is currently authenticated via cookies.
-    Returns the user_id if valid, else None.
-    """
-    token = request.cookies.get(ACCESS_TOKEN_COOKIE)
-    if not token:
-        return None
-    
-    try:
-        payload = TokenService.decode_token(token)
-        if payload.get("type") != "access":
-            return None
-        return payload.get("sub")
-    except Exception:
-        return None

@@ -100,10 +100,3 @@ class CsrfTokenResponse(BaseSchema):
     """Schema for CSRF token response"""
 
     csrf_token: str = Field(..., description="CSRF token for subsequent requests")
-
-
-class AuthStatusResponse(BaseSchema):
-    """Schema for check authentication response"""
-
-    user_id: str = Field(..., description="Authenticated user ID")
-    is_authenticated: bool = Field(default=True, description="Whether the user is currently authenticated")

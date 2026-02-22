@@ -26,7 +26,6 @@ app.add_middleware(
         "/v1/auth/reset-password",
         "/v1/auth/csrf",
         "/v1/auth/refresh",
-        "/v1/auth/status",
         "/docs",
         "/openapi.json",
     ]
