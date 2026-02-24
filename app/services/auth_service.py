@@ -113,7 +113,7 @@ class AuthService:
 
         # Generate 6-digit code
         reset_code = secrets.token_hex(3).upper() # 6 chars
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=15)
 
         self.user_repository.set_reset_password_code(user, reset_code, expires_at)
         

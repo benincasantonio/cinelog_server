@@ -23,7 +23,7 @@ def set_auth_cookies(response: Response, user_id: str):
     """
     # Create Tokens
     access_token = TokenService.create_access_token(
-        data={"sub": user_id}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        data={"sub": user_id}, expires_delta=timedelta(seconds=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     refresh_token = TokenService.create_refresh_token(
         data={"sub": user_id}, expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
