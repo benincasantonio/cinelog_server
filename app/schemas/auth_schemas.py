@@ -1,14 +1,9 @@
-import re
-
 from pydantic import EmailStr, Field, field_validator
 from datetime import date
 from typing import Optional
 
 from app.schemas.base_schema import BaseSchema
-from app.utils.sanitize_utils import strip_html_tags
-
-NAME_PATTERN = re.compile(r"^[a-zA-ZÀ-ÿ\s'\-]+$")
-HANDLE_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+from app.utils.sanitize_utils import strip_html_tags, NAME_PATTERN, HANDLE_PATTERN
 
 
 class RegisterRequest(BaseSchema):
@@ -42,6 +37,8 @@ class RegisterRequest(BaseSchema):
     @classmethod
     def validate_handle(cls, v: str) -> str:
         v = v.strip()
+        if not v:
+            raise ValueError("Handle must not be empty or whitespace")
         if v[0].isdigit():
             raise ValueError("Handle must not start with a number")
         if not HANDLE_PATTERN.match(v):

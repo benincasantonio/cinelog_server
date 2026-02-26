@@ -1,8 +1,6 @@
 from fastapi import Response
 
 from app.utils.auth_utils import (
-    set_auth_cookies,
-    set_csrf_cookie,
     clear_auth_cookies,
     ACCESS_TOKEN_COOKIE,
     REFRESH_TOKEN_COOKIE,

@@ -1,21 +1,16 @@
-import re
-
 from pydantic import EmailStr, Field, field_validator
 from datetime import date
 from typing import Optional
 
 from app.schemas.base_schema import BaseSchema
-from app.utils.sanitize_utils import strip_html_tags
-
-NAME_PATTERN = re.compile(r"^[a-zA-ZÀ-ÿ\s'\-]+$")
-HANDLE_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+from app.utils.sanitize_utils import strip_html_tags, NAME_PATTERN, HANDLE_PATTERN
 
 
 class UserCreateRequest(BaseSchema):
     first_name: str = Field(..., min_length=1, max_length=50)
     last_name: str = Field(..., min_length=1, max_length=50)
     email: EmailStr = Field(...)
-    handle: str = Field(None, min_length=3, max_length=20)
+    handle: Optional[str] = Field(None, min_length=3, max_length=20)
     bio: Optional[str] = Field(None, max_length=500, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
     firebase_uid: Optional[str] = Field(None, description="Firebase UID (deprecated, for reference)")
@@ -31,10 +26,12 @@ class UserCreateRequest(BaseSchema):
 
     @field_validator("handle")
     @classmethod
-    def validate_handle(cls, v: str) -> str:
+    def validate_handle(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
         v = v.strip()
+        if not v:
+            raise ValueError("Handle must not be empty or whitespace")
         if v[0].isdigit():
             raise ValueError("Handle must not start with a number")
         if not HANDLE_PATTERN.match(v):

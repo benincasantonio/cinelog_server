@@ -216,7 +216,7 @@ class TestAuthE2E:
         assert "csrfToken" in refresh_resp.json()
 
     async def test_refresh_token_invalid(self, async_client):
-        """Test refresh token without cookie or invalid."""
+        """Test refresh token request without a refresh cookie."""
         refresh_resp = await async_client.post("/v1/auth/refresh")
         assert refresh_resp.status_code == 401
         

@@ -73,8 +73,12 @@ async def logout(response: Response) -> LogoutResponse:
     return LogoutResponse(message="Logged out successfully")
 
 
-@router.post("/refresh", response_model=RefreshResponse)
-async def refresh_token(request: Request, response: Response):
+@router.post(
+    "/refresh",
+    response_model=RefreshResponse,
+    responses={401: {"description": "Invalid, expired, or missing refresh token"}},
+)
+async def refresh_token(request: Request, response: Response) -> RefreshResponse | JSONResponse:
     """
     Refresh access token using refresh token cookie.
     """

@@ -1,4 +1,4 @@
-from fastapi import Response, status
+from fastapi import Response
 from datetime import timedelta
 import os
 import secrets
