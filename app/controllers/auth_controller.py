@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Response, status, HTTPException, Request
+from fastapi.responses import JSONResponse
 import jwt
 
 from app.repository.user_repository import UserRepository
@@ -20,6 +21,7 @@ from app.services.token_service import TokenService
 from app.utils.auth_utils import (
     set_auth_cookies,
     set_csrf_cookie,
+    clear_auth_cookies,
     ACCESS_TOKEN_COOKIE,
     CSRF_TOKEN_COOKIE,
     REFRESH_TOKEN_COOKIE,
@@ -67,29 +69,39 @@ async def logout(response: Response) -> LogoutResponse:
     """
     Clear authentication cookies.
     """
-    response.delete_cookie(ACCESS_TOKEN_COOKIE, path="/")
-    response.delete_cookie(REFRESH_TOKEN_COOKIE, path="/v1/auth/refresh")
-    response.delete_cookie(CSRF_TOKEN_COOKIE, path="/")
+    clear_auth_cookies(response)
     return LogoutResponse(message="Logged out successfully")
 
 
-@router.post("/refresh", response_model=RefreshResponse)
-async def refresh_token(request: Request, response: Response) -> RefreshResponse:
+@router.post(
+    "/refresh",
+    response_model=RefreshResponse,
+    responses={401: {"description": "Invalid, expired, or missing refresh token"}},
+)
+async def refresh_token(request: Request, response: Response) -> RefreshResponse | JSONResponse:
     """
     Refresh access token using refresh token cookie.
     """
-    refresh_token = request.cookies.get("refresh_token")
-    if not refresh_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token missing")
+    def clear_cookies_response(detail: str) -> JSONResponse:
+        err_response = JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": detail}
+        )
+        clear_auth_cookies(err_response)
+        return err_response
+
+    token = request.cookies.get("refresh_token")
+    if not token:
+        return clear_cookies_response("Refresh token missing")
 
     try:
-        payload = TokenService.decode_token(refresh_token)
+        payload = TokenService.decode_token(token)
         if payload.get("type") != "refresh":
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+            return clear_cookies_response("Invalid token type")
 
         user_id = payload.get("sub")
         if not user_id:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+            return clear_cookies_response("Invalid token payload")
 
         # Rotate tokens (create new ones)
         set_auth_cookies(response, user_id)
@@ -98,11 +110,9 @@ async def refresh_token(request: Request, response: Response) -> RefreshResponse
         return RefreshResponse(message="Token refreshed", csrf_token=csrf_token)
 
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
+        return clear_cookies_response("Refresh token expired")
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-    except HTTPException:
-        raise
+        return clear_cookies_response("Invalid refresh token")
 
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)

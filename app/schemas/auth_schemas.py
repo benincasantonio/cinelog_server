@@ -1,8 +1,9 @@
-from pydantic import EmailStr, Field
+from pydantic import EmailStr, Field, field_validator
 from datetime import date
 from typing import Optional
 
 from app.schemas.base_schema import BaseSchema
+from app.utils.sanitize_utils import strip_html_tags, NAME_PATTERN, HANDLE_PATTERN
 
 
 class RegisterRequest(BaseSchema):
@@ -23,6 +24,35 @@ class RegisterRequest(BaseSchema):
     )
     bio: Optional[str] = Field(None, max_length=500, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not NAME_PATTERN.match(v):
+            raise ValueError("Name contains invalid characters")
+        return v
+
+    @field_validator("handle")
+    @classmethod
+    def validate_handle(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Handle must not be empty or whitespace")
+        if v[0].isdigit():
+            raise ValueError("Handle must not start with a number")
+        if not HANDLE_PATTERN.match(v):
+            raise ValueError(
+                "Handle must contain only alphanumeric characters or underscores"
+            )
+        return v
+
+    @field_validator("bio")
+    @classmethod
+    def sanitize_bio(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return strip_html_tags(v)
 
 
 class RegisterResponse(BaseSchema):
