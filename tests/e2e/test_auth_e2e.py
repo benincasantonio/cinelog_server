@@ -2,7 +2,10 @@
 E2E tests for authentication endpoints.
 Tests the full stack: FastAPI -> AuthService -> Firebase + MongoDB.
 """
+
 from app.utils.error_codes import ErrorCodes
+from app.services.token_service import TokenService
+from datetime import timedelta
 
 
 class TestAuthE2E:
@@ -214,6 +217,25 @@ class TestAuthE2E:
 
     async def test_refresh_token_invalid(self, async_client):
         """Test refresh token without cookie or invalid."""
+        refresh_resp = await async_client.post("/v1/auth/refresh")
+        assert refresh_resp.status_code == 401
+        
+        # Check that the Set-Cookie headers for deletion were sent.
+        set_cookies = [h[1] for h in refresh_resp.headers.multi_items() if h[0].lower() == 'set-cookie']
+        assert any("__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies)
+        assert any("refresh_token=" in c and "Max-Age=0" in c for c in set_cookies)
+
+    async def test_refresh_token_expired(self, async_client):
+        """Test refresh token when it is genuinely expired."""
+        # Generate an expired refresh token specifically
+        expired_token = TokenService.create_refresh_token(
+            data={"sub": "123456789"},
+            expires_delta=timedelta(days=-1)  # Expired yesterday
+        )
+        
+        # Set it in the client
+        async_client.cookies.set("refresh_token", expired_token)
+        
         refresh_resp = await async_client.post("/v1/auth/refresh")
         assert refresh_resp.status_code == 401
         
