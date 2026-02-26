@@ -1,4 +1,4 @@
-from fastapi import Response
+from fastapi import Response, status
 from datetime import timedelta
 import os
 import secrets
@@ -69,3 +69,12 @@ def set_csrf_cookie(response: Response):
         path="/",
     )
     return csrf_token
+
+
+def clear_auth_cookies(response: Response) -> None:
+    """
+    Clears all authentication and CSRF cookies from the response.
+    """
+    response.delete_cookie(ACCESS_TOKEN_COOKIE, path="/")
+    response.delete_cookie(REFRESH_TOKEN_COOKIE, path="/v1/auth/refresh")
+    response.delete_cookie(CSRF_TOKEN_COOKIE, path="/")

@@ -213,9 +213,14 @@ class TestAuthE2E:
         assert "csrfToken" in refresh_resp.json()
 
     async def test_refresh_token_invalid(self, async_client):
-        """Test refresh token without cookie."""
+        """Test refresh token without cookie or invalid."""
         refresh_resp = await async_client.post("/v1/auth/refresh")
         assert refresh_resp.status_code == 401
+        
+        # Check that the Set-Cookie headers for deletion were sent.
+        set_cookies = [h[1] for h in refresh_resp.headers.multi_items() if h[0].lower() == 'set-cookie']
+        assert any("__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies)
+        assert any("refresh_token=" in c and "Max-Age=0" in c for c in set_cookies)
 
     async def test_forgot_and_reset_password_flow(self, async_client):
         """Test the full forgot and reset password flow."""
