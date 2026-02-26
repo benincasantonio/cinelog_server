@@ -8,7 +8,7 @@ from app.schemas.base_schema import BaseSchema
 from app.utils.sanitize_utils import strip_html_tags
 
 NAME_PATTERN = re.compile(r"^[a-zA-ZÀ-ÿ\s'\-]+$")
-HANDLE_PATTERN = re.compile(r"^[a-zA-Z0-9_]+$")
+HANDLE_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 
 class UserCreateRequest(BaseSchema):
@@ -35,6 +35,8 @@ class UserCreateRequest(BaseSchema):
         if v is None:
             return v
         v = v.strip()
+        if v[0].isdigit():
+            raise ValueError("Handle must not start with a number")
         if not HANDLE_PATTERN.match(v):
             raise ValueError(
                 "Handle must contain only alphanumeric characters or underscores"

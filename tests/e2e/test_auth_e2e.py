@@ -662,7 +662,7 @@ class TestAuthE2E:
         assert response.json()["handle"] == "john_doe"
 
     async def test_register_accepts_handle_with_numbers(self, async_client):
-        """Numbers are allowed in handle."""
+        """Numbers are allowed in handle (but not at the start)."""
         response = await async_client.post(
             "/v1/auth/register",
             json={
@@ -676,6 +676,21 @@ class TestAuthE2E:
         )
         assert response.status_code == 201
         assert response.json()["handle"] == "john123"
+
+    async def test_register_rejects_handle_starting_with_number(self, async_client):
+        """Handle must not start with a number."""
+        response = await async_client.post(
+            "/v1/auth/register",
+            json={
+                "email": "numstart_handle@example.com",
+                "password": "securepassword123",
+                "firstName": "Valid",
+                "lastName": "User",
+                "handle": "123john",
+                "dateOfBirth": "1990-01-01"
+            }
+        )
+        assert response.status_code == 422
 
     # --- Registration input sanitization: bio ---
 
