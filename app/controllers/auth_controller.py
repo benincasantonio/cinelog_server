@@ -69,9 +69,7 @@ async def logout(response: Response) -> LogoutResponse:
     """
     Clear authentication cookies.
     """
-    response.delete_cookie(ACCESS_TOKEN_COOKIE, path="/")
-    response.delete_cookie(REFRESH_TOKEN_COOKIE, path="/v1/auth/refresh")
-    response.delete_cookie(CSRF_TOKEN_COOKIE, path="/")
+    clear_auth_cookies(response)
     return LogoutResponse(message="Logged out successfully")
 
 
