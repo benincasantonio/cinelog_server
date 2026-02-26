@@ -1,8 +1,14 @@
-from pydantic import EmailStr, Field
+import re
+
+from pydantic import EmailStr, Field, field_validator
 from datetime import date
 from typing import Optional
 
 from app.schemas.base_schema import BaseSchema
+from app.utils.sanitize_utils import strip_html_tags
+
+NAME_PATTERN = re.compile(r"^[a-zA-ZÀ-ÿ\s'\-]+$")
+HANDLE_PATTERN = re.compile(r"^[a-zA-Z0-9_]+$")
 
 
 class UserCreateRequest(BaseSchema):
@@ -14,6 +20,33 @@ class UserCreateRequest(BaseSchema):
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
     firebase_uid: Optional[str] = Field(None, description="Firebase UID (deprecated, for reference)")
     password_hash: Optional[str] = Field(None, description="Hashed password for local auth")
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not NAME_PATTERN.match(v):
+            raise ValueError("Name contains invalid characters")
+        return v
+
+    @field_validator("handle")
+    @classmethod
+    def validate_handle(cls, v: str) -> str:
+        if v is None:
+            return v
+        v = v.strip()
+        if not HANDLE_PATTERN.match(v):
+            raise ValueError(
+                "Handle must contain only alphanumeric characters or underscores"
+            )
+        return v
+
+    @field_validator("bio")
+    @classmethod
+    def sanitize_bio(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return strip_html_tags(v)
 
 
 class UserCreateResponse(BaseSchema):
