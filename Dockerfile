@@ -3,7 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install uv
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir uv==0.10.7
 
 # Copy dependency metadata and install dependencies
 COPY pyproject.toml uv.lock ./

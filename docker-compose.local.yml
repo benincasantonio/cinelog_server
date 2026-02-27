@@ -20,6 +20,7 @@ services:
       - .env
     volumes:
       - .:/app
+      - api_venv:/app/.venv
     environment:
       - MONGODB_HOST=mongo
       - MONGODB_PORT=27017
@@ -41,3 +42,4 @@ services:
 
 volumes:
   mongo_data:
+  api_venv:
