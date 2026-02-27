@@ -13,7 +13,8 @@ Cinelog is a FastAPI-based movie logging application that allows users to track 
 **Local development (with auto-reload):**
 
 ```bash
-python main.py
+uv sync --group dev
+uv run python main.py
 ```
 
 The API will be available at `http://127.0.0.1:5009`
@@ -31,25 +32,25 @@ This starts both MongoDB and the API service with hot-reload enabled.
 **Run all tests:**
 
 ```bash
-pytest
+uv run pytest
 ```
 
 **Run tests with coverage:**
 
 ```bash
-pytest --cov=app --cov-report=html
+uv run pytest --cov=app --cov-report=html
 ```
 
 **Run specific test file:**
 
 ```bash
-pytest tests/services/test_auth_service.py
+uv run pytest tests/services/test_auth_service.py
 ```
 
 **Run specific test:**
 
 ```bash
-pytest tests/services/test_auth_service.py::test_function_name
+uv run pytest tests/services/test_auth_service.py::test_function_name
 ```
 
 ### Environment Setup

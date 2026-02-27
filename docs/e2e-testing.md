@@ -5,17 +5,20 @@ This guide walks through setting up and running end-to-end tests locally.
 ## Prerequisites
 
 - **Docker** - For running MongoDB and Firebase Emulator
-- **Python 3.12+** - With virtual environment activated
+- **Python 3.12+** - With `uv` installed
 - **.env file** - With `TMDB_API_KEY` configured
 
 ## Quick Start
 
 ```bash
+# 0. Sync dependencies
+uv sync --group dev
+
 # 1. Start Docker containers
 docker-compose -f docker-compose.e2e.yml up -d
 
 # 2. Run e2e tests
-pytest tests/e2e -v
+uv run pytest tests/e2e -v
 
 # 3. Stop containers when done
 docker-compose -f docker-compose.e2e.yml down
@@ -35,7 +38,7 @@ docker-compose -f docker-compose.e2e.yml down
 |------|---------|
 | `docker-compose.e2e.yml` | Docker infrastructure |
 | `firebase.e2e.json` | Firebase emulator config |
-| `pytest.ini` | pytest-asyncio settings |
+| `pyproject.toml` | pytest-asyncio settings (`[tool.pytest.ini_options]`) |
 | `tests/e2e/conftest.py` | Test fixtures |
 
 ## Environment Variables
@@ -76,7 +79,7 @@ mongosh --port 27018
 
 ### Run specific test
 ```bash
-pytest tests/e2e/test_auth_e2e.py::TestAuthE2E::test_register_success -v
+uv run pytest tests/e2e/test_auth_e2e.py::TestAuthE2E::test_register_success -v
 ```
 
 ## CI/CD
