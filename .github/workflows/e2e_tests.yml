@@ -29,7 +29,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -46,8 +50,7 @@ jobs:
           
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          uv sync --frozen --group dev
           
       - name: Start Firebase Emulator
         run: |
@@ -73,7 +76,7 @@ jobs:
 
       - name: Run E2E Tests
         run: |
-          pytest tests/e2e -v
+          uv run pytest tests/e2e -v
         env:
           MONGODB_HOST: localhost
           MONGODB_PORT: 27018
