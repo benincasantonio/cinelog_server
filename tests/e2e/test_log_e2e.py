@@ -3,6 +3,7 @@ E2E tests for log controller endpoints.
 Tests the full stack: FastAPI -> LogService -> MongoDB.
 """
 from tests.e2e.conftest import register_and_login
+from app.utils.error_codes import ErrorCodes
 
 
 class TestLogE2E:
@@ -137,3 +138,275 @@ class TestLogE2E:
         response = await async_client.get("/v1/logs/")
 
         assert response.status_code == 401
+
+    async def test_get_logs_filter_by_watched_where(self, async_client):
+        """Test filtering logs by watchedWhere."""
+        user_data = {
+            "email": "filter_watchedwhere_test@example.com",
+            "password": "securepassword123",
+            "firstName": "FilterWhere",
+            "lastName": "Test",
+            "handle": "filterwheretest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+
+        create_a = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={
+                "tmdbId": 550,
+                "dateWatched": "2024-01-10",
+                "watchedWhere": "cinema"
+            }
+        )
+        assert create_a.status_code == 201
+
+        create_b = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={
+                "tmdbId": 13,
+                "dateWatched": "2024-01-11",
+                "watchedWhere": "streaming"
+            }
+        )
+        assert create_b.status_code == 201
+
+        response = await async_client.get("/v1/logs/?watchedWhere=streaming")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["logs"]) == 1
+        assert data["logs"][0]["watchedWhere"] == "streaming"
+        assert data["logs"][0]["tmdbId"] == 13
+
+    async def test_get_logs_filter_by_date_range(self, async_client):
+        """Test filtering logs by dateWatchedFrom/dateWatchedTo."""
+        user_data = {
+            "email": "filter_dates_test@example.com",
+            "password": "securepassword123",
+            "firstName": "FilterDate",
+            "lastName": "Test",
+            "handle": "filterdatetest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+
+        create_a = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={
+                "tmdbId": 550,
+                "dateWatched": "2024-01-05",
+                "watchedWhere": "cinema"
+            }
+        )
+        assert create_a.status_code == 201
+
+        create_b = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={
+                "tmdbId": 13,
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "streaming"
+            }
+        )
+        assert create_b.status_code == 201
+
+        create_c = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={
+                "tmdbId": 278,
+                "dateWatched": "2024-01-25",
+                "watchedWhere": "tv"
+            }
+        )
+        assert create_c.status_code == 201
+
+        bounded_response = await async_client.get(
+            "/v1/logs/?dateWatchedFrom=2024-01-10&dateWatchedTo=2024-01-20"
+        )
+        assert bounded_response.status_code == 200
+        bounded_data = bounded_response.json()
+        assert len(bounded_data["logs"]) == 1
+        assert bounded_data["logs"][0]["dateWatched"] == "2024-01-15"
+
+        partial_response = await async_client.get(
+            "/v1/logs/?dateWatchedFrom=2024-01-15"
+        )
+        assert partial_response.status_code == 200
+        partial_data = partial_response.json()
+        assert len(partial_data["logs"]) == 2
+        assert [log["dateWatched"] for log in partial_data["logs"]] == [
+            "2024-01-25",
+            "2024-01-15",
+        ]
+
+    async def test_get_logs_sort_by_date_watched(self, async_client):
+        """Test sorting logs by dateWatched ascending and descending."""
+        user_data = {
+            "email": "sort_logs_test@example.com",
+            "password": "securepassword123",
+            "firstName": "SortLogs",
+            "lastName": "Test",
+            "handle": "sortlogstest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+
+        for tmdb_id, date_watched in [
+            (550, "2024-01-20"),
+            (13, "2024-01-10"),
+            (278, "2024-01-15"),
+        ]:
+            create_response = await async_client.post(
+                "/v1/logs/",
+                headers={"X-CSRF-Token": csrf_token},
+                json={
+                    "tmdbId": tmdb_id,
+                    "dateWatched": date_watched,
+                    "watchedWhere": "cinema"
+                }
+            )
+            assert create_response.status_code == 201
+
+        asc_response = await async_client.get(
+            "/v1/logs/?sortBy=dateWatched&sortOrder=asc"
+        )
+        assert asc_response.status_code == 200
+        asc_data = asc_response.json()
+        assert [log["dateWatched"] for log in asc_data["logs"]] == [
+            "2024-01-10",
+            "2024-01-15",
+            "2024-01-20",
+        ]
+
+        desc_response = await async_client.get(
+            "/v1/logs/?sortBy=dateWatched&sortOrder=desc"
+        )
+        assert desc_response.status_code == 200
+        desc_data = desc_response.json()
+        assert [log["dateWatched"] for log in desc_data["logs"]] == [
+            "2024-01-20",
+            "2024-01-15",
+            "2024-01-10",
+        ]
+
+    async def test_update_log_invalid_id_returns_not_found(self, async_client):
+        """Test updating a non-existent log ID returns LOG_NOT_FOUND."""
+        user_data = {
+            "email": "update_invalidid_test@example.com",
+            "password": "securepassword123",
+            "firstName": "UpdateInvalid",
+            "lastName": "Test",
+            "handle": "updateinvalidtest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+
+        response = await async_client.put(
+            "/v1/logs/507f1f77bcf86cd799439011",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"viewingNotes": "Should fail"}
+        )
+
+        assert response.status_code == 404
+        data = response.json()
+        assert data["error_code_name"] == ErrorCodes.LOG_NOT_FOUND.error_code_name
+
+    async def test_update_log_of_other_user_returns_not_found(self, async_client):
+        """Test that a user cannot update another user's log."""
+        user_a = {
+            "email": "owner_user_test@example.com",
+            "password": "securepassword123",
+            "firstName": "Owner",
+            "lastName": "User",
+            "handle": "ownerusertest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_a = await register_and_login(async_client, user_a)
+        csrf_token_a = login_a["csrfToken"]
+
+        create_response = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token_a},
+            json={
+                "tmdbId": 550,
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "cinema"
+            }
+        )
+        assert create_response.status_code == 201
+        log_id = create_response.json()["id"]
+
+        user_b = {
+            "email": "intruder_user_test@example.com",
+            "password": "securepassword123",
+            "firstName": "Intruder",
+            "lastName": "User",
+            "handle": "intruderusertest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_b = await register_and_login(async_client, user_b)
+        csrf_token_b = login_b["csrfToken"]
+
+        response = await async_client.put(
+            f"/v1/logs/{log_id}",
+            headers={"X-CSRF-Token": csrf_token_b},
+            json={"viewingNotes": "Intruder update"}
+        )
+
+        assert response.status_code == 404
+        data = response.json()
+        assert data["error_code_name"] == ErrorCodes.LOG_NOT_FOUND.error_code_name
+
+    async def test_get_logs_empty_for_new_user(self, async_client):
+        """Test getting logs for a user with no log entries returns empty list."""
+        user_data = {
+            "email": "empty_logs_test@example.com",
+            "password": "securepassword123",
+            "firstName": "EmptyLogs",
+            "lastName": "Test",
+            "handle": "emptylogstest",
+            "dateOfBirth": "1990-01-01"
+        }
+        await register_and_login(async_client, user_data)
+
+        response = await async_client.get("/v1/logs/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["logs"] == []
+
+    async def test_create_log_invalid_watched_where(self, async_client):
+        """Test creating a log with invalid watchedWhere value."""
+        user_data = {
+            "email": "invalid_watchedwhere_test@example.com",
+            "password": "securepassword123",
+            "firstName": "InvalidWhere",
+            "lastName": "Test",
+            "handle": "invalidwheretest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+
+        response = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={
+                "tmdbId": 550,
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "invalid-place"
+            }
+        )
+
+        assert response.status_code == 422
+        assert "watchedWhere" in str(response.json())
