@@ -1,4 +1,4 @@
-.PHONY: install dev test test-e2e lint format typecheck security run docker-up docker-down
+.PHONY: install dev test-unit test-e2e lint format typecheck security run docker-up docker-down
 
 install:
 	uv sync
@@ -6,7 +6,7 @@ install:
 dev:
 	uv sync --group dev
 
-test:
+test-unit:
 	uv run pytest tests/units/ --cov=app --cov-report=html
 
 test-e2e:

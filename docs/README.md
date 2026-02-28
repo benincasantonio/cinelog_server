@@ -21,7 +21,7 @@ Welcome to the Cinelog Server documentation.
 |---------|-------------|
 | `make install` | Install runtime dependencies (`uv sync`) |
 | `make dev` | Install runtime + development dependencies |
-| `make test` | Run unit tests with coverage report |
+| `make test-unit` | Run unit tests with coverage report |
 | `make test-e2e` | Start e2e MongoDB, run e2e tests, then stop e2e MongoDB |
 | `make lint` | Run Ruff linter |
 | `make format` | Format code with Ruff and apply auto-fixes |
