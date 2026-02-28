@@ -104,11 +104,57 @@ class TestStatsController:
             "/v1/stats/me?yearFrom=2024&yearTo=2023",
             cookies={"__Host-access_token": "token"}
         )
-        
+
         app.dependency_overrides = {}
 
-        assert response.status_code == 400
-        assert "yearFrom cannot be greater than yearTo" in response.json()["detail"]
+        assert response.status_code == 422
+        messages = [e["msg"] for e in response.json()["detail"]]
+        assert any("yearFrom cannot be greater than yearTo" in m for m in messages)
+
+    def test_get_my_stats_only_year_from(self, client, override_auth):
+        """Test stats with only yearFrom provided (yearTo required)."""
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        response = client.get(
+            "/v1/stats/me?yearFrom=2020",
+            cookies={"__Host-access_token": "token"}
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 422
+        messages = [e["msg"] for e in response.json()["detail"]]
+        assert any("both" in m.lower() for m in messages)
+
+    def test_get_my_stats_only_year_to(self, client, override_auth):
+        """Test stats with only yearTo provided (yearFrom required)."""
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        response = client.get(
+            "/v1/stats/me?yearTo=2024",
+            cookies={"__Host-access_token": "token"}
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 422
+        messages = [e["msg"] for e in response.json()["detail"]]
+        assert any("both" in m.lower() for m in messages)
+
+    def test_get_my_stats_year_out_of_bounds(self, client, override_auth):
+        """Test stats with a year outside the valid range."""
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        response = client.get(
+            "/v1/stats/me?yearFrom=1800&yearTo=1801",
+            cookies={"__Host-access_token": "token"}
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 422
+        messages = [e["msg"] for e in response.json()["detail"]]
+        assert any("1888" in m for m in messages)
 
     def test_get_my_stats_unauthorized(self, client):
         """Test stats without authentication."""
