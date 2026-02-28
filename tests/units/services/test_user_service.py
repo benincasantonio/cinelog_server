@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from datetime import date
 
 from app.services.user_service import UserService

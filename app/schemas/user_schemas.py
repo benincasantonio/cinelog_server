@@ -13,7 +13,6 @@ class UserCreateRequest(BaseSchema):
     handle: Optional[str] = Field(None, min_length=3, max_length=20)
     bio: Optional[str] = Field(None, max_length=500, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
-    firebase_uid: Optional[str] = Field(None, description="Firebase UID (deprecated, for reference)")
     password_hash: Optional[str] = Field(None, description="Hashed password for local auth")
 
     @field_validator("first_name", "last_name")
