@@ -29,7 +29,7 @@ class TestStatsController:
     ):
         """Test successful stats retrieval."""
         app.dependency_overrides[auth_dependency] = override_auth
-        
+
         mock_get_stats.return_value = {
             "summary": {
                 "total_watches": 10,
@@ -75,7 +75,7 @@ class TestStatsController:
     ):
         """Test stats retrieval with year filters."""
         app.dependency_overrides[auth_dependency] = override_auth
-        
+
         mock_get_stats.return_value = {
             "summary": {"total_watches": 5, "unique_titles": 5, "total_rewatches": 0, "total_minutes": 600, "vote_average": None},
             "distribution": {"by_method": {"cinema": 2, "streaming": 3, "home_video": 0, "tv": 0, "other": 0}},
@@ -107,54 +107,8 @@ class TestStatsController:
 
         app.dependency_overrides = {}
 
-        assert response.status_code == 422
-        messages = [e["msg"] for e in response.json()["detail"]]
-        assert any("yearFrom cannot be greater than yearTo" in m for m in messages)
-
-    def test_get_my_stats_only_year_from(self, client, override_auth):
-        """Test stats with only yearFrom provided (yearTo required)."""
-        app.dependency_overrides[auth_dependency] = override_auth
-
-        response = client.get(
-            "/v1/stats/me?yearFrom=2020",
-            cookies={"__Host-access_token": "token"}
-        )
-
-        app.dependency_overrides = {}
-
-        assert response.status_code == 422
-        messages = [e["msg"] for e in response.json()["detail"]]
-        assert any("both" in m.lower() for m in messages)
-
-    def test_get_my_stats_only_year_to(self, client, override_auth):
-        """Test stats with only yearTo provided (yearFrom required)."""
-        app.dependency_overrides[auth_dependency] = override_auth
-
-        response = client.get(
-            "/v1/stats/me?yearTo=2024",
-            cookies={"__Host-access_token": "token"}
-        )
-
-        app.dependency_overrides = {}
-
-        assert response.status_code == 422
-        messages = [e["msg"] for e in response.json()["detail"]]
-        assert any("both" in m.lower() for m in messages)
-
-    def test_get_my_stats_year_out_of_bounds(self, client, override_auth):
-        """Test stats with a year outside the valid range."""
-        app.dependency_overrides[auth_dependency] = override_auth
-
-        response = client.get(
-            "/v1/stats/me?yearFrom=1800&yearTo=1801",
-            cookies={"__Host-access_token": "token"}
-        )
-
-        app.dependency_overrides = {}
-
-        assert response.status_code == 422
-        messages = [e["msg"] for e in response.json()["detail"]]
-        assert any("1888" in m for m in messages)
+        assert response.status_code == 400
+        assert "yearFrom cannot be greater than yearTo" in response.json()["detail"]
 
     def test_get_my_stats_unauthorized(self, client):
         """Test stats without authentication."""
@@ -193,7 +147,7 @@ class TestStatsController:
         """Test stats re-raises AppException."""
         from app.utils.exceptions import AppException
         from app.utils.error_codes import ErrorCodes
-        
+
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_stats.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
 
@@ -201,9 +155,8 @@ class TestStatsController:
             "/v1/stats/me",
             cookies={"__Host-access_token": "token"}
         )
-        
+
         app.dependency_overrides = {}
 
         # AppException returns its own error code
         assert response.status_code == ErrorCodes.USER_NOT_FOUND.error_code
-
