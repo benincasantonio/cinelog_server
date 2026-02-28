@@ -18,17 +18,14 @@ class StatsService:
         implements only the `summary` section; `distribution` and `pace` are
         returned with zeroed/default values.
         """
-        request: LogListRequest | None = None
-        request_kwargs: dict[str, date] = {}
-        if year_from is not None:
-            request_kwargs["date_watched_from"] = date(year_from, 1, 1)
-        if year_to is not None:
-            request_kwargs["date_watched_to"] = date(year_to, 12, 31)
+        date_from: date | None = date(year_from, 1, 1) if year_from is not None else None
+        date_to: date | None = date(year_to, 12, 31) if year_to is not None else None
 
-        if request_kwargs:
+        request: LogListRequest | None = None
+        if date_from is not None or date_to is not None:
             request = LogListRequest(
-                date_watched_from=request_kwargs.get("date_watched_from"),
-                date_watched_to=request_kwargs.get("date_watched_to"),
+                date_watched_from=date_from,
+                date_watched_to=date_to,
             )
 
         logs = self.log_repository.find_logs_by_user_id(user_id, request=request)
