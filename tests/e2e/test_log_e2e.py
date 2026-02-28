@@ -410,3 +410,131 @@ class TestLogE2E:
 
         assert response.status_code == 422
         assert "watchedWhere" in str(response.json())
+
+    async def test_get_logs_user_isolation(self, async_client):
+        """Test that a user cannot see another user's logs."""
+        user_a = {
+            "email": "isolation_owner_test@example.com",
+            "password": "securepassword123",
+            "firstName": "IsoOwner",
+            "lastName": "Test",
+            "handle": "isoownertest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_a = await register_and_login(async_client, user_a)
+        csrf_token_a = login_a["csrfToken"]
+
+        create_resp = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token_a},
+            json={
+                "tmdbId": 550,
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "cinema"
+            }
+        )
+        assert create_resp.status_code == 201
+
+        user_b = {
+            "email": "isolation_viewer_test@example.com",
+            "password": "securepassword123",
+            "firstName": "IsoViewer",
+            "lastName": "Test",
+            "handle": "isoviewertest",
+            "dateOfBirth": "1990-01-01"
+        }
+        await register_and_login(async_client, user_b)
+
+        response = await async_client.get("/v1/logs/")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["logs"] == []
+
+    async def test_create_log_reuses_existing_movie(self, async_client):
+        """Test that logging the same TMDB ID twice reuses the same movie."""
+        user_data = {
+            "email": "reuse_movie_test@example.com",
+            "password": "securepassword123",
+            "firstName": "ReuseMovie",
+            "lastName": "Test",
+            "handle": "reusemovietest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+
+        first_resp = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={
+                "tmdbId": 550,
+                "dateWatched": "2024-01-10",
+                "watchedWhere": "cinema"
+            }
+        )
+        assert first_resp.status_code == 201
+        first_data = first_resp.json()
+
+        second_resp = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={
+                "tmdbId": 550,
+                "dateWatched": "2024-02-20",
+                "watchedWhere": "streaming"
+            }
+        )
+        assert second_resp.status_code == 201
+        second_data = second_resp.json()
+
+        # Two distinct log entries
+        assert first_data["id"] != second_data["id"]
+        # Both reference the same movie
+        assert first_data["movieId"] == second_data["movieId"]
+
+        # Verify 2 logs exist
+        logs_resp = await async_client.get("/v1/logs/")
+        assert logs_resp.status_code == 200
+        assert len(logs_resp.json()["logs"]) == 2
+
+    async def test_update_log_unauthorized(self, async_client):
+        """Test updating a log without authentication."""
+        response = await async_client.put(
+            "/v1/logs/507f1f77bcf86cd799439011",
+            json={"viewingNotes": "Should fail"}
+        )
+        assert response.status_code in [401, 403]
+
+    async def test_update_log_invalid_watched_where(self, async_client):
+        """Test updating a log with invalid watchedWhere value."""
+        user_data = {
+            "email": "update_invalidwhere_test@example.com",
+            "password": "securepassword123",
+            "firstName": "UpdInvalid",
+            "lastName": "Test",
+            "handle": "updinvalidwheretest",
+            "dateOfBirth": "1990-01-01"
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+
+        create_resp = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={
+                "tmdbId": 550,
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "cinema"
+            }
+        )
+        assert create_resp.status_code == 201
+        log_id = create_resp.json()["id"]
+
+        response = await async_client.put(
+            f"/v1/logs/{log_id}",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"watchedWhere": "invalid-place"}
+        )
+
+        assert response.status_code == 422
+        assert "watchedWhere" in str(response.json())
