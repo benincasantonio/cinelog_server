@@ -10,6 +10,7 @@ from app.schemas.log_schemas import (
     LogListItem,
 )
 from app.schemas.movie_schemas import MovieResponse
+from app.dependencies.auth_dependency import auth_dependency
 
 
 @pytest.fixture
@@ -80,9 +81,6 @@ def sample_log_list_response(sample_movie_response):
             )
         ],
     )
-
-
-from app.dependencies.auth_dependency import auth_dependency
 
 
 @pytest.fixture

@@ -350,7 +350,7 @@ class TestLogRepository:
         self, movie_create_request: LogCreateRequest, user_id: str
     ):
         """Test find_logs_by_movie_id with user_id filter."""
-        log = self.log_repository.create_log(user_id, movie_create_request)
+        self.log_repository.create_log(user_id, movie_create_request)
         other_user_id = str(ObjectId())
 
         # With matching user_id
