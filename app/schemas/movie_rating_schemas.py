@@ -23,7 +23,7 @@ class MovieRatingResponse(BaseSchema):
     id: str = Field(..., description="Unique identifier of the rating")
     user_id: str = Field(..., description="Unique identifier of the user who rated")
     movie_id: str = Field(..., description="Unique identifier of the movie")
-    tmdb_id: str = Field(..., description="Unique identifier of the movie")
+    tmdb_id: int = Field(..., description="TMDB ID of the movie")
     rating: int = Field(
         ..., ge=1, le=10, description="Rating given to the movie (1-10)"
     )
