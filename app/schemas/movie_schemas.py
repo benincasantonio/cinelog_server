@@ -1,5 +1,5 @@
 from pydantic import Field
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from app.schemas.base_schema import BaseSchema
@@ -24,5 +24,5 @@ class MovieResponse(BaseSchema):
     vote_average: Optional[float] = Field(None, description="Average vote rating")
     runtime: Optional[int] = Field(None, description="Runtime in minutes")
     original_language: Optional[str] = Field(None, description="Original language code")
-    created_at: Optional[date] = Field(None, description="Creation date of the movie")
-    updated_at: Optional[date] = Field(None, description="Last update date of the movie")
+    created_at: Optional[datetime] = Field(None, description="Creation date of the movie")
+    updated_at: Optional[datetime] = Field(None, description="Last update date of the movie")
