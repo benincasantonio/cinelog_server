@@ -3,7 +3,7 @@ from app.schemas.log_schemas import LogListRequest
 
 
 class StatsService:
-    def __init__(self, log_repository: LogRepository = None):
+    def __init__(self, log_repository: LogRepository | None = None ):
         self.log_repository = log_repository or LogRepository()
 
     def get_user_stats(

@@ -21,7 +21,7 @@ class AuthService:
     def __init__(
         self,
         user_repository: UserRepository,
-        email_service: EmailService = None,
+        email_service: EmailService | None = None,
     ):
         self.user_repository = user_repository
         self.email_service = email_service or EmailService()

@@ -6,7 +6,7 @@ import os
 
 class MovieService:
     def __init__(
-        self, movie_repository: MovieRepository, tmdb_service: TMDBService
+        self, movie_repository: MovieRepository, tmdb_service: TMDBService | None = None
     ):
         self.movie_repository = movie_repository
         self.tmdb_service = tmdb_service or TMDBService(

@@ -19,7 +19,7 @@ class LogService:
     """Service layer for log operations."""
 
     def __init__(
-        self, log_repository: LogRepository, movie_service: MovieService = None
+        self, log_repository: LogRepository, movie_service: MovieService | None = None
     ):
         self.log_repository = log_repository
         # Initialize movie service if not provided
@@ -27,11 +27,10 @@ class LogService:
             movie_repository = MovieRepository()
             self.movie_service = MovieService(movie_repository)
         else:
-            self.movie_service = movie_service
+            self.movie_service: MovieService = movie_service
 
-    def _map_movie_to_response(self, movie) -> MovieResponse:
-        if not movie:
-            return None
+    def _map_movie_to_response(self, movie: Movie) -> MovieResponse:
+        
         return MovieResponse(
             id=str(movie.id),
             title=movie.title,

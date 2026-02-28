@@ -6,7 +6,7 @@ from starlette.status import HTTP_403_FORBIDDEN
 from app.utils.auth_utils import CSRF_TOKEN_COOKIE
 
 class CSRFMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, exempt_paths: list[str] = None):
+    def __init__(self, app, exempt_paths: list[str] | None = None):
         super().__init__(app)
         self.exempt_paths = exempt_paths or []
 
