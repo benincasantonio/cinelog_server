@@ -26,7 +26,7 @@ class LogService:
         if movie_service is None:
             movie_repository = MovieRepository()
             movie_service = MovieService(movie_repository)
-            
+        
         self.movie_service = movie_service
 
     def _map_movie_to_response(self, movie: Movie | None) -> MovieResponse | None:
