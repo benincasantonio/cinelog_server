@@ -12,7 +12,7 @@ from app.schemas.log_schemas import (
 )
 from app.utils.exceptions import AppException
 from app.utils.error_codes import ErrorCodes
-from cinelog_server.app.models.movie import Movie
+from app.models.movie import Movie
 
 
 class LogService:
@@ -25,12 +25,13 @@ class LogService:
         # Initialize movie service if not provided
         if movie_service is None:
             movie_repository = MovieRepository()
-            self.movie_service = MovieService(movie_repository)
-        else:
-            self.movie_service: MovieService = movie_service
+            movie_service = MovieService(movie_repository)
+            
+        self.movie_service = movie_service
 
-    def _map_movie_to_response(self, movie: Movie) -> MovieResponse:
-        
+    def _map_movie_to_response(self, movie: Movie | None) -> MovieResponse | None:
+        if movie is None:
+            return None
         return MovieResponse(
             id=str(movie.id),
             title=movie.title,
@@ -115,11 +116,12 @@ class LogService:
         log_items = []
         for log_data in logs_data:
             movie = log_data.get("movie")
+            movie_response = self._map_movie_to_response(movie) if movie else None
             log_items.append(
                 LogListItem(
                     id=log_data["id"],
                     movie_id=str(log_data["movieId"]),
-                    movie=self._map_movie_to_response(movie),
+                    movie=movie_response,
                     movie_rating=log_data.get("movieRating"),
                     tmdb_id=log_data["tmdbId"],
                     date_watched=log_data["dateWatched"],

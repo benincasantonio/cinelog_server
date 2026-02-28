@@ -37,6 +37,8 @@ class TestLogService:
         mock_movie.vote_average = 8.5
         mock_movie.runtime = 120
         mock_movie.original_language = "en"
+        mock_movie.created_at = date(2020, 1, 1)
+        mock_movie.updated_at = date(2020, 1, 1)
 
         mock_movie_service.find_or_create_movie.return_value = mock_movie
 
@@ -79,6 +81,8 @@ class TestLogService:
         mock_movie.vote_average = None
         mock_movie.runtime = None
         mock_movie.original_language = "en"
+        mock_movie.created_at = None
+        mock_movie.updated_at = None
 
         mock_movie_service.find_or_create_movie.return_value = mock_movie
 
@@ -127,6 +131,8 @@ class TestLogService:
         mock_movie.vote_average = None
         mock_movie.runtime = None
         mock_movie.original_language = "en"
+        mock_movie.created_at = None
+        mock_movie.updated_at = None
 
         mock_movie_service.get_movie_by_id.return_value = mock_movie
 
@@ -157,6 +163,8 @@ class TestLogService:
         mock_movie.vote_average = None
         mock_movie.runtime = None
         mock_movie.original_language = "en"
+        mock_movie.created_at = None
+        mock_movie.updated_at = None
 
         mock_log_repository.find_logs_by_user_id.return_value = [
             {

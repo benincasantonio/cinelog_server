@@ -11,7 +11,7 @@ class MovieRatingRepository:
         return MovieRating.objects(user_id=user_id, movie_id=movie_id).first()
 
     def find_movie_rating_by_user_and_tmdb(
-        self, user_id: str, tmdb_id: str
+        self, user_id: str, tmdb_id: int
     ) -> MovieRating:
         """
         Find a movie rating by user ID and TMDB ID.

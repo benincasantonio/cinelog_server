@@ -82,7 +82,7 @@ class LogUpdateRequest(BaseSchema):
 class LogListItem(BaseSchema):
     id: str = Field(..., description="Unique identifier of the log entry")
     movie_id: str = Field(..., description="Unique identifier of the movie")
-    movie: MovieResponse = Field(..., description="Details of the movie")
+    movie: Optional[MovieResponse] = Field(None, description="Details of the movie")
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
     viewing_notes: Optional[str] = Field(

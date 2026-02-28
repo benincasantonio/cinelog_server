@@ -1,3 +1,5 @@
+from datetime import date
+
 from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import LogListRequest
 
@@ -17,14 +19,17 @@ class StatsService:
         returned with zeroed/default values.
         """
         request: LogListRequest | None = None
-        request_kwargs = {}
+        request_kwargs: dict[str, date] = {}
         if year_from is not None:
-            request_kwargs["date_watched_from"] = f"{year_from}-01-01"
+            request_kwargs["date_watched_from"] = date(year_from, 1, 1)
         if year_to is not None:
-            request_kwargs["date_watched_to"] = f"{year_to}-12-31"
+            request_kwargs["date_watched_to"] = date(year_to, 12, 31)
 
         if request_kwargs:
-            request = LogListRequest(**request_kwargs)
+            request = LogListRequest(
+                date_watched_from=request_kwargs.get("date_watched_from"),
+                date_watched_to=request_kwargs.get("date_watched_to"),
+            )
 
         logs = self.log_repository.find_logs_by_user_id(user_id, request=request)
 
