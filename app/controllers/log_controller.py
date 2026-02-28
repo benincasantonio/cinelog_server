@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request
 from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import (
     LogCreateRequest,
@@ -21,7 +21,7 @@ log_service = LogService(log_repository)
 def create_log(
     request_body: LogCreateRequest,
     request: Request,
-    user_id: str = Depends(auth_dependency)
+    user_id: str = Depends(auth_dependency),
 ) -> LogCreateResponse:
     """
     Create a new viewing log entry.
@@ -36,7 +36,7 @@ def update_log(
     log_id: str,
     request_body: LogUpdateRequest,
     request: Request,
-    user_id: str = Depends(auth_dependency)
+    user_id: str = Depends(auth_dependency),
 ) -> LogCreateResponse:
     """
     Update an existing viewing log entry.
@@ -51,7 +51,7 @@ def update_log(
 def get_logs(
     request: Request,
     list_request: LogListRequest = Depends(),
-    user_id: str = Depends(auth_dependency)
+    user_id: str = Depends(auth_dependency),
 ) -> LogListResponse:
     """
     Get list of user's viewing logs.

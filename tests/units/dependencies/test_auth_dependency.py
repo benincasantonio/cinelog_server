@@ -4,6 +4,7 @@ from app.dependencies.auth_dependency import auth_dependency
 from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
 
+
 class TestAuthDependency:
     """Test cases for the AuthDependency class."""
 
@@ -13,11 +14,13 @@ class TestAuthDependency:
         mock_request.cookies = {"__Host-access_token": "valid_token"}
         mock_request.headers = {}
 
-        with patch('app.dependencies.auth_dependency.TokenService.decode_token') as mock_decode:
+        with patch(
+            "app.dependencies.auth_dependency.TokenService.decode_token"
+        ) as mock_decode:
             mock_decode.return_value = {"sub": "user123", "type": "access"}
-            
+
             result = auth_dependency(mock_request)
-            
+
             assert result == "user123"
             mock_decode.assert_called_once_with("valid_token")
 
@@ -39,7 +42,10 @@ class TestAuthDependency:
         mock_request.cookies = {"__Host-access_token": "invalid_token"}
         mock_request.headers = {}
 
-        with patch('app.dependencies.auth_dependency.TokenService.decode_token', side_effect=InvalidTokenError):
+        with patch(
+            "app.dependencies.auth_dependency.TokenService.decode_token",
+            side_effect=InvalidTokenError,
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 auth_dependency(mock_request)
 
@@ -52,7 +58,10 @@ class TestAuthDependency:
         mock_request.cookies = {"__Host-access_token": "expired_token"}
         mock_request.headers = {}
 
-        with patch('app.dependencies.auth_dependency.TokenService.decode_token', side_effect=ExpiredSignatureError):
+        with patch(
+            "app.dependencies.auth_dependency.TokenService.decode_token",
+            side_effect=ExpiredSignatureError,
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 auth_dependency(mock_request)
 
@@ -65,9 +74,11 @@ class TestAuthDependency:
         mock_request.cookies = {"__Host-access_token": "refresh_token"}
         mock_request.headers = {}
 
-        with patch('app.dependencies.auth_dependency.TokenService.decode_token') as mock_decode:
+        with patch(
+            "app.dependencies.auth_dependency.TokenService.decode_token"
+        ) as mock_decode:
             mock_decode.return_value = {"sub": "user123", "type": "refresh"}
-            
+
             with pytest.raises(HTTPException) as exc_info:
                 auth_dependency(mock_request)
 
@@ -80,9 +91,11 @@ class TestAuthDependency:
         mock_request.cookies = {"__Host-access_token": "valid_token"}
         mock_request.headers = {}
 
-        with patch('app.dependencies.auth_dependency.TokenService.decode_token') as mock_decode:
-            mock_decode.return_value = {"type": "access"} # Missing sub
-            
+        with patch(
+            "app.dependencies.auth_dependency.TokenService.decode_token"
+        ) as mock_decode:
+            mock_decode.return_value = {"type": "access"}  # Missing sub
+
             with pytest.raises(HTTPException) as exc_info:
                 auth_dependency(mock_request)
 

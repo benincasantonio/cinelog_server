@@ -2,6 +2,7 @@
 E2E tests for log controller endpoints.
 Tests the full stack: FastAPI -> LogService -> MongoDB.
 """
+
 from tests.e2e.conftest import register_and_login
 from app.utils.error_codes import ErrorCodes
 
@@ -17,7 +18,7 @@ class TestLogE2E:
             "firstName": "CreateLog",
             "lastName": "Test",
             "handle": "createlogtest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -30,8 +31,8 @@ class TestLogE2E:
                 "tmdbId": 550,  # Fight Club
                 "dateWatched": "2024-01-15",
                 "viewingNotes": "Great movie!",
-                "watchedWhere": "cinema"
-            }
+                "watchedWhere": "cinema",
+            },
         )
 
         assert response.status_code == 201
@@ -50,11 +51,7 @@ class TestLogE2E:
         """Test creating a log without authentication."""
         # No login -> No cookies
         response = await async_client.post(
-            "/v1/logs/",
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-15"
-            }
+            "/v1/logs/", json={"tmdbId": 550, "dateWatched": "2024-01-15"}
         )
         # Should be 401 (Unauthorized) OR 403 (CSRF missing)
         assert response.status_code in [401, 403]
@@ -67,7 +64,7 @@ class TestLogE2E:
             "firstName": "GetLogs",
             "lastName": "Test",
             "handle": "getlogstest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -76,11 +73,7 @@ class TestLogE2E:
         await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-15",
-                "watchedWhere": "cinema"
-            }
+            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
         )
 
         # Get logs (GET is safe, no CSRF needed, cookies auto-sent)
@@ -100,7 +93,7 @@ class TestLogE2E:
             "firstName": "UpdateLog",
             "lastName": "Test",
             "handle": "updatelogtest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -109,11 +102,7 @@ class TestLogE2E:
         create_response = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-15",
-                "watchedWhere": "cinema"
-            }
+            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
         )
         assert create_response.status_code == 201
         log_id = create_response.json()["id"]
@@ -122,10 +111,7 @@ class TestLogE2E:
         response = await async_client.put(
             f"/v1/logs/{log_id}",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "viewingNotes": "Updated notes!",
-                "watchedWhere": "streaming"
-            }
+            json={"viewingNotes": "Updated notes!", "watchedWhere": "streaming"},
         )
 
         assert response.status_code == 200
@@ -147,7 +133,7 @@ class TestLogE2E:
             "firstName": "FilterWhere",
             "lastName": "Test",
             "handle": "filterwheretest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -155,11 +141,7 @@ class TestLogE2E:
         create_a = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-10",
-                "watchedWhere": "cinema"
-            }
+            json={"tmdbId": 550, "dateWatched": "2024-01-10", "watchedWhere": "cinema"},
         )
         assert create_a.status_code == 201
 
@@ -169,8 +151,8 @@ class TestLogE2E:
             json={
                 "tmdbId": 13,
                 "dateWatched": "2024-01-11",
-                "watchedWhere": "streaming"
-            }
+                "watchedWhere": "streaming",
+            },
         )
         assert create_b.status_code == 201
 
@@ -190,7 +172,7 @@ class TestLogE2E:
             "firstName": "FilterDate",
             "lastName": "Test",
             "handle": "filterdatetest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -198,11 +180,7 @@ class TestLogE2E:
         create_a = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-05",
-                "watchedWhere": "cinema"
-            }
+            json={"tmdbId": 550, "dateWatched": "2024-01-05", "watchedWhere": "cinema"},
         )
         assert create_a.status_code == 201
 
@@ -212,19 +190,15 @@ class TestLogE2E:
             json={
                 "tmdbId": 13,
                 "dateWatched": "2024-01-15",
-                "watchedWhere": "streaming"
-            }
+                "watchedWhere": "streaming",
+            },
         )
         assert create_b.status_code == 201
 
         create_c = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "tmdbId": 278,
-                "dateWatched": "2024-01-25",
-                "watchedWhere": "tv"
-            }
+            json={"tmdbId": 278, "dateWatched": "2024-01-25", "watchedWhere": "tv"},
         )
         assert create_c.status_code == 201
 
@@ -255,7 +229,7 @@ class TestLogE2E:
             "firstName": "SortLogs",
             "lastName": "Test",
             "handle": "sortlogstest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -271,8 +245,8 @@ class TestLogE2E:
                 json={
                     "tmdbId": tmdb_id,
                     "dateWatched": date_watched,
-                    "watchedWhere": "cinema"
-                }
+                    "watchedWhere": "cinema",
+                },
             )
             assert create_response.status_code == 201
 
@@ -306,7 +280,7 @@ class TestLogE2E:
             "firstName": "UpdateInvalid",
             "lastName": "Test",
             "handle": "updateinvalidtest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -314,7 +288,7 @@ class TestLogE2E:
         response = await async_client.put(
             "/v1/logs/507f1f77bcf86cd799439011",
             headers={"X-CSRF-Token": csrf_token},
-            json={"viewingNotes": "Should fail"}
+            json={"viewingNotes": "Should fail"},
         )
 
         assert response.status_code == 404
@@ -329,7 +303,7 @@ class TestLogE2E:
             "firstName": "Owner",
             "lastName": "User",
             "handle": "ownerusertest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_a = await register_and_login(async_client, user_a)
         csrf_token_a = login_a["csrfToken"]
@@ -337,11 +311,7 @@ class TestLogE2E:
         create_response = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token_a},
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-15",
-                "watchedWhere": "cinema"
-            }
+            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
         )
         assert create_response.status_code == 201
         log_id = create_response.json()["id"]
@@ -352,7 +322,7 @@ class TestLogE2E:
             "firstName": "Intruder",
             "lastName": "User",
             "handle": "intruderusertest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_b = await register_and_login(async_client, user_b)
         csrf_token_b = login_b["csrfToken"]
@@ -360,7 +330,7 @@ class TestLogE2E:
         response = await async_client.put(
             f"/v1/logs/{log_id}",
             headers={"X-CSRF-Token": csrf_token_b},
-            json={"viewingNotes": "Intruder update"}
+            json={"viewingNotes": "Intruder update"},
         )
 
         assert response.status_code == 404
@@ -375,7 +345,7 @@ class TestLogE2E:
             "firstName": "EmptyLogs",
             "lastName": "Test",
             "handle": "emptylogstest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         await register_and_login(async_client, user_data)
 
@@ -393,7 +363,7 @@ class TestLogE2E:
             "firstName": "InvalidWhere",
             "lastName": "Test",
             "handle": "invalidwheretest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -404,8 +374,8 @@ class TestLogE2E:
             json={
                 "tmdbId": 550,
                 "dateWatched": "2024-01-15",
-                "watchedWhere": "invalid-place"
-            }
+                "watchedWhere": "invalid-place",
+            },
         )
 
         assert response.status_code == 422
@@ -419,7 +389,7 @@ class TestLogE2E:
             "firstName": "IsoOwner",
             "lastName": "Test",
             "handle": "isoownertest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_a = await register_and_login(async_client, user_a)
         csrf_token_a = login_a["csrfToken"]
@@ -427,11 +397,7 @@ class TestLogE2E:
         create_resp = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token_a},
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-15",
-                "watchedWhere": "cinema"
-            }
+            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
         )
         assert create_resp.status_code == 201
 
@@ -441,7 +407,7 @@ class TestLogE2E:
             "firstName": "IsoViewer",
             "lastName": "Test",
             "handle": "isoviewertest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         await register_and_login(async_client, user_b)
 
@@ -458,7 +424,7 @@ class TestLogE2E:
             "firstName": "ReuseMovie",
             "lastName": "Test",
             "handle": "reusemovietest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -466,11 +432,7 @@ class TestLogE2E:
         first_resp = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-10",
-                "watchedWhere": "cinema"
-            }
+            json={"tmdbId": 550, "dateWatched": "2024-01-10", "watchedWhere": "cinema"},
         )
         assert first_resp.status_code == 201
         first_data = first_resp.json()
@@ -481,8 +443,8 @@ class TestLogE2E:
             json={
                 "tmdbId": 550,
                 "dateWatched": "2024-02-20",
-                "watchedWhere": "streaming"
-            }
+                "watchedWhere": "streaming",
+            },
         )
         assert second_resp.status_code == 201
         second_data = second_resp.json()
@@ -500,8 +462,7 @@ class TestLogE2E:
     async def test_update_log_unauthorized(self, async_client):
         """Test updating a log without authentication."""
         response = await async_client.put(
-            "/v1/logs/507f1f77bcf86cd799439011",
-            json={"viewingNotes": "Should fail"}
+            "/v1/logs/507f1f77bcf86cd799439011", json={"viewingNotes": "Should fail"}
         )
         assert response.status_code in [401, 403]
 
@@ -513,7 +474,7 @@ class TestLogE2E:
             "firstName": "UpdInvalid",
             "lastName": "Test",
             "handle": "updinvalidwheretest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -521,11 +482,7 @@ class TestLogE2E:
         create_resp = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-15",
-                "watchedWhere": "cinema"
-            }
+            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
         )
         assert create_resp.status_code == 201
         log_id = create_resp.json()["id"]
@@ -533,7 +490,7 @@ class TestLogE2E:
         response = await async_client.put(
             f"/v1/logs/{log_id}",
             headers={"X-CSRF-Token": csrf_token},
-            json={"watchedWhere": "invalid-place"}
+            json={"watchedWhere": "invalid-place"},
         )
 
         assert response.status_code == 422

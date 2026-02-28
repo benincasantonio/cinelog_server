@@ -2,7 +2,6 @@ from app.models.movie_rating import MovieRating
 
 
 class MovieRatingRepository:
-
     @staticmethod
     def find_movie_rating_by_user_and_movie(user_id: str, movie_id: str) -> MovieRating:
         """

@@ -14,9 +14,7 @@ def mock_user_repository():
 
 @pytest.fixture
 def user_service(mock_user_repository):
-    return UserService(
-        user_repository=mock_user_repository
-    )
+    return UserService(user_repository=mock_user_repository)
 
 
 def create_mock_user(
@@ -27,7 +25,7 @@ def create_mock_user(
     handle="johndoe",
     bio=None,
     date_of_birth=None,
-    firebase_uid=None
+    firebase_uid=None,
 ):
     """Helper to create a mock user with proper attributes."""
     mock_user = Mock()
@@ -67,5 +65,5 @@ class TestUserService:
 
         with pytest.raises(AppException) as exc_info:
             user_service.get_user_info("nonexistent_user")
-            
+
         assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code

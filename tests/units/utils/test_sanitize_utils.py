@@ -10,10 +10,13 @@ class TestStripHtmlTags:
         assert strip_html_tags("<script>alert(1)</script>") == "alert(1)"
 
     def test_strips_script_tag_with_attributes(self):
-        assert strip_html_tags('<script type="text/javascript">alert(1)</script>') == "alert(1)"
+        assert (
+            strip_html_tags('<script type="text/javascript">alert(1)</script>')
+            == "alert(1)"
+        )
 
     def test_strips_img_tag_with_onerror(self):
-        assert strip_html_tags('<img src=x onerror=alert(1)>') == ""
+        assert strip_html_tags("<img src=x onerror=alert(1)>") == ""
 
     def test_strips_bold_tag(self):
         assert strip_html_tags("<b>bold text</b>") == "bold text"
@@ -36,7 +39,7 @@ class TestStripHtmlTags:
     # --- XSS attack vectors ---
 
     def test_strips_script_with_encoded_payload(self):
-        result = strip_html_tags('<script>document.cookie</script>')
+        result = strip_html_tags("<script>document.cookie</script>")
         assert "<script>" not in result
         assert "</script>" not in result
 
@@ -59,10 +62,14 @@ class TestStripHtmlTags:
         assert strip_html_tags('<marquee onstart="alert(1)">text</marquee>') == "text"
 
     def test_strips_details_ontoggle_xss(self):
-        assert strip_html_tags('<details ontoggle="alert(1)" open>xss</details>') == "xss"
+        assert (
+            strip_html_tags('<details ontoggle="alert(1)" open>xss</details>') == "xss"
+        )
 
     def test_strips_object_tag(self):
-        result = strip_html_tags('<object data="data:text/html,<script>alert(1)</script>">')
+        result = strip_html_tags(
+            '<object data="data:text/html,<script>alert(1)</script>">'
+        )
         assert "<object" not in result
         assert "<script>" not in result
         assert "</script>" not in result
@@ -71,13 +78,23 @@ class TestStripHtmlTags:
         assert strip_html_tags('<embed src="http://evil.com/xss.swf">') == ""
 
     def test_strips_link_tag_with_stylesheet(self):
-        assert strip_html_tags('<link rel="stylesheet" href="http://evil.com/evil.css">') == ""
+        assert (
+            strip_html_tags('<link rel="stylesheet" href="http://evil.com/evil.css">')
+            == ""
+        )
 
     def test_strips_meta_refresh_xss(self):
-        assert strip_html_tags('<meta http-equiv="refresh" content="0;url=http://evil.com">') == ""
+        assert (
+            strip_html_tags(
+                '<meta http-equiv="refresh" content="0;url=http://evil.com">'
+            )
+            == ""
+        )
 
     def test_strips_style_tag(self):
-        result = strip_html_tags('<style>body{background:url("http://evil.com")}</style>')
+        result = strip_html_tags(
+            '<style>body{background:url("http://evil.com")}</style>'
+        )
         assert "<style>" not in result
 
     # --- Nested and complex HTML ---
@@ -95,7 +112,10 @@ class TestStripHtmlTags:
         assert result == "bold and italic"
 
     def test_strips_tag_with_multiple_attributes(self):
-        assert strip_html_tags('<a href="http://evil.com" class="link" id="xss">text</a>') == "text"
+        assert (
+            strip_html_tags('<a href="http://evil.com" class="link" id="xss">text</a>')
+            == "text"
+        )
 
     # --- Self-closing tags ---
 
@@ -138,7 +158,9 @@ class TestStripHtmlTags:
         assert strip_html_tags("Rene\u0301e O'Brien") == "Rene\u0301e O'Brien"
 
     def test_preserves_numbers_and_punctuation(self):
-        assert strip_html_tags("Score: 10/10! Great film.") == "Score: 10/10! Great film."
+        assert (
+            strip_html_tags("Score: 10/10! Great film.") == "Score: 10/10! Great film."
+        )
 
     def test_strips_leading_trailing_whitespace(self):
         assert strip_html_tags("  hello world  ") == "hello world"
@@ -155,7 +177,9 @@ class TestStripHtmlTags:
         assert strip_html_tags("hello <broken") == "hello <broken"
 
     def test_multiple_xss_payloads_combined(self):
-        payload = '<script>alert(1)</script><img src=x onerror=alert(2)><svg/onload=alert(3)>'
+        payload = (
+            "<script>alert(1)</script><img src=x onerror=alert(2)><svg/onload=alert(3)>"
+        )
         result = strip_html_tags(payload)
         assert "<script>" not in result
         assert "<img" not in result

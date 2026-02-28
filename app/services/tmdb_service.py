@@ -1,6 +1,7 @@
 import requests
 from app.schemas.tmdb_schemas import TMDBMovieSearchResult, TMDBMovieDetails
 
+
 class TMDBService:
     def __init__(self, api_key):
         self.API_KEY = api_key

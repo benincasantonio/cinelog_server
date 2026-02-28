@@ -2,7 +2,6 @@ from mongoengine.errors import NotUniqueError
 from app.models.movie import Movie
 from app.schemas.movie_schemas import (
     MovieCreateRequest,
-    MovieResponse,
     MovieUpdateRequest,
 )
 from datetime import datetime, UTC

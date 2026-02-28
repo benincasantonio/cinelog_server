@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from datetime import date
 from app.services.log_service import LogService
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest, LogListRequest
@@ -18,13 +18,17 @@ def mock_movie_service():
 
 @pytest.fixture
 def log_service(mock_log_repository, mock_movie_service):
-    return LogService(log_repository=mock_log_repository, movie_service=mock_movie_service)
+    return LogService(
+        log_repository=mock_log_repository, movie_service=mock_movie_service
+    )
 
 
 class TestLogService:
     """Tests for LogService."""
 
-    def test_create_log_success(self, log_service, mock_log_repository, mock_movie_service):
+    def test_create_log_success(
+        self, log_service, mock_log_repository, mock_movie_service
+    ):
         """Test successful log creation."""
         # Setup mocks
         mock_movie = Mock()
@@ -58,7 +62,7 @@ class TestLogService:
             tmdb_id=550,
             date_watched=date(2024, 1, 15),
             viewing_notes="Great movie!",
-            watched_where="cinema"
+            watched_where="cinema",
         )
         result = log_service.create_log("user123", request)
 
@@ -69,7 +73,9 @@ class TestLogService:
         mock_movie_service.find_or_create_movie.assert_called_once_with(tmdb_id=550)
         mock_log_repository.create_log.assert_called_once()
 
-    def test_create_log_auto_populate_poster(self, log_service, mock_log_repository, mock_movie_service):
+    def test_create_log_auto_populate_poster(
+        self, log_service, mock_log_repository, mock_movie_service
+    ):
         """Test that posterPath is auto-populated from movie if not provided."""
         mock_movie = Mock()
         mock_movie.id = "movie123"
@@ -100,7 +106,7 @@ class TestLogService:
         request = LogCreateRequest(
             tmdb_id=550,
             date_watched=date(2024, 1, 15),
-            watched_where="streaming"
+            watched_where="streaming",
             # posterPath not provided
         )
         result = log_service.create_log("user123", request)
@@ -108,7 +114,9 @@ class TestLogService:
         # Verify posterPath was populated from movie
         assert result.poster_path == "/movie_poster.jpg"
 
-    def test_update_log_success(self, log_service, mock_log_repository, mock_movie_service):
+    def test_update_log_success(
+        self, log_service, mock_log_repository, mock_movie_service
+    ):
         """Test successful log update."""
         mock_log = Mock()
         mock_log.id = "log123"
@@ -176,7 +184,7 @@ class TestLogService:
                 "viewingNotes": "Great!",
                 "posterPath": "/poster.jpg",
                 "watchedWhere": "cinema",
-                "movieRating": 8
+                "movieRating": 8,
             }
         ]
 
@@ -186,4 +194,3 @@ class TestLogService:
         assert len(result.logs) == 1
         assert result.logs[0].id == "log123"
         assert result.logs[0].movie_rating == 8
-

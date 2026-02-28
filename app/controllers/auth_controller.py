@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response, status, HTTPException, Request
+from fastapi import APIRouter, Response, status, Request
 from fastapi.responses import JSONResponse
 import jwt
 
@@ -22,9 +22,6 @@ from app.utils.auth_utils import (
     set_auth_cookies,
     set_csrf_cookie,
     clear_auth_cookies,
-    ACCESS_TOKEN_COOKIE,
-    CSRF_TOKEN_COOKIE,
-    REFRESH_TOKEN_COOKIE,
 )
 
 router = APIRouter()
@@ -33,7 +30,9 @@ user_repository = UserRepository()
 auth_service = AuthService(user_repository)
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=RegisterResponse)
+@router.post(
+    "/register", status_code=status.HTTP_201_CREATED, response_model=RegisterResponse
+)
 async def register(request: RegisterRequest) -> RegisterResponse:
     """
     Handle user registration.
@@ -78,14 +77,16 @@ async def logout(response: Response) -> LogoutResponse:
     response_model=RefreshResponse,
     responses={401: {"description": "Invalid, expired, or missing refresh token"}},
 )
-async def refresh_token(request: Request, response: Response) -> RefreshResponse | JSONResponse:
+async def refresh_token(
+    request: Request, response: Response
+) -> RefreshResponse | JSONResponse:
     """
     Refresh access token using refresh token cookie.
     """
+
     def clear_cookies_response(detail: str) -> JSONResponse:
         err_response = JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content={"detail": detail}
+            status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": detail}
         )
         clear_auth_cookies(err_response)
         return err_response
@@ -121,7 +122,9 @@ async def forgot_password(request: ForgotPasswordRequest) -> ForgotPasswordRespo
     Initiate password recovery. Sends reset code via email.
     """
     auth_service.forgot_password(request.email)
-    return ForgotPasswordResponse(message="If the email exists, a reset code has been sent.")
+    return ForgotPasswordResponse(
+        message="If the email exists, a reset code has been sent."
+    )
 
 
 @router.post("/reset-password", response_model=ResetPasswordResponse)

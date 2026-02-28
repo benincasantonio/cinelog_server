@@ -19,14 +19,16 @@ def mock_movie_service():
 def movie_rating_service(mock_movie_rating_repository, mock_movie_service):
     return MovieRatingService(
         movie_rating_repository=mock_movie_rating_repository,
-        movie_service=mock_movie_service
+        movie_service=mock_movie_service,
     )
 
 
 class TestMovieRatingService:
     """Tests for MovieRatingService."""
 
-    def test_create_update_movie_rating(self, movie_rating_service, mock_movie_rating_repository, mock_movie_service):
+    def test_create_update_movie_rating(
+        self, movie_rating_service, mock_movie_rating_repository, mock_movie_service
+    ):
         """Test creating/updating a movie rating."""
         # Setup mocks
         mock_movie = Mock()
@@ -43,14 +45,13 @@ class TestMovieRatingService:
         mock_rating.created_at = datetime.now()
         mock_rating.updated_at = datetime.now()
 
-        mock_movie_rating_repository.create_update_movie_rating.return_value = mock_rating
+        mock_movie_rating_repository.create_update_movie_rating.return_value = (
+            mock_rating
+        )
 
         # Execute
         result = movie_rating_service.create_update_movie_rating(
-            user_id="user123",
-            tmdb_id="550",
-            rating=8,
-            comment="Great movie!"
+            user_id="user123", tmdb_id="550", rating=8, comment="Great movie!"
         )
 
         # Verify
@@ -59,7 +60,9 @@ class TestMovieRatingService:
         assert result.comment == "Great movie!"
         mock_movie_service.find_or_create_movie.assert_called_once_with(tmdb_id="550")
 
-    def test_get_movie_rating_found(self, movie_rating_service, mock_movie_rating_repository):
+    def test_get_movie_rating_found(
+        self, movie_rating_service, mock_movie_rating_repository
+    ):
         """Test getting an existing movie rating."""
         mock_rating = Mock()
         mock_rating.id = "rating123"
@@ -79,7 +82,9 @@ class TestMovieRatingService:
         assert result.id == "rating123"
         assert result.rating == 8
 
-    def test_get_movie_rating_not_found(self, movie_rating_service, mock_movie_rating_repository):
+    def test_get_movie_rating_not_found(
+        self, movie_rating_service, mock_movie_rating_repository
+    ):
         """Test getting a movie rating that doesn't exist."""
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.return_value = None
 
@@ -87,7 +92,9 @@ class TestMovieRatingService:
 
         assert result is None
 
-    def test_get_movie_ratings_by_tmdb_id_found(self, movie_rating_service, mock_movie_rating_repository):
+    def test_get_movie_ratings_by_tmdb_id_found(
+        self, movie_rating_service, mock_movie_rating_repository
+    ):
         """Test getting movie rating by TMDB ID."""
         mock_rating = Mock()
         mock_rating.id = "rating123"
@@ -99,16 +106,22 @@ class TestMovieRatingService:
         mock_rating.created_at = datetime.now()
         mock_rating.updated_at = datetime.now()
 
-        mock_movie_rating_repository.find_movie_rating_by_user_and_tmdb.return_value = mock_rating
+        mock_movie_rating_repository.find_movie_rating_by_user_and_tmdb.return_value = (
+            mock_rating
+        )
 
         result = movie_rating_service.get_movie_ratings_by_tmdb_id("user123", 550)
 
         assert result is not None
         assert result.rating == 9
 
-    def test_get_movie_ratings_by_tmdb_id_not_found(self, movie_rating_service, mock_movie_rating_repository):
+    def test_get_movie_ratings_by_tmdb_id_not_found(
+        self, movie_rating_service, mock_movie_rating_repository
+    ):
         """Test getting movie rating by TMDB ID when not found."""
-        mock_movie_rating_repository.find_movie_rating_by_user_and_tmdb.return_value = None
+        mock_movie_rating_repository.find_movie_rating_by_user_and_tmdb.return_value = (
+            None
+        )
 
         result = movie_rating_service.get_movie_ratings_by_tmdb_id("user123", 550)
 

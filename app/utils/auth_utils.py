@@ -14,7 +14,9 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
 # This prevents subdomain cookie injection attacks
 ACCESS_TOKEN_COOKIE = "__Host-access_token"
 CSRF_TOKEN_COOKIE = "__Host-csrf_token"
-REFRESH_TOKEN_COOKIE = "refresh_token"  # No __Host- prefix: needs path="/v1/auth/refresh"
+REFRESH_TOKEN_COOKIE = (
+    "refresh_token"  # No __Host- prefix: needs path="/v1/auth/refresh"
+)
 
 
 def set_auth_cookies(response: Response, user_id: str):
@@ -23,7 +25,8 @@ def set_auth_cookies(response: Response, user_id: str):
     """
     # Create Tokens
     access_token = TokenService.create_access_token(
-        data={"sub": user_id}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        data={"sub": user_id},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = TokenService.create_refresh_token(
         data={"sub": user_id}, expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)

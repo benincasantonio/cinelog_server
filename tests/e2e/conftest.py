@@ -17,6 +17,7 @@ os.environ["MONGODB_HOST"] = "localhost"
 os.environ["MONGODB_PORT"] = "27018"
 os.environ["MONGODB_DB"] = "cinelog_e2e_db"
 
+
 @pytest.fixture(scope="session", autouse=True)
 def e2e_mongo():
     """Connect to e2e MongoDB container."""
@@ -27,10 +28,11 @@ def e2e_mongo():
             host="localhost",
             port=27018,
             alias="default",
-            uuidRepresentation="standard"
+            uuidRepresentation="standard",
         )
     except Exception as e:
         import warnings
+
         warnings.warn(f"Could not establish MongoDB connection: {e}")
     yield
     try:
@@ -46,14 +48,15 @@ def clean_db(e2e_mongo):
         from app.models.user import User
         from app.models.log import Log
         from app.models.movie import Movie
+
         User.objects.delete()
         Log.objects.delete()
         Movie.objects.delete()
     except Exception as e:
         import warnings
+
         warnings.warn(f"Could not clean MongoDB collections: {e}")
-    
-    
+
     yield
 
 
@@ -61,8 +64,11 @@ def clean_db(e2e_mongo):
 async def async_client():
     """Async HTTP client using ASGITransport for direct app testing."""
     from app import app
+
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="https://test"
+    ) as client:
         yield client
 
 
@@ -76,7 +82,7 @@ async def register_and_login(client, user_data: dict) -> dict:
 
     login_resp = await client.post(
         "/v1/auth/login",
-        json={"email": user_data["email"], "password": user_data["password"]}
+        json={"email": user_data["email"], "password": user_data["password"]},
     )
     assert login_resp.status_code == 200
     return login_resp.json()

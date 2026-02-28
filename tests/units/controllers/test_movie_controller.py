@@ -1,16 +1,16 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from app import app
 from app.schemas.tmdb_schemas import (
-    TMDBMovieSearchResult, 
+    TMDBMovieSearchResult,
     TMDBMovieDetails,
     TMDBMovieSearchResultItem,
     TMDBGenre,
     TMDBProductionCompany,
     TMDBProductionCountry,
-    TMDBSpokenLanguage
+    TMDBSpokenLanguage,
 )
 from app.dependencies.auth_dependency import auth_dependency
 from app.utils.exceptions import AppException
@@ -31,16 +31,11 @@ def override_auth():
 class TestMovieController:
     """Tests for movie controller endpoints."""
 
-    @patch('app.controllers.movie_controller.tmdb_service.search_movie')
-    def test_search_movies_success(
-        self,
-        mock_search,
-        client,
-        override_auth
-    ):
+    @patch("app.controllers.movie_controller.tmdb_service.search_movie")
+    def test_search_movies_success(self, mock_search, client, override_auth):
         """Test successful movie search."""
         app.dependency_overrides[auth_dependency] = override_auth
-        
+
         mock_search.return_value = TMDBMovieSearchResult(
             page=1,
             total_results=1,
@@ -60,14 +55,14 @@ class TestMovieController:
                     popularity=50.5,
                     vote_count=20000,
                     video=False,
-                    adult=False
+                    adult=False,
                 )
-            ]
+            ],
         )
 
         response = client.get(
             "/v1/movies/search?query=Fight Club",
-            cookies={"__Host-access_token": "token"}
+            cookies={"__Host-access_token": "token"},
         )
 
         app.dependency_overrides = {}
@@ -84,16 +79,11 @@ class TestMovieController:
         response = client.get("/v1/movies/search?query=Fight Club")
         assert response.status_code == 401
 
-    @patch('app.controllers.movie_controller.tmdb_service.get_movie_details')
-    def test_get_movie_details_success(
-        self,
-        mock_get_details,
-        client,
-        override_auth
-    ):
+    @patch("app.controllers.movie_controller.tmdb_service.get_movie_details")
+    def test_get_movie_details_success(self, mock_get_details, client, override_auth):
         """Test getting movie details."""
         app.dependency_overrides[auth_dependency] = override_auth
-        
+
         mock_get_details.return_value = TMDBMovieDetails(
             id=550,
             title="Fight Club",
@@ -114,23 +104,24 @@ class TestMovieController:
             genres=[TMDBGenre(id=18, name="Drama")],
             production_companies=[
                 TMDBProductionCompany(
-                    id=1, 
-                    name="20th Century Fox", 
+                    id=1,
+                    name="20th Century Fox",
                     origin_country="US",
-                    logo_path="/logo.jpg"
+                    logo_path="/logo.jpg",
                 )
             ],
             production_countries=[
                 TMDBProductionCountry(iso_3166_1="US", name="United States of America")
             ],
             spoken_languages=[
-                TMDBSpokenLanguage(iso_639_1="en", name="English", english_name="English")
-            ]
+                TMDBSpokenLanguage(
+                    iso_639_1="en", name="English", english_name="English"
+                )
+            ],
         )
 
         response = client.get(
-            "/v1/movies/550",
-            cookies={"__Host-access_token": "token"}
+            "/v1/movies/550", cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
@@ -146,13 +137,8 @@ class TestMovieController:
         response = client.get("/v1/movies/550")
         assert response.status_code == 401
 
-    @patch('app.controllers.movie_controller.tmdb_service.search_movie')
-    def test_search_movies_app_exception(
-        self,
-        mock_search,
-        client,
-        override_auth
-    ):
+    @patch("app.controllers.movie_controller.tmdb_service.search_movie")
+    def test_search_movies_app_exception(self, mock_search, client, override_auth):
         """Test search movies re-raises AppException."""
         app.dependency_overrides[auth_dependency] = override_auth
         # Use a generic error code that exists
@@ -160,29 +146,25 @@ class TestMovieController:
 
         response = client.get(
             "/v1/movies/search?query=NonExistent",
-            cookies={"__Host-access_token": "token"}
+            cookies={"__Host-access_token": "token"},
         )
-        
+
         app.dependency_overrides = {}
 
         assert response.status_code == ErrorCodes.MOVIE_NOT_FOUND.error_code
 
-    @patch('app.controllers.movie_controller.tmdb_service.get_movie_details')
+    @patch("app.controllers.movie_controller.tmdb_service.get_movie_details")
     def test_get_movie_details_app_exception(
-        self,
-        mock_get_details,
-        client,
-        override_auth
+        self, mock_get_details, client, override_auth
     ):
         """Test get movie details re-raises AppException."""
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_details.side_effect = AppException(ErrorCodes.MOVIE_NOT_FOUND)
 
         response = client.get(
-            "/v1/movies/999999",
-            cookies={"__Host-access_token": "token"}
+            "/v1/movies/999999", cookies={"__Host-access_token": "token"}
         )
-        
+
         app.dependency_overrides = {}
 
         assert response.status_code == ErrorCodes.MOVIE_NOT_FOUND.error_code

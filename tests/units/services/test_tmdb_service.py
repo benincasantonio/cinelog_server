@@ -13,7 +13,7 @@ class TestTMDBService:
     def tmdb_service(self):
         return TMDBService(api_key="test_api_key")
 
-    @patch('app.services.tmdb_service.requests.get')
+    @patch("app.services.tmdb_service.requests.get")
     def test_search_movie(self, mock_get, tmdb_service):
         """Test searching for a movie."""
         mock_response = Mock()
@@ -34,11 +34,11 @@ class TestTMDBService:
                     "backdrop_path": "/backdrop.jpg",
                     "popularity": 50.5,
                     "video": False,
-                    "vote_count": 20000
+                    "vote_count": 20000,
                 }
             ],
             "total_pages": 1,
-            "total_results": 1
+            "total_results": 1,
         }
         mock_get.return_value = mock_response
 
@@ -48,10 +48,10 @@ class TestTMDBService:
         assert result.total_results == 1
         assert len(result.results) == 1
         assert result.results[0].title == "Fight Club"
-        
+
         mock_get.assert_called_once()
 
-    @patch('app.services.tmdb_service.requests.get')
+    @patch("app.services.tmdb_service.requests.get")
     def test_get_movie_details(self, mock_get, tmdb_service):
         """Test getting full movie details."""
         mock_response = Mock()
@@ -78,7 +78,7 @@ class TestTMDBService:
             "genres": [{"id": 18, "name": "Drama"}],
             "production_companies": [],
             "production_countries": [],
-            "spoken_languages": []
+            "spoken_languages": [],
         }
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
@@ -89,15 +89,17 @@ class TestTMDBService:
         assert result.id == 550
         assert result.title == "Fight Club"
         assert result.runtime == 139
-        
+
         mock_get.assert_called_once()
         mock_response.raise_for_status.assert_called_once()
 
-    @patch('app.services.tmdb_service.requests.get')
+    @patch("app.services.tmdb_service.requests.get")
     def test_get_movie_details_not_found(self, mock_get, tmdb_service):
         """Test getting movie details when movie doesn't exist."""
         mock_response = Mock()
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found")
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+            "404 Not Found"
+        )
         mock_get.return_value = mock_response
 
         with pytest.raises(requests.exceptions.HTTPError):

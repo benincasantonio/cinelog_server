@@ -11,10 +11,16 @@ def setup_and_teardown():
     # Disconnect from any existing connections first
     disconnect()
     # Connect to a test database using the new mongo_client_class parameter
-    connect('mongoenginetest', host='localhost', mongo_client_class=mongomock.MongoClient, uuidRepresentation="standard")
+    connect(
+        "mongoenginetest",
+        host="localhost",
+        mongo_client_class=mongomock.MongoClient,
+        uuidRepresentation="standard",
+    )
     yield
     # Disconnect from the test database
     disconnect()
+
 
 @pytest.fixture(autouse=True)
 def clear_database():
@@ -46,7 +52,6 @@ def test_missing_required_fields():
 
     with pytest.raises(Exception):
         log.save()
-
 
 
 def test_required_fields():

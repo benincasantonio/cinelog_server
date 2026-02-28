@@ -4,7 +4,6 @@ from app.services.movie_service import MovieService
 
 
 class MovieRatingService:
-
     def __init__(
         self,
         movie_rating_repository: MovieRatingRepository,

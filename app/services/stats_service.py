@@ -18,7 +18,9 @@ class StatsService:
         implements only the `summary` section; `distribution` and `pace` are
         returned with zeroed/default values.
         """
-        date_from: date | None = date(year_from, 1, 1) if year_from is not None else None
+        date_from: date | None = (
+            date(year_from, 1, 1) if year_from is not None else None
+        )
         date_to: date | None = date(year_to, 12, 31) if year_to is not None else None
 
         request: LogListRequest | None = None

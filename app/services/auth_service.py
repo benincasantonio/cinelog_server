@@ -8,7 +8,6 @@ from app.schemas.auth_schemas import (
 )
 from app.schemas.user_schemas import UserCreateRequest
 from app.services.password_service import PasswordService
-from app.services.token_service import TokenService
 from app.services.email_service import EmailService
 from app.utils.error_codes import ErrorCodes
 from app.utils.exceptions import AppException
@@ -80,10 +79,10 @@ class AuthService:
         """
         email_lowercase = email.strip().lower()
         user = self.user_repository.find_user_by_email(email_lowercase)
-        
+
         if not user:
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
-            
+
         # Check migration status
         if not user.password_hash:
             # User exists but has no password hash -> Legacy Firebase user
@@ -93,7 +92,7 @@ class AuthService:
             # We can use INVALID_CREDENTIALS with a custom message or a new error code.
             # Let's use a generic generic credential error for security, or specific if UX demands it.
             # Given the plan, let's Raise a clear error.
-            raise AppException(ErrorCodes.INVALID_CREDENTIALS) 
+            raise AppException(ErrorCodes.INVALID_CREDENTIALS)
 
         if not PasswordService.verify_password(password, user.password_hash):
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
@@ -107,16 +106,16 @@ class AuthService:
         email_lowercase = email.strip().lower()
         user = self.user_repository.find_user_by_email(email_lowercase)
         if not user:
-            # Security: Don't reveal if user exists. 
+            # Security: Don't reveal if user exists.
             # But for migration UX, maybe we return success anyway.
             return
 
         # Generate 6-digit code
-        reset_code = secrets.token_hex(3).upper() # 6 chars
+        reset_code = secrets.token_hex(3).upper()  # 6 chars
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
 
         self.user_repository.set_reset_password_code(user, reset_code, expires_at)
-        
+
         # Send email via EmailService
         self.email_service.send_reset_password_email(email_lowercase, reset_code)
 
@@ -127,13 +126,15 @@ class AuthService:
         email_lowercase = email.strip().lower()
         user = self.user_repository.find_user_by_email(email_lowercase)
         if not user:
-             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
-        
+            raise AppException(ErrorCodes.INVALID_CREDENTIALS)
+
         if not user.reset_password_code or user.reset_password_code != code:
-             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
-             
-        if user.reset_password_expires.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
-             raise AppException(ErrorCodes.INVALID_CREDENTIALS) # Expired
+            raise AppException(ErrorCodes.INVALID_CREDENTIALS)
+
+        if user.reset_password_expires.replace(tzinfo=timezone.utc) < datetime.now(
+            timezone.utc
+        ):
+            raise AppException(ErrorCodes.INVALID_CREDENTIALS)  # Expired
 
         hashed_password = PasswordService.get_password_hash(new_password.strip())
         self.user_repository.update_password(user, hashed_password)

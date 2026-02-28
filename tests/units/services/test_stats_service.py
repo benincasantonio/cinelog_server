@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from app.services.stats_service import StatsService
 
 
@@ -36,9 +36,24 @@ class TestStatsService:
         mock_movie.runtime = 120
 
         mock_logs = [
-            {"movieId": "movie1", "watchedWhere": "cinema", "movie": mock_movie, "movieRating": 8},
-            {"movieId": "movie2", "watchedWhere": "streaming", "movie": mock_movie, "movieRating": 7},
-            {"movieId": "movie1", "watchedWhere": "tv", "movie": mock_movie, "movieRating": 9},  # Rewatch
+            {
+                "movieId": "movie1",
+                "watchedWhere": "cinema",
+                "movie": mock_movie,
+                "movieRating": 8,
+            },
+            {
+                "movieId": "movie2",
+                "watchedWhere": "streaming",
+                "movie": mock_movie,
+                "movieRating": 7,
+            },
+            {
+                "movieId": "movie1",
+                "watchedWhere": "tv",
+                "movie": mock_movie,
+                "movieRating": 9,
+            },  # Rewatch
         ]
         mock_log_repository.find_logs_by_user_id.return_value = mock_logs
 
@@ -118,7 +133,12 @@ class TestStatsService:
     def test_compute_summary_with_invalid_movie_rating(self, stats_service):
         """Test compute_summary handles invalid movie rating gracefully."""
         logs = [
-            {"movieId": "movie1", "movie": None, "runtime": 100, "movieRating": "invalid"},
+            {
+                "movieId": "movie1",
+                "movie": None,
+                "runtime": 100,
+                "movieRating": "invalid",
+            },
         ]
 
         result = stats_service.compute_summary(logs)

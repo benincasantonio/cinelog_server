@@ -17,6 +17,7 @@ app = FastAPI(
 )
 
 from app.middleware.csrf_middleware import CSRFMiddleware
+
 app.add_middleware(
     CSRFMiddleware,
     exempt_paths=[
@@ -28,15 +29,10 @@ app.add_middleware(
         "/v1/auth/refresh",
         "/docs",
         "/openapi.json",
-    ]
+    ],
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    **get_cors_config()
-)
-
-
+app.add_middleware(CORSMiddleware, **get_cors_config())
 
 
 mongodb_uri = os.getenv("MONGODB_URI")
@@ -49,7 +45,9 @@ else:
     mongodb_port = int(os.getenv("MONGODB_PORT", "27017"))
     mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
 
-    connect(mongodb_db, host=mongodb_host, port=mongodb_port, uuidRepresentation="standard")
+    connect(
+        mongodb_db, host=mongodb_host, port=mongodb_port, uuidRepresentation="standard"
+    )
 
 
 @app.exception_handler(AppException)
@@ -69,9 +67,6 @@ async def app_exception_handler(request: Request, exc: AppException):
 @app.get("/", tags=["Root"], summary="Cinelog API Root")
 def index():
     return "Welcome to the Cinelog API!"
-
-
-
 
 
 app.include_router(auth_controller.router, prefix="/v1/auth", tags=["Auth"])

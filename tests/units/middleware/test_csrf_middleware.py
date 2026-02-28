@@ -1,4 +1,3 @@
-import pytest
 from starlette.testclient import TestClient
 from starlette.middleware import Middleware
 from starlette.applications import Starlette
@@ -6,23 +5,24 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from app.middleware.csrf_middleware import CSRFMiddleware
 
+
 async def homepage(request):
     return JSONResponse({"message": "Success"})
 
+
 async def protected_post(request):
     return JSONResponse({"message": "Protected Resource Accessed"})
+
 
 def test_csrf_middleware_protection():
     """
     Test that CSRF middleware blocks requests without valid token.
     """
-    middleware = [
-        Middleware(CSRFMiddleware, exempt_paths=["/exempt"])
-    ]
+    middleware = [Middleware(CSRFMiddleware, exempt_paths=["/exempt"])]
     routes = [
         Route("/", homepage, methods=["GET"]),
         Route("/protected", protected_post, methods=["POST"]),
-        Route("/exempt", protected_post, methods=["POST"])
+        Route("/exempt", protected_post, methods=["POST"]),
     ]
     app = Starlette(routes=routes, middleware=middleware)
     client = TestClient(app)
