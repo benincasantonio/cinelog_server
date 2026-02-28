@@ -21,13 +21,23 @@ def get_my_stats(
 
     Requires authentication via Cookie token.
     """
+
+    # Validate year bounds if both provided
+    if (
+        stats_request.year_from is not None
+        and stats_request.year_to is not None
+        and stats_request.year_from > stats_request.year_to
+    ):
+        raise HTTPException(
+            status_code=400, detail="yearFrom cannot be greater than yearTo"
+        )
+
     try:
-        result = stats_service.get_user_stats(
+        return stats_service.get_user_stats(
             user_id=user_id,
             year_from=stats_request.year_from,
             year_to=stats_request.year_to,
         )
-        return StatsResponse(**result)
     except NotImplementedError:
         raise HTTPException(
             status_code=501, detail="Stats endpoint not implemented yet"
