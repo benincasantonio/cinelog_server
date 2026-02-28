@@ -14,7 +14,7 @@ class MovieRatingService:
         self.movie_service = movie_service
 
     def create_update_movie_rating(
-        self, user_id: str, tmdb_id: str, rating: int, comment: str
+        self, user_id: str, tmdb_id: int, rating: int, comment: str | None = None
     ):
         """
         Create or update a movie rating for a specific user and movie.
