@@ -8,7 +8,7 @@ from app.schemas.base_schema import BaseSchema
 class MovieRatingCreateUpdateRequest(BaseSchema):
     """Schema for creating or updating a movie rating."""
 
-    tmdb_id: str = Field(..., description="Unique identifier of the movie")
+    tmdb_id: int = Field(..., description="TMDB ID of the movie")
     rating: int = Field(
         ..., ge=1, le=10, description="Rating given to the movie (1-10)"
     )

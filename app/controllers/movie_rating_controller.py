@@ -1,6 +1,5 @@
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.params import Depends
+from typing import Annotated, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.dependencies.auth_dependency import auth_dependency
 from app.repository.movie_rating_repository import MovieRatingRepository
@@ -28,7 +27,7 @@ movie_rating_service = MovieRatingService(
 def create_movie_rating(
     request_body: MovieRatingCreateUpdateRequest,
     request: Request,
-    user_id: str = Depends(auth_dependency),
+    user_id: Annotated[str, Depends(auth_dependency)],
 ) -> MovieRatingResponse:
     """
     Create or update a new movie rating entry.
@@ -46,9 +45,8 @@ def create_movie_rating(
 @router.get("/{tmdb_id}")
 def get_movie_rating(
     tmdb_id: int,
-    request: Request,
+    current_user_id: Annotated[str, Depends(auth_dependency)],
     user_id: str | None = None,
-    current_user_id: str = Depends(auth_dependency),
 ) -> MovieRatingResponse:
     """
     Get a movie rating entry by TMDB ID.

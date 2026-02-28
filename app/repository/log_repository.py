@@ -19,14 +19,14 @@ class LogRepository:
         return log
 
     @staticmethod
-    def find_log_by_id(log_id: str, user_id: str) -> Log:
+    def find_log_by_id(log_id: str, user_id: str) -> Log | None:
         """
         Find a log entry by its ID, ensuring it belongs to the user.
         """
         return Log.objects(id=log_id, user_id=user_id).first()
 
     @staticmethod
-    def update_log(log_id: str, user_id: str, update_request: LogUpdateRequest) -> Log:
+    def update_log(log_id: str, user_id: str, update_request: LogUpdateRequest) -> Log | None:
         """
         Update an existing log entry.
         """
@@ -43,7 +43,7 @@ class LogRepository:
 
     @staticmethod
     def find_logs_by_user_id(
-        user_id: str, request: LogListRequest = None
+        user_id: str, request: LogListRequest | None = None
     ) -> list[dict]:
         """
         Find all log entries for a specific user with optional filtering and sorting.
@@ -106,7 +106,7 @@ class LogRepository:
         return result
 
     @staticmethod
-    def find_logs_by_movie_id(movie_id: str, user_id: str = None) -> list[Log]:
+    def find_logs_by_movie_id(movie_id: str, user_id: str | None = None) -> list[Log]:
         """
         Find all log entries for a specific movie by its ID.
         Optionally filter by user_id.
