@@ -12,6 +12,7 @@ from app.schemas.log_schemas import (
 )
 from app.utils.exceptions import AppException
 from app.utils.error_codes import ErrorCodes
+from cinelog_server.app.models.movie import Movie
 
 
 class LogService:
@@ -41,6 +42,8 @@ class LogService:
             vote_average=movie.vote_average,
             runtime=movie.runtime,
             original_language=movie.original_language,
+            created_at=movie.created_at,
+            updated_at=movie.updated_at,
         )
 
     def create_log(self, user_id: str, request: LogCreateRequest) -> LogCreateResponse:
@@ -51,7 +54,7 @@ class LogService:
         and created automatically.
         """
         # Ensure movie exists (find or create from TMDB)
-        movie = self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
+        movie: Movie = self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
 
         # Update the movieId in the request with the actual database ID
         request.movie_id = str(movie.id)
@@ -89,7 +92,7 @@ class LogService:
             # Log not found or doesn't belong to user
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
 
-        movie = self.movie_service.get_movie_by_id(str(log.movie_id))
+        movie: Movie = self.movie_service.get_movie_by_id(str(log.movie_id))
 
         return LogCreateResponse(
             id=str(log.id),

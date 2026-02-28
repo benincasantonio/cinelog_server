@@ -62,8 +62,8 @@ class StatsService:
 
         total_rewatches = max(0, total_watches - unique_titles)
 
-        votes_sum = 0
-        movie_with_votes_count = 0
+        votes_sum: float = 0
+        movie_with_votes_count: int = 0
 
         total_minutes = 0
         for log in logs:
