@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends
 from app.dependencies.auth_dependency import auth_dependency
 from app.schemas.tmdb_schemas import TMDBMovieSearchResult, TMDBMovieDetails
 from app.services.tmdb_service import TMDBService
-from app.utils.exceptions import AppException
 from os import getenv
 
 router = APIRouter()

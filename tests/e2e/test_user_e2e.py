@@ -2,6 +2,7 @@
 E2E tests for user controller endpoints.
 Tests the full stack: FastAPI -> UserService -> MongoDB.
 """
+
 from tests.e2e.conftest import register_and_login
 
 
@@ -16,7 +17,7 @@ class TestUserE2E:
             "firstName": "UserInfo",
             "lastName": "Test",
             "handle": "userinfotest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         user_id = login_data["userId"]
@@ -55,7 +56,7 @@ class TestUserE2E:
             "firstName": "UserLogs",
             "lastName": "Test",
             "handle": "userlogstest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         user_id = login_data["userId"]
@@ -81,7 +82,7 @@ class TestUserE2E:
             "firstName": "UserLogsData",
             "lastName": "Test",
             "handle": "userlogsdatatest",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
         login_data = await register_and_login(async_client, user_data)
         user_id = login_data["userId"]
@@ -95,8 +96,8 @@ class TestUserE2E:
                 "tmdbId": 550,  # Fight Club
                 "dateWatched": "2024-01-15",
                 "viewingNotes": "Great movie!",
-                "watchedWhere": "cinema"
-            }
+                "watchedWhere": "cinema",
+            },
         )
         assert log_response.status_code == 201
 

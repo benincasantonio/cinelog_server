@@ -1,11 +1,13 @@
 import os
 from typing import TypedDict, List
 
+
 class CORSConfig(TypedDict):
     allow_origins: List[str]
     allow_credentials: bool
     allow_methods: List[str]
     allow_headers: List[str]
+
 
 def get_cors_origins() -> List[str]:
     """
@@ -26,6 +28,7 @@ def get_cors_origins() -> List[str]:
         ]
 
     return []
+
 
 def get_cors_config() -> CORSConfig:
     """

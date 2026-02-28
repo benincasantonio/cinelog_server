@@ -12,27 +12,33 @@ def setup_and_teardown():
     # Disconnect from any existing connections first
     disconnect()
     # Connect to a test database using mongomock
-    connect('mongoenginetest', host='localhost', mongo_client_class=mongomock.MongoClient, uuidRepresentation="standard")
+    connect(
+        "mongoenginetest",
+        host="localhost",
+        mongo_client_class=mongomock.MongoClient,
+        uuidRepresentation="standard",
+    )
     yield
     # Disconnect from the test database
     disconnect()
+
 
 @pytest.fixture(autouse=True)
 def clear_database():
     Movie.objects.delete()
 
+
 @pytest.fixture
 def movie_create_request() -> MovieCreateRequest:
-    return MovieCreateRequest(
-        title='Inception',
-        tmdb_id=111111
-    )
+    return MovieCreateRequest(title="Inception", tmdb_id=111111)
+
 
 @pytest.fixture
 def movie_update_request() -> MovieUpdateRequest:
     return MovieUpdateRequest(
-        title='Inception Updated',
+        title="Inception Updated",
     )
+
 
 def test_movie_creation(movie_create_request: MovieCreateRequest):
     # Test movie creation
@@ -47,7 +53,9 @@ def test_movie_creation(movie_create_request: MovieCreateRequest):
     assert Movie.objects.count() == 1
 
 
-def test_movie_update(movie_create_request: MovieCreateRequest, movie_update_request: MovieUpdateRequest):
+def test_movie_update(
+    movie_create_request: MovieCreateRequest, movie_update_request: MovieUpdateRequest
+):
     # Test movie update
     repository = MovieRepository()
     movie = repository.create_movie(movie_create_request)
@@ -60,6 +68,7 @@ def test_movie_update(movie_create_request: MovieCreateRequest, movie_update_req
     assert updated_movie is not None
     assert updated_movie.id == movie.id
     assert updated_movie.title == movie_update_request.title
+
 
 def test_find_movie_by_id(movie_create_request: MovieCreateRequest):
     # Test finding a movie by ID
@@ -92,34 +101,34 @@ def test_find_movie_by_tmdb_id(movie_create_request: MovieCreateRequest):
 def test_update_movie_not_found(movie_update_request: MovieUpdateRequest):
     """Test update_movie returns None when movie doesn't exist."""
     repository = MovieRepository()
-    
+
     result = repository.update_movie("507f1f77bcf86cd799439011", movie_update_request)
-    
+
     assert result is None
 
 
 def test_find_movie_by_id_not_found():
     """Test find_movie_by_id returns None when movie doesn't exist."""
     repository = MovieRepository()
-    
+
     result = repository.find_movie_by_id("507f1f77bcf86cd799439011")
-    
+
     assert result is None
 
 
 def test_find_movie_by_tmdb_id_not_found():
     """Test find_movie_by_tmdb_id returns None when movie doesn't exist."""
     repository = MovieRepository()
-    
+
     result = repository.find_movie_by_tmdb_id(999999999)
-    
+
     assert result is None
 
 
 def test_create_from_tmdb_data():
     """Test creating a movie from TMDB data."""
     from app.schemas.tmdb_schemas import TMDBMovieDetails
-    
+
     repository = MovieRepository()
     tmdb_data = TMDBMovieDetails(
         id=12345,
@@ -141,11 +150,11 @@ def test_create_from_tmdb_data():
         genres=[],
         production_companies=[],
         production_countries=[],
-        spoken_languages=[]
+        spoken_languages=[],
     )
-    
+
     movie = repository.create_from_tmdb_data(tmdb_data)
-    
+
     assert movie is not None
     assert movie.tmdb_id == 12345
     assert movie.title == "Test Movie"
@@ -160,7 +169,7 @@ def test_create_from_tmdb_data():
 def test_create_from_tmdb_data_without_release_date():
     """Test creating a movie from TMDB data with empty release date."""
     from app.schemas.tmdb_schemas import TMDBMovieDetails
-    
+
     repository = MovieRepository()
     tmdb_data = TMDBMovieDetails(
         id=12346,
@@ -182,11 +191,11 @@ def test_create_from_tmdb_data_without_release_date():
         genres=[],
         production_companies=[],
         production_countries=[],
-        spoken_languages=[]
+        spoken_languages=[],
     )
-    
+
     movie = repository.create_from_tmdb_data(tmdb_data)
-    
+
     assert movie is not None
     assert movie.tmdb_id == 12346
     assert movie.release_date is None  # Empty string should result in None
@@ -195,7 +204,7 @@ def test_create_from_tmdb_data_without_release_date():
 def test_create_from_tmdb_data_with_invalid_date():
     """Test creating a movie from TMDB data with invalid release date."""
     from app.schemas.tmdb_schemas import TMDBMovieDetails
-    
+
     repository = MovieRepository()
     tmdb_data = TMDBMovieDetails(
         id=12347,
@@ -217,15 +226,12 @@ def test_create_from_tmdb_data_with_invalid_date():
         genres=[],
         production_companies=[],
         production_countries=[],
-        spoken_languages=[]
+        spoken_languages=[],
     )
-    
+
     movie = repository.create_from_tmdb_data(tmdb_data)
-    
+
     assert movie is not None
     assert movie.tmdb_id == 12347
     # Invalid date should result in None
     assert movie.release_date is None
-
-
-

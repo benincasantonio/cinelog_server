@@ -6,7 +6,6 @@ from bson import ObjectId
 
 
 class LogRepository:
-
     @staticmethod
     def create_log(user_id: str, create_log_request: LogCreateRequest) -> Log:
         """
@@ -26,7 +25,9 @@ class LogRepository:
         return Log.objects(id=log_id, user_id=user_id).first()
 
     @staticmethod
-    def update_log(log_id: str, user_id: str, update_request: LogUpdateRequest) -> Log | None:
+    def update_log(
+        log_id: str, user_id: str, update_request: LogUpdateRequest
+    ) -> Log | None:
         """
         Update an existing log entry.
         """

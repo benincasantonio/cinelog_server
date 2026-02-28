@@ -21,8 +21,8 @@ class TestAuthE2E:
                 "firstName": "End",
                 "lastName": "Test",
                 "handle": "e2etest",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
 
         assert response.status_code == 201
@@ -41,7 +41,7 @@ class TestAuthE2E:
             "firstName": "First",
             "lastName": "User",
             "handle": "firstuser",
-            "dateOfBirth": "1990-01-01"
+            "dateOfBirth": "1990-01-01",
         }
 
         # First registration
@@ -52,7 +52,10 @@ class TestAuthE2E:
         response = await async_client.post("/v1/auth/register", json=payload)
 
         assert response.status_code == 409  # EMAIL_ALREADY_EXISTS
-        assert response.json()["error_code_name"] == ErrorCodes.EMAIL_ALREADY_EXISTS.error_code_name
+        assert (
+            response.json()["error_code_name"]
+            == ErrorCodes.EMAIL_ALREADY_EXISTS.error_code_name
+        )
 
     async def test_register_duplicate_handle(self, async_client):
         """Test registration with duplicate handle."""
@@ -65,8 +68,8 @@ class TestAuthE2E:
                 "firstName": "First",
                 "lastName": "User",
                 "handle": "samehandle",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
 
         # Second registration with same handle
@@ -78,12 +81,15 @@ class TestAuthE2E:
                 "firstName": "Second",
                 "lastName": "User",
                 "handle": "samehandle",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
 
         assert response.status_code == 409  # HANDLE_ALREADY_TAKEN
-        assert response.json()["error_code_name"] == ErrorCodes.HANDLE_ALREADY_TAKEN.error_code_name
+        assert (
+            response.json()["error_code_name"]
+            == ErrorCodes.HANDLE_ALREADY_TAKEN.error_code_name
+        )
 
     async def test_register_invalid_email(self, async_client):
         """Test registration with invalid email format."""
@@ -95,8 +101,8 @@ class TestAuthE2E:
                 "firstName": "Test",
                 "lastName": "User",
                 "handle": "testuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
 
         assert response.status_code == 422  # Validation error
@@ -108,7 +114,7 @@ class TestAuthE2E:
             json={
                 "email": "test@example.com"
                 # Missing all other required fields
-            }
+            },
         )
 
         assert response.status_code == 422  # Validation error
@@ -123,13 +129,13 @@ class TestAuthE2E:
                 "firstName": "Login",
                 "lastName": "User",
                 "handle": "loginuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
-        
+
         response = await async_client.post(
             "/v1/auth/login",
-            json={"email": "login@example.com", "password": "securepassword123"}
+            json={"email": "login@example.com", "password": "securepassword123"},
         )
 
         assert response.status_code == 200
@@ -147,17 +153,20 @@ class TestAuthE2E:
                 "firstName": "Inv",
                 "lastName": "User",
                 "handle": "invuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
-        
+
         response = await async_client.post(
             "/v1/auth/login",
-            json={"email": "invalid@example.com", "password": "wrongpassword"}
+            json={"email": "invalid@example.com", "password": "wrongpassword"},
         )
 
         assert response.status_code == 401
-        assert response.json()["error_code_name"] == ErrorCodes.INVALID_CREDENTIALS.error_code_name
+        assert (
+            response.json()["error_code_name"]
+            == ErrorCodes.INVALID_CREDENTIALS.error_code_name
+        )
 
     async def test_logout_success(self, async_client):
         """Test successful logout."""
@@ -169,25 +178,30 @@ class TestAuthE2E:
                 "firstName": "Logout",
                 "lastName": "User",
                 "handle": "logoutuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         login_resp = await async_client.post(
             "/v1/auth/login",
-            json={"email": "logout@example.com", "password": "securepassword123"}
+            json={"email": "logout@example.com", "password": "securepassword123"},
         )
         csrf_token = login_resp.json()["csrfToken"]
-        
+
         logout_resp = await async_client.post(
-            "/v1/auth/logout",
-            headers={"X-CSRF-Token": csrf_token}
+            "/v1/auth/logout", headers={"X-CSRF-Token": csrf_token}
         )
-        
+
         assert logout_resp.status_code == 200
         # In httpx AsyncClient, deleted cookies might be empty or have expired max-age.
         # Check that the Set-Cookie headers for deletion were sent.
-        set_cookies = [h[1] for h in logout_resp.headers.multi_items() if h[0].lower() == 'set-cookie']
-        assert any("__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies)
+        set_cookies = [
+            h[1]
+            for h in logout_resp.headers.multi_items()
+            if h[0].lower() == "set-cookie"
+        ]
+        assert any(
+            "__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies
+        )
         assert any("refresh_token=" in c and "Max-Age=0" in c for c in set_cookies)
 
     async def test_refresh_token_success(self, async_client):
@@ -200,16 +214,16 @@ class TestAuthE2E:
                 "firstName": "Refresh",
                 "lastName": "User",
                 "handle": "refreshuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         await async_client.post(
             "/v1/auth/login",
-            json={"email": "refresh@example.com", "password": "securepassword123"}
+            json={"email": "refresh@example.com", "password": "securepassword123"},
         )
-        
+
         refresh_resp = await async_client.post("/v1/auth/refresh")
-        
+
         assert refresh_resp.status_code == 200
         assert "__Host-access_token" in refresh_resp.cookies
         assert "refresh_token" in refresh_resp.cookies
@@ -219,10 +233,16 @@ class TestAuthE2E:
         """Test refresh token request without a refresh cookie."""
         refresh_resp = await async_client.post("/v1/auth/refresh")
         assert refresh_resp.status_code == 401
-        
+
         # Check that the Set-Cookie headers for deletion were sent.
-        set_cookies = [h[1] for h in refresh_resp.headers.multi_items() if h[0].lower() == 'set-cookie']
-        assert any("__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies)
+        set_cookies = [
+            h[1]
+            for h in refresh_resp.headers.multi_items()
+            if h[0].lower() == "set-cookie"
+        ]
+        assert any(
+            "__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies
+        )
         assert any("refresh_token=" in c and "Max-Age=0" in c for c in set_cookies)
 
     async def test_refresh_token_expired(self, async_client):
@@ -230,18 +250,24 @@ class TestAuthE2E:
         # Generate an expired refresh token specifically
         expired_token = TokenService.create_refresh_token(
             data={"sub": "123456789"},
-            expires_delta=timedelta(days=-1)  # Expired yesterday
+            expires_delta=timedelta(days=-1),  # Expired yesterday
         )
-        
+
         # Set it in the client
         async_client.cookies.set("refresh_token", expired_token)
-        
+
         refresh_resp = await async_client.post("/v1/auth/refresh")
         assert refresh_resp.status_code == 401
-        
+
         # Check that the Set-Cookie headers for deletion were sent.
-        set_cookies = [h[1] for h in refresh_resp.headers.multi_items() if h[0].lower() == 'set-cookie']
-        assert any("__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies)
+        set_cookies = [
+            h[1]
+            for h in refresh_resp.headers.multi_items()
+            if h[0].lower() == "set-cookie"
+        ]
+        assert any(
+            "__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies
+        )
         assert any("refresh_token=" in c and "Max-Age=0" in c for c in set_cookies)
 
     async def test_forgot_and_reset_password_flow(self, async_client):
@@ -254,44 +280,44 @@ class TestAuthE2E:
                 "firstName": "Reset",
                 "lastName": "User",
                 "handle": "resetuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
-        
+
         # 1. Forgot password
         forgot_resp = await async_client.post(
-            "/v1/auth/forgot-password",
-            json={"email": "reset@example.com"}
+            "/v1/auth/forgot-password", json={"email": "reset@example.com"}
         )
         assert forgot_resp.status_code == 200
-        
+
         # Fetch the reset code directly from DB since it was mocked via email
         from app.models.user import User
+
         user = User.objects(email="reset@example.com").first()
         code = user.reset_password_code
-        
+
         # 2. Reset password with valid code
         reset_resp = await async_client.post(
             "/v1/auth/reset-password",
             json={
                 "email": "reset@example.com",
                 "code": code,
-                "newPassword": "newsecurepassword123"
-            }
+                "newPassword": "newsecurepassword123",
+            },
         )
         assert reset_resp.status_code == 200
-        
+
         # 3. Verify old password doesn't work
         login_old = await async_client.post(
             "/v1/auth/login",
-            json={"email": "reset@example.com", "password": "securepassword123"}
+            json={"email": "reset@example.com", "password": "securepassword123"},
         )
         assert login_old.status_code == 401
-        
+
         # 4. Verify new password works
         login_new = await async_client.post(
             "/v1/auth/login",
-            json={"email": "reset@example.com", "password": "newsecurepassword123"}
+            json={"email": "reset@example.com", "password": "newsecurepassword123"},
         )
         assert login_new.status_code == 200
 
@@ -305,21 +331,20 @@ class TestAuthE2E:
                 "firstName": "Code",
                 "lastName": "User",
                 "handle": "codeuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         await async_client.post(
-            "/v1/auth/forgot-password",
-            json={"email": "invalidcode@example.com"}
+            "/v1/auth/forgot-password", json={"email": "invalidcode@example.com"}
         )
-        
+
         reset_resp = await async_client.post(
             "/v1/auth/reset-password",
             json={
                 "email": "invalidcode@example.com",
                 "code": "WRONG_CODE_XYZ",
-                "newPassword": "newsecurepassword123"
-            }
+                "newPassword": "newsecurepassword123",
+            },
         )
         assert reset_resp.status_code == 401
 
@@ -333,12 +358,12 @@ class TestAuthE2E:
                 "firstName": "CSRF",
                 "lastName": "User",
                 "handle": "csrfuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         await async_client.post(
             "/v1/auth/login",
-            json={"email": "csrf@example.com", "password": "securepassword123"}
+            json={"email": "csrf@example.com", "password": "securepassword123"},
         )
 
         # Try to logout without sending the CSRF header, but with auth cookies present.
@@ -361,8 +386,8 @@ class TestAuthE2E:
                 "firstName": "<script>alert(1)</script>",
                 "lastName": "User",
                 "handle": "xssfnuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -373,11 +398,11 @@ class TestAuthE2E:
             json={
                 "email": "xss_fn2@example.com",
                 "password": "securepassword123",
-                "firstName": '<img src=x onerror=alert(1)>',
+                "firstName": "<img src=x onerror=alert(1)>",
                 "lastName": "User",
                 "handle": "xssfn2user",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -391,8 +416,8 @@ class TestAuthE2E:
                 "firstName": '<svg onload="alert(1)">',
                 "lastName": "User",
                 "handle": "xssfn3user",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -406,8 +431,8 @@ class TestAuthE2E:
                 "firstName": "John123",
                 "lastName": "User",
                 "handle": "numfnuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -421,8 +446,8 @@ class TestAuthE2E:
                 "firstName": "John@#$",
                 "lastName": "User",
                 "handle": "specfnuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -436,8 +461,8 @@ class TestAuthE2E:
                 "firstName": "Mary-Jane",
                 "lastName": "Watson",
                 "handle": "maryjane",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["firstName"] == "Mary-Jane"
@@ -452,8 +477,8 @@ class TestAuthE2E:
                 "firstName": "O'Brien",
                 "lastName": "Smith",
                 "handle": "obriensmith",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["firstName"] == "O'Brien"
@@ -468,8 +493,8 @@ class TestAuthE2E:
                 "firstName": "René",
                 "lastName": "Dupont",
                 "handle": "renedupont",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["firstName"] == "René"
@@ -486,8 +511,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "<script>alert(1)</script>",
                 "handle": "xsslnuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -501,8 +526,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": '<iframe src="http://evil.com">',
                 "handle": "xssln2user",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -516,8 +541,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": '<body onload="alert(1)">',
                 "handle": "xssln3user",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -531,8 +556,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "Doe123",
                 "handle": "numlnuser",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -546,8 +571,8 @@ class TestAuthE2E:
                 "firstName": "Jane",
                 "lastName": "Smith-Jones",
                 "handle": "smithjones",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["lastName"] == "Smith-Jones"
@@ -562,8 +587,8 @@ class TestAuthE2E:
                 "firstName": "Carlos",
                 "lastName": "García",
                 "handle": "carlosgarcia",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["lastName"] == "García"
@@ -580,8 +605,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "../../../etc/passwd",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -595,8 +620,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "<script>alert(1)</script>",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -610,8 +635,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "john doe",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -625,8 +650,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "john@doe!",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -640,8 +665,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "john-doe",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -655,8 +680,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "john_doe",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["handle"] == "john_doe"
@@ -671,8 +696,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "john123",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["handle"] == "john123"
@@ -687,8 +712,8 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "123john",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -705,8 +730,8 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "xssbiouser",
                 "bio": "<script>alert(1)</script>",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert "<script>" not in response.json()["bio"]
@@ -721,9 +746,9 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "xssbio2user",
-                "bio": '<img src=x onerror=alert(1)>',
-                "dateOfBirth": "1990-01-01"
-            }
+                "bio": "<img src=x onerror=alert(1)>",
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert "<img" not in response.json()["bio"]
@@ -739,8 +764,8 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "xssbio3user",
                 "bio": '<iframe src="http://evil.com"></iframe>',
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert "<iframe" not in response.json()["bio"]
@@ -756,8 +781,8 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "htmlbiouser",
                 "bio": "I love <b>movies</b> and <i>cinema</i>!",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["bio"] == "I love movies and cinema!"
@@ -773,8 +798,8 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "plainbiouser",
                 "bio": "I love watching movies!",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["bio"] == "I love watching movies!"
@@ -790,8 +815,8 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "nullbiouser",
                 "bio": None,
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         assert response.json()["bio"] is None
@@ -806,9 +831,9 @@ class TestAuthE2E:
                 "firstName": "Valid",
                 "lastName": "User",
                 "handle": "nestedbiouser",
-                "bio": '<div><script>document.cookie</script></div>',
-                "dateOfBirth": "1990-01-01"
-            }
+                "bio": "<div><script>document.cookie</script></div>",
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         bio = response.json()["bio"]
@@ -817,7 +842,9 @@ class TestAuthE2E:
 
     # --- Combined XSS payloads ---
 
-    async def test_register_bio_sanitized_while_valid_names_accepted(self, async_client):
+    async def test_register_bio_sanitized_while_valid_names_accepted(
+        self, async_client
+    ):
         """Bio is sanitized (stripped), valid names pass through."""
         response = await async_client.post(
             "/v1/auth/register",
@@ -827,9 +854,9 @@ class TestAuthE2E:
                 "firstName": "John",
                 "lastName": "Doe",
                 "handle": "johndoecombo",
-                "bio": 'Hello <script>alert(1)</script> World',
-                "dateOfBirth": "1990-01-01"
-            }
+                "bio": "Hello <script>alert(1)</script> World",
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 201
         data = response.json()
@@ -839,7 +866,9 @@ class TestAuthE2E:
         assert "Hello" in data["bio"]
         assert "World" in data["bio"]
 
-    async def test_register_rejects_xss_in_first_name_with_valid_others(self, async_client):
+    async def test_register_rejects_xss_in_first_name_with_valid_others(
+        self, async_client
+    ):
         """XSS in firstName is rejected even when other fields are valid."""
         response = await async_client.post(
             "/v1/auth/register",
@@ -850,12 +879,14 @@ class TestAuthE2E:
                 "lastName": "Valid",
                 "handle": "combofnuser",
                 "bio": "Normal bio",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
-    async def test_register_rejects_xss_in_last_name_with_valid_others(self, async_client):
+    async def test_register_rejects_xss_in_last_name_with_valid_others(
+        self, async_client
+    ):
         """XSS in lastName is rejected even when other fields are valid."""
         response = await async_client.post(
             "/v1/auth/register",
@@ -866,8 +897,8 @@ class TestAuthE2E:
                 "lastName": '<svg/onload=alert("xss")>',
                 "handle": "combolnuser",
                 "bio": "Normal bio",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422
 
@@ -882,7 +913,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": '"><script>alert(1)</script>',
                 "bio": "Normal bio",
-                "dateOfBirth": "1990-01-01"
-            }
+                "dateOfBirth": "1990-01-01",
+            },
         )
         assert response.status_code == 422

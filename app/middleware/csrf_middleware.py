@@ -23,10 +23,14 @@ class CSRFMiddleware:
                 csrf_token_header = request.headers.get("X-CSRF-Token")
                 csrf_token_cookie = request.cookies.get(CSRF_TOKEN_COOKIE)
 
-                if not csrf_token_header or not csrf_token_cookie or csrf_token_header != csrf_token_cookie:
+                if (
+                    not csrf_token_header
+                    or not csrf_token_cookie
+                    or csrf_token_header != csrf_token_cookie
+                ):
                     response = JSONResponse(
                         status_code=HTTP_403_FORBIDDEN,
-                        content={"detail": "CSRF token mismatch or missing"}
+                        content={"detail": "CSRF token mismatch or missing"},
                     )
                     await response(scope, receive, send)
                     return
