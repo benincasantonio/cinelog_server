@@ -29,9 +29,7 @@ class LogService:
         
         self.movie_service = movie_service
 
-    def _map_movie_to_response(self, movie: Movie | None) -> MovieResponse | None:
-        if movie is None:
-            return None
+    def _map_movie_to_response(self, movie: Movie) -> MovieResponse:
         return MovieResponse(
             id=str(movie.id),
             title=movie.title,
