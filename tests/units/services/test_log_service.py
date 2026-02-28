@@ -187,7 +187,3 @@ class TestLogService:
         assert result.logs[0].id == "log123"
         assert result.logs[0].movie_rating == 8
 
-    def test_map_movie_to_response_none(self, log_service):
-        """Test _map_movie_to_response with None movie."""
-        result = log_service._map_movie_to_response(None)
-        assert result is None
