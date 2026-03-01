@@ -32,9 +32,7 @@ class UserRepository:
     @staticmethod
     async def find_user_by_handle(handle: str) -> User | None:
         """Find a user by handle."""
-        return await User.find_one(
-            User.active_filter({"handle": handle})
-        )
+        return await User.find_one(User.active_filter({"handle": handle}))
 
     @staticmethod
     async def find_user_by_email_or_handle(email_or_handle: str) -> User | None:
@@ -49,9 +47,7 @@ class UserRepository:
         parsed_user_id = to_object_id(user_id)
         if parsed_user_id is None:
             return None
-        return await User.find_one(
-            User.active_filter({"_id": parsed_user_id})
-        )
+        return await User.find_one(User.active_filter({"_id": parsed_user_id}))
 
     @staticmethod
     async def delete_user(user_id: str) -> bool:

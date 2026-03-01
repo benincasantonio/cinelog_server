@@ -54,6 +54,14 @@ class ErrorCodes:
         error_description="The movie already exists in the database.",
     )
 
+    # Movie Rating Errors
+    MOVIE_RATING_VALUE_REQUIRED = ErrorSchema(
+        error_code_name="MOVIE_RATING_VALUE_REQUIRED",
+        error_code=422,
+        error_message="Movie rating value is required",
+        error_description="The movie rating must have a rating value.",
+    )
+
     # Log Not Found Error
     LOG_NOT_FOUND = ErrorSchema(
         error_code_name="LOG_NOT_FOUND",

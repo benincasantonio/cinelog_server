@@ -9,7 +9,6 @@ from app.utils.object_id_utils import to_object_id
 from beanie import SortDirection
 
 
-
 class LogRepository:
     @staticmethod
     async def create_log(user_id: str, create_log_request: LogCreateRequest) -> Log:
@@ -89,10 +88,16 @@ class LogRepository:
         if date_filters:
             filters["dateWatched"] = date_filters
 
-        sort_spec: list[tuple[str, SortDirection]] = [("dateWatched", SortDirection.DESCENDING)]
+        sort_spec: list[tuple[str, SortDirection]] = [
+            ("dateWatched", SortDirection.DESCENDING)
+        ]
         sort_direction: SortDirection = SortDirection.DESCENDING
         if request:
-            sort_direction = SortDirection.DESCENDING if request.sort_order == "desc" else SortDirection.ASCENDING
+            sort_direction = (
+                SortDirection.DESCENDING
+                if request.sort_order == "desc"
+                else SortDirection.ASCENDING
+            )
             if request.sort_by == "watchedWhere":
                 sort_spec = [
                     ("watchedWhere", sort_direction),
@@ -121,7 +126,9 @@ class LogRepository:
             )
         ).to_list()
 
-        rating_map: dict[str, float] = {str(rating.movie_id): rating.rating for rating in movie_ratings}
+        rating_map: dict[str, float] = {
+            str(rating.movie_id): rating.rating for rating in movie_ratings
+        }
         movie_map: dict[str, Movie] = {str(movie.id): movie for movie in movies}
 
         result: list[dict] = []

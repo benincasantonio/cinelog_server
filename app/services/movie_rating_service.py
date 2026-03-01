@@ -1,6 +1,8 @@
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.schemas.movie_rating_schemas import MovieRatingResponse
 from app.services.movie_service import MovieService
+from app.utils.error_codes import ErrorCodes
+from app.utils.exceptions import AppException
 
 
 class MovieRatingService:
@@ -42,7 +44,7 @@ class MovieRatingService:
             return None
 
         if movie_rating.rating is None:
-            raise ValueError("Movie rating value is required")
+            raise AppException(ErrorCodes.MOVIE_RATING_VALUE_REQUIRED)
 
         return MovieRatingResponse(
             id=str(movie_rating.id),
@@ -73,7 +75,7 @@ class MovieRatingService:
 
     def _get_movie_rating_response(self, movie_rating) -> MovieRatingResponse:
         if movie_rating.rating is None:
-            raise ValueError("Movie rating value is required")
+            raise AppException(ErrorCodes.MOVIE_RATING_VALUE_REQUIRED)
 
         return MovieRatingResponse(
             id=str(movie_rating.id),
