@@ -1,5 +1,6 @@
 import pytest
 
+from app.models.movie import Movie
 from app.repository.movie_repository import MovieRepository
 from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
 
@@ -95,6 +96,22 @@ async def test_find_movie_by_tmdb_id_not_found(beanie_test_db):
     repository = MovieRepository()
     result = await repository.find_movie_by_tmdb_id(999999999)
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_find_movie_filters_soft_deleted(
+    beanie_test_db, movie_create_request: MovieCreateRequest
+):
+    repository = MovieRepository()
+    movie = await repository.create_movie(movie_create_request)
+    movie.deleted = True
+    await movie.save()
+
+    assert await repository.find_movie_by_id(movie.id) is None
+    assert await repository.find_movie_by_tmdb_id(movie.tmdb_id) is None
+    raw_movie = await Movie.get(movie.id)
+    assert raw_movie is not None
+    assert raw_movie.deleted is True
 
 
 @pytest.mark.asyncio

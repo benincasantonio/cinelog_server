@@ -24,13 +24,17 @@ class UserRepository:
     async def find_user_by_email(email: str) -> User | None:
         """Find a user by email (case-insensitive)."""
         return await User.find_one(
-            {"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}}
+            User.active_filter(
+                {"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}}
+            )
         )
 
     @staticmethod
     async def find_user_by_handle(handle: str) -> User | None:
         """Find a user by handle."""
-        return await User.find_one(User.handle == handle)
+        return await User.find_one(
+            User.active_filter({"handle": handle})
+        )
 
     @staticmethod
     async def find_user_by_email_or_handle(email_or_handle: str) -> User | None:
@@ -45,7 +49,9 @@ class UserRepository:
         parsed_user_id = to_object_id(user_id)
         if parsed_user_id is None:
             return None
-        return await User.get(parsed_user_id)
+        return await User.find_one(
+            User.active_filter({"_id": parsed_user_id})
+        )
 
     @staticmethod
     async def delete_user(user_id: str) -> bool:
@@ -69,8 +75,11 @@ class UserRepository:
 
         user.first_name = "Deleted"
         user.last_name = "User"
-        user.email = ""
+        user.email = f"deleted_{user_id}@deleted.local"
         user.handle = f"deleted_{user_id}"
+        user.password_hash = None
+        user.reset_password_code = None
+        user.reset_password_expires = None
         user.date_of_birth = None
         user.deleted = True
         user.deleted_at = datetime.now(UTC)
