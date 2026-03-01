@@ -1,4 +1,5 @@
 from datetime import date
+from datetime import datetime, UTC
 
 import pytest
 
@@ -225,3 +226,48 @@ async def test_find_user_by_email_or_handle(beanie_test_db):
     assert found_user_by_handle.id == created_user.id
     assert found_user_by_handle.handle == "david_smith"
     assert found_user_by_email.id == found_user_by_handle.id
+
+
+@pytest.mark.asyncio
+async def test_find_user_by_id_invalid_object_id(beanie_test_db):
+    repository = UserRepository()
+    result = await repository.find_user_by_id("not-an-object-id")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_delete_user_invalid_object_id(beanie_test_db):
+    repository = UserRepository()
+    deleted = await repository.delete_user("not-an-object-id")
+    assert deleted is False
+
+
+@pytest.mark.asyncio
+async def test_update_password(beanie_test_db, user_create_request):
+    repository = UserRepository()
+    user = await repository.create_user(user_create_request)
+
+    updated = await repository.update_password(user, "updated-hash")
+    assert updated.password_hash == "updated-hash"
+
+    fetched = await User.get(user.id)
+    assert fetched is not None
+    assert fetched.password_hash == "updated-hash"
+
+
+@pytest.mark.asyncio
+async def test_set_and_clear_reset_password_code(beanie_test_db, user_create_request):
+    repository = UserRepository()
+    user = await repository.create_user(user_create_request)
+
+    expires_at = datetime.now(UTC)
+    updated = await repository.set_reset_password_code(user, "ABC123", expires_at)
+    assert updated.reset_password_code == "ABC123"
+    assert updated.reset_password_expires is not None
+    assert updated.reset_password_expires.replace(tzinfo=UTC) <= expires_at.replace(
+        tzinfo=UTC
+    )
+
+    cleared = await repository.clear_reset_password_code(updated)
+    assert cleared.reset_password_code is None
+    assert cleared.reset_password_expires is None

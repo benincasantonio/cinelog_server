@@ -35,6 +35,15 @@ async def test_find_movie_rating_by_user_and_movie_not_found(beanie_test_db):
 
 
 @pytest.mark.asyncio
+async def test_find_movie_rating_by_user_and_movie_invalid_object_ids(beanie_test_db):
+    repo = MovieRatingRepository()
+    result = await repo.find_movie_rating_by_user_and_movie(
+        "invalid-user-id", "invalid-movie-id"
+    )
+    assert result is None
+
+
+@pytest.mark.asyncio
 async def test_find_movie_rating_by_user_and_tmdb(beanie_test_db):
     repo = MovieRatingRepository()
     user_id = str(ObjectId())
@@ -50,6 +59,13 @@ async def test_find_movie_rating_by_user_and_tmdb(beanie_test_db):
     result = await repo.find_movie_rating_by_user_and_tmdb(user_id, 600)
     assert result is not None
     assert result.tmdb_id == 600
+
+
+@pytest.mark.asyncio
+async def test_find_movie_rating_by_user_and_tmdb_invalid_object_id(beanie_test_db):
+    repo = MovieRatingRepository()
+    result = await repo.find_movie_rating_by_user_and_tmdb("invalid-user-id", 600)
+    assert result is None
 
 
 @pytest.mark.asyncio

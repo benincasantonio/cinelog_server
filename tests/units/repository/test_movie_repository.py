@@ -223,3 +223,41 @@ async def test_create_from_tmdb_data_with_invalid_date(beanie_test_db):
     assert movie is not None
     assert movie.tmdb_id == 12347
     assert movie.release_date is None
+
+
+@pytest.mark.asyncio
+async def test_create_from_tmdb_data_duplicate_key_returns_existing(beanie_test_db):
+    from app.schemas.tmdb_schemas import TMDBMovieDetails
+
+    repository = MovieRepository()
+    existing = await repository.create_movie(
+        MovieCreateRequest(title="Existing Movie", tmdb_id=98765)
+    )
+
+    tmdb_data = TMDBMovieDetails(
+        id=98765,
+        title="Incoming Duplicate",
+        original_title="Incoming Duplicate",
+        release_date="2024-01-01",
+        overview="Duplicate TMDB movie payload",
+        poster_path="/duplicate.jpg",
+        backdrop_path=None,
+        vote_average=7.0,
+        vote_count=10,
+        runtime=100,
+        budget=1,
+        revenue=1,
+        status="Released",
+        original_language="en",
+        popularity=1.0,
+        adult=False,
+        genres=[],
+        production_companies=[],
+        production_countries=[],
+        spoken_languages=[],
+    )
+
+    returned = await repository.create_from_tmdb_data(tmdb_data)
+
+    assert returned.id == existing.id
+    assert returned.tmdb_id == existing.tmdb_id

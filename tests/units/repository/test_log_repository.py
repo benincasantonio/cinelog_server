@@ -309,6 +309,14 @@ async def test_find_log_by_id_not_found(
 
 
 @pytest.mark.asyncio
+async def test_find_log_by_id_invalid_object_id(
+    beanie_test_db, log_repository: LogRepository, user_id: str
+):
+    result = await log_repository.find_log_by_id("invalid-log-id", user_id)
+    assert result is None
+
+
+@pytest.mark.asyncio
 async def test_find_log_by_id_success(
     beanie_test_db,
     sample_movie,
@@ -329,6 +337,15 @@ async def test_update_log_not_found(
     non_existent_id = str(ObjectId())
     update_request = LogUpdateRequest(viewing_notes="Updated notes")
     result = await log_repository.update_log(non_existent_id, user_id, update_request)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_update_log_invalid_object_id(
+    beanie_test_db, log_repository: LogRepository, user_id: str
+):
+    update_request = LogUpdateRequest(viewing_notes="Updated notes")
+    result = await log_repository.update_log("invalid-log-id", user_id, update_request)
     assert result is None
 
 
@@ -356,6 +373,14 @@ async def test_delete_log_not_found(
 ):
     non_existent_id = str(ObjectId())
     result = await log_repository.delete_log(non_existent_id, user_id)
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_delete_log_invalid_object_id(
+    beanie_test_db, log_repository: LogRepository, user_id: str
+):
+    result = await log_repository.delete_log("invalid-log-id", user_id)
     assert result is False
 
 
@@ -396,6 +421,16 @@ async def test_find_logs_by_user_id_empty(
 ):
     logs = await log_repository.find_logs_by_user_id(
         user_id, LogListRequest(sort_by="dateWatched", sort_order="desc")
+    )
+    assert logs == []
+
+
+@pytest.mark.asyncio
+async def test_find_logs_by_user_id_invalid_object_id(
+    beanie_test_db, log_repository: LogRepository
+):
+    logs = await log_repository.find_logs_by_user_id(
+        "invalid-user-id", LogListRequest(sort_by="dateWatched", sort_order="desc")
     )
     assert logs == []
 
@@ -455,6 +490,19 @@ async def test_find_logs_by_movie_id_with_user_filter(
         movie_create_request.movie_id, other_user_id
     )
     assert len(logs) == 0
+
+
+@pytest.mark.asyncio
+async def test_find_logs_by_movie_id_invalid_ids(
+    beanie_test_db, log_repository: LogRepository
+):
+    logs_invalid_movie = await log_repository.find_logs_by_movie_id("invalid-movie-id")
+    assert logs_invalid_movie == []
+
+    logs_invalid_user = await log_repository.find_logs_by_movie_id(
+        str(ObjectId()), user_id="invalid-user-id"
+    )
+    assert logs_invalid_user == []
 
 
 @pytest.mark.asyncio
