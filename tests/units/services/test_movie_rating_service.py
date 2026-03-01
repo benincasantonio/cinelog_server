@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import AsyncMock, Mock
 from datetime import datetime
 
+from beanie import PydanticObjectId
+
 from app.services.movie_rating_service import MovieRatingService
 
 
@@ -33,7 +35,7 @@ class TestMovieRatingService:
         """Test creating/updating a movie rating."""
         # Setup mocks
         mock_movie = Mock()
-        mock_movie.id = "movie123"
+        mock_movie.id = PydanticObjectId()
         mock_movie_service.find_or_create_movie.return_value = mock_movie
 
         mock_rating = Mock()

@@ -1,5 +1,6 @@
 from datetime import datetime
-from bson import ObjectId
+
+from beanie import PydanticObjectId
 from pydantic import Field
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
@@ -7,7 +8,7 @@ from app.models.base_entity import BaseEntity
 
 
 class Movie(BaseEntity):
-    id: str = Field(default_factory=lambda: str(ObjectId()))  # type: ignore[assignment]
+    id: PydanticObjectId = Field(default_factory=PydanticObjectId)
     tmdb_id: int = Field(alias="tmdbId")
     title: str
     release_date: datetime | None = Field(default=None, alias="releaseDate")

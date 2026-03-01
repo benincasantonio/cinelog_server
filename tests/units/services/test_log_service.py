@@ -1,6 +1,9 @@
 import pytest
 from unittest.mock import AsyncMock, Mock
 from datetime import date
+
+from beanie import PydanticObjectId
+
 from app.services.log_service import LogService
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest, LogListRequest
 from app.utils.exceptions import AppException
@@ -33,7 +36,7 @@ class TestLogService:
         """Test successful log creation."""
         # Setup mocks
         mock_movie = Mock()
-        mock_movie.id = "movie123"
+        mock_movie.id = PydanticObjectId()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/poster.jpg"
@@ -80,7 +83,7 @@ class TestLogService:
     ):
         """Test that posterPath is auto-populated from movie if not provided."""
         mock_movie = Mock()
-        mock_movie.id = "movie123"
+        mock_movie.id = PydanticObjectId()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/movie_poster.jpg"
@@ -133,7 +136,7 @@ class TestLogService:
         mock_log_repository.update_log.return_value = mock_log
 
         mock_movie = Mock()
-        mock_movie.id = "movie123"
+        mock_movie.id = PydanticObjectId()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/poster.jpg"
@@ -169,7 +172,7 @@ class TestLogService:
     ):
         """Test getting user logs."""
         mock_movie = Mock()
-        mock_movie.id = "movie123"
+        mock_movie.id = PydanticObjectId()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/poster.jpg"

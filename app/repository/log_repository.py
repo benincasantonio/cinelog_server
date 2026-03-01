@@ -113,12 +113,10 @@ class LogRepository:
         if not logs:
             return []
 
-        movie_ids = list({str(log.movie_id) for log in logs})
-        object_movie_ids = list({to_object_id(movie_id) for movie_id in movie_ids})
-        object_movie_ids = [movie_id for movie_id in object_movie_ids if movie_id]
+        object_movie_ids = list({log.movie_id for log in logs})
 
         movies = await Movie.find(
-            Movie.active_filter({"_id": {"$in": movie_ids}})
+            Movie.active_filter({"_id": {"$in": object_movie_ids}})
         ).to_list()
         movie_ratings = await MovieRating.find(
             MovieRating.active_filter(

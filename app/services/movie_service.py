@@ -1,3 +1,5 @@
+from beanie import PydanticObjectId
+
 from app.repository.movie_repository import MovieRepository
 from app.services.tmdb_service import TMDBService
 from app.models.movie import Movie
@@ -10,7 +12,7 @@ class MovieService:
         self.movie_repository = movie_repository
         self.tmdb_service = tmdb_service or TMDBService.get_instance()
 
-    async def get_movie_by_id(self, movie_id: str) -> Movie | None:
+    async def get_movie_by_id(self, movie_id: PydanticObjectId) -> Movie | None:
         """
         Find a movie by its ID.
 
