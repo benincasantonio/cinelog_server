@@ -17,7 +17,7 @@ log_service = LogService(log_repository)
 
 
 @router.get("/info", response_model=UserResponse)
-def get_user_info(
+async def get_user_info(
     request: Request, user_id: str = Depends(auth_dependency)
 ) -> UserResponse:
     """
@@ -25,11 +25,11 @@ def get_user_info(
 
     Requires authentication via Cookie token.
     """
-    return user_service.get_user_info(user_id)
+    return await user_service.get_user_info(user_id)
 
 
 @router.get("/{user_id}/logs", response_model=LogListResponse)
-def get_user_logs(
+async def get_user_logs(
     user_id: str,
     list_request: LogListRequest = Depends(),
     _: bool = Depends(auth_dependency),
@@ -40,4 +40,4 @@ def get_user_logs(
     Requires authentication via Cookie token.
     Returns all logs filtered and sorted according to query parameters.
     """
-    return log_service.get_user_logs(user_id=user_id, request=list_request)
+    return await log_service.get_user_logs(user_id=user_id, request=list_request)

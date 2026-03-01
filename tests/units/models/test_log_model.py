@@ -1,81 +1,57 @@
-import mongomock
+from datetime import datetime, timezone
+
 import pytest
 from bson import ObjectId
-from mongoengine import disconnect, connect
 
 from app.models.log import Log
 
 
-@pytest.fixture(scope="module", autouse=True)
-def setup_and_teardown():
-    # Disconnect from any existing connections first
-    disconnect()
-    # Connect to a test database using the new mongo_client_class parameter
-    connect(
-        "mongoenginetest",
-        host="localhost",
-        mongo_client_class=mongomock.MongoClient,
-        uuidRepresentation="standard",
-    )
-    yield
-    # Disconnect from the test database
-    disconnect()
-
-
-@pytest.fixture(autouse=True)
-def clear_database():
-    # Clear the database before each test
-    Log.objects.delete()
-
-
-def test_log_creation():
+@pytest.mark.asyncio
+async def test_log_creation(beanie_test_db):
     log = Log(
         user_id=ObjectId(),
         movie_id=ObjectId(),
         tmdb_id=10,
-        date_watched="2023-10-01",
+        date_watched=datetime(2023, 10, 1, tzinfo=timezone.utc),
         watched_where="cinema",
         viewing_notes="Great movie!",
         poster_path="/path/to/poster.jpg",
     )
 
-    log.save()
+    await log.insert()
 
-    assert Log.objects.count() == 1
+    assert await Log.find_all().count() == 1
     assert log.id is not None
 
 
-def test_missing_required_fields():
-    log = Log(
-        movie_id=ObjectId(),
-    )
-
+@pytest.mark.asyncio
+async def test_missing_required_fields():
     with pytest.raises(Exception):
-        log.save()
+        Log(movie_id=ObjectId())
 
 
-def test_required_fields():
+@pytest.mark.asyncio
+async def test_required_fields(beanie_test_db):
     log = Log(
         user_id=ObjectId(),
         movie_id=ObjectId(),
         tmdb_id=10,
-        date_watched="2023-10-01",
+        date_watched=datetime(2023, 10, 1, tzinfo=timezone.utc),
         watched_where="cinema",
     )
 
-    log.save()
-    assert Log.objects.count() == 1
+    await log.insert()
+    assert await Log.find_all().count() == 1
     assert log.id is not None
 
 
-def test_wrong_watched_where():
-    log = Log(
-        user_id=ObjectId(),
-        movie_id=ObjectId(),
-        tmdb_id=10,
-        date_watched="2023-10-01",
-        watched_where="unknown",
-    )
-
+@pytest.mark.asyncio
+async def test_wrong_watched_where():
     with pytest.raises(Exception):
-        log.save()
+        Log(
+            user_id=ObjectId(),
+            movie_id=ObjectId(),
+            tmdb_id=10,
+            date_watched=datetime(2023, 10, 1, tzinfo=timezone.utc),
+            watched_where="unknown",
+        )

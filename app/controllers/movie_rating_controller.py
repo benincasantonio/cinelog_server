@@ -24,7 +24,7 @@ movie_rating_service = MovieRatingService(
 
 
 @router.post("/")
-def create_movie_rating(
+async def create_movie_rating(
     request_body: MovieRatingCreateUpdateRequest,
     request: Request,
     user_id: Annotated[str, Depends(auth_dependency)],
@@ -34,7 +34,7 @@ def create_movie_rating(
 
     Requires authentication via Cookie token.
     """
-    return movie_rating_service.create_update_movie_rating(
+    return await movie_rating_service.create_update_movie_rating(
         user_id=user_id,
         comment=request_body.comment,
         rating=request_body.rating,
@@ -43,7 +43,7 @@ def create_movie_rating(
 
 
 @router.get("/{tmdb_id}")
-def get_movie_rating(
+async def get_movie_rating(
     tmdb_id: int,
     current_user_id: Annotated[str, Depends(auth_dependency)],
     user_id: str | None = None,
@@ -57,7 +57,7 @@ def get_movie_rating(
     """
     target_user_id = user_id if user_id else current_user_id
 
-    movie_rating = movie_rating_service.get_movie_ratings_by_tmdb_id(
+    movie_rating = await movie_rating_service.get_movie_ratings_by_tmdb_id(
         user_id=target_user_id, tmdb_id=tmdb_id
     )
 

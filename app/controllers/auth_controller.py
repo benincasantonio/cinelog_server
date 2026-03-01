@@ -38,7 +38,7 @@ async def register(request: RegisterRequest) -> RegisterResponse:
     Handle user registration.
     User must login separately after registration.
     """
-    return auth_service.register(request=request)
+    return await auth_service.register(request=request)
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -46,7 +46,7 @@ async def login(request: LoginRequest, response: Response) -> LoginResponse:
     """
     Handle user login with email and password.
     """
-    user = auth_service.login(email=request.email, password=request.password)
+    user = await auth_service.login(email=request.email, password=request.password)
 
     # Set Cookies
     set_auth_cookies(response, str(user.id))
@@ -121,7 +121,7 @@ async def forgot_password(request: ForgotPasswordRequest) -> ForgotPasswordRespo
     """
     Initiate password recovery. Sends reset code via email.
     """
-    auth_service.forgot_password(request.email)
+    await auth_service.forgot_password(request.email)
     return ForgotPasswordResponse(
         message="If the email exists, a reset code has been sent."
     )
@@ -132,7 +132,7 @@ async def reset_password(request: ResetPasswordRequest) -> ResetPasswordResponse
     """
     Complete password recovery with reset code.
     """
-    auth_service.reset_password(request.email, request.code, request.new_password)
+    await auth_service.reset_password(request.email, request.code, request.new_password)
     return ResetPasswordResponse(message="Password reset successfully")
 
 

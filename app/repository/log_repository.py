@@ -1,104 +1,135 @@
+from datetime import datetime
+
 from app.models.log import Log
 from app.models.movie import Movie
 from app.models.movie_rating import MovieRating
-from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest, LogListRequest
-from bson import ObjectId
+from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogUpdateRequest
+from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
+from app.utils.object_id_utils import to_object_id
 
 
 class LogRepository:
     @staticmethod
-    def create_log(user_id: str, create_log_request: LogCreateRequest) -> Log:
+    async def create_log(user_id: str, create_log_request: LogCreateRequest) -> Log:
         """
         Create a new log entry in the database.
         """
-        log_data = create_log_request.model_dump()
-        log_data["user_id"] = ObjectId(user_id)
+        user_object_id = to_object_id(user_id)
+        movie_object_id = to_object_id(create_log_request.movie_id)
+        if user_object_id is None or movie_object_id is None:
+            raise ValueError("Invalid user_id or movie_id")
+
+        log_data = create_log_request.model_dump(exclude_none=True)
+        log_data["user_id"] = user_object_id
+        log_data["movie_id"] = movie_object_id
+        log_data["date_watched"] = to_utc_datetime(create_log_request.date_watched)
+
         log = Log(**log_data)
-        log.save()
+        await log.insert()
         return log
 
     @staticmethod
-    def find_log_by_id(log_id: str, user_id: str) -> Log | None:
+    async def find_log_by_id(log_id: str, user_id: str) -> Log | None:
         """
         Find a log entry by its ID, ensuring it belongs to the user.
         """
-        return Log.objects(id=log_id, user_id=user_id).first()
+        log_object_id = to_object_id(log_id)
+        user_object_id = to_object_id(user_id)
+        if log_object_id is None or user_object_id is None:
+            return None
+        return await Log.find_one({"_id": log_object_id, "userId": user_object_id})
 
     @staticmethod
-    def update_log(
+    async def update_log(
         log_id: str, user_id: str, update_request: LogUpdateRequest
     ) -> Log | None:
         """
         Update an existing log entry.
         """
-        log = LogRepository.find_log_by_id(log_id, user_id)
+        log = await LogRepository.find_log_by_id(log_id, user_id)
         if not log:
             return None
 
         update_data = update_request.model_dump(exclude_unset=True)
         for field, value in update_data.items():
+            if field == "date_watched" and value is not None:
+                value = to_utc_datetime(value)
             setattr(log, field, value)
 
-        log.save()
+        await log.save()
         return log
 
     @staticmethod
-    def find_logs_by_user_id(
+    async def find_logs_by_user_id(
         user_id: str, request: LogListRequest | None = None
     ) -> list[dict]:
         """
         Find all log entries for a specific user with optional filtering and sorting.
         Returns a list of dictionaries containing log data with joined movie data.
         """
-        query = Log.objects(user_id=user_id)
+        user_object_id = to_object_id(user_id)
+        if user_object_id is None:
+            return []
+
+        filters: dict = {"userId": user_object_id}
+        date_filters: dict = {}
 
         if request:
-            # Apply filters
             if request.watched_where is not None:
-                query = query.filter(watched_where=request.watched_where)
-
+                filters["watchedWhere"] = request.watched_where
             if request.date_watched_from is not None:
-                query = query.filter(date_watched__gte=request.date_watched_from)
-
+                date_filters["$gte"] = date_start_utc(request.date_watched_from)
             if request.date_watched_to is not None:
-                query = query.filter(date_watched__lte=request.date_watched_to)
+                date_filters["$lte"] = date_end_utc(request.date_watched_to)
 
-            # Apply sorting
-            if request.sort_by:
-                sort_order = (
-                    "-" + request.sort_by
-                    if request.sort_order == "desc"
-                    else request.sort_by
-                )
-                query = query.order_by(sort_order)
-        else:
-            # Default sorting by date watched descending
-            query = query.order_by("-date_watched")
+        if date_filters:
+            filters["dateWatched"] = date_filters
 
-        logs = list(query)
+        logs = await Log.find(filters).to_list()
         if not logs:
             return []
 
-        # Fetch related movies
-        # Convert ObjectId to string for lookup if necessary, assuming Movie.id is StringField
-        movie_ids = list(set([str(log.movie_id) for log in logs]))
-        movies = Movie.objects(id__in=movie_ids)
-        movie_ratings = MovieRating.objects(user_id=user_id, movie_id__in=movie_ids)
+        sort_field = "date_watched"
+        reverse = True
+        if request and request.sort_by:
+            sort_field = (
+                "watched_where" if request.sort_by == "watchedWhere" else "date_watched"
+            )
+            reverse = request.sort_order == "desc"
+        logs.sort(key=lambda log: getattr(log, sort_field), reverse=reverse)
+
+        movie_ids = list({str(log.movie_id) for log in logs})
+        object_movie_ids = list({to_object_id(movie_id) for movie_id in movie_ids})
+        object_movie_ids = [movie_id for movie_id in object_movie_ids if movie_id]
+
+        movies = await Movie.find({"_id": {"$in": movie_ids}}).to_list()
+        movie_ratings = await MovieRating.find(
+            {"userId": user_object_id, "movieId": {"$in": object_movie_ids}}
+        ).to_list()
+
         rating_map = {str(rating.movie_id): rating.rating for rating in movie_ratings}
         movie_map = {movie.id: movie for movie in movies}
 
-        result = []
+        result: list[dict] = []
         for log in logs:
-            log_dict = log.to_mongo().to_dict()
-            # Flatten _id
-            log_dict["id"] = str(log_dict["_id"])
-            # Add movie object
+            log_dict = {
+                "id": str(log.id),
+                "movieId": str(log.movie_id),
+                "tmdbId": log.tmdb_id,
+                "dateWatched": (
+                    log.date_watched.date()
+                    if isinstance(log.date_watched, datetime)
+                    else log.date_watched
+                ),
+                "viewingNotes": log.viewing_notes,
+                "posterPath": log.poster_path,
+                "watchedWhere": log.watched_where,
+            }
+            movie_rating = rating_map.get(str(log.movie_id))
+            if movie_rating is not None:
+                log_dict["movieRating"] = movie_rating
+
             movie = movie_map.get(str(log.movie_id))
-
-            movieRating = rating_map.get(str(log.movie_id))
-            if movieRating is not None:
-                log_dict["movieRating"] = movieRating
-
             if movie:
                 log_dict["movie"] = movie
 
@@ -107,26 +138,35 @@ class LogRepository:
         return result
 
     @staticmethod
-    def find_logs_by_movie_id(movie_id: str, user_id: str | None = None) -> list[Log]:
+    async def find_logs_by_movie_id(
+        movie_id: str, user_id: str | None = None
+    ) -> list[Log]:
         """
         Find all log entries for a specific movie by its ID.
         Optionally filter by user_id.
         """
-        query_params = {"movie_id": movie_id}
-        if user_id:
-            query_params["user_id"] = user_id
+        movie_object_id = to_object_id(movie_id)
+        if movie_object_id is None:
+            return []
 
-        return Log.objects(**query_params).all()
+        query_params: dict = {"movieId": movie_object_id}
+        if user_id:
+            user_object_id = to_object_id(user_id)
+            if user_object_id is None:
+                return []
+            query_params["userId"] = user_object_id
+
+        return await Log.find(query_params).to_list()
 
     @staticmethod
-    def delete_log(log_id: str, user_id: str) -> bool:
+    async def delete_log(log_id: str, user_id: str) -> bool:
         """
         Delete a log entry (soft delete).
         """
-        log = LogRepository.find_log_by_id(log_id, user_id)
+        log = await LogRepository.find_log_by_id(log_id, user_id)
         if not log:
             return False
 
         log.deleted = True
-        log.save()
+        await log.save()
         return True

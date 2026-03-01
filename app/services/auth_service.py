@@ -25,20 +25,20 @@ class AuthService:
         self.user_repository = user_repository
         self.email_service = email_service or EmailService()
 
-    def register(self, request: RegisterRequest) -> RegisterResponse:
+    async def register(self, request: RegisterRequest) -> RegisterResponse:
         """
         Register a new user in MongoDB.
         """
         # Check if email already exists in MongoDB
         email_lowercase = request.email.strip().lower()
-        existing_user_by_email = self.user_repository.find_user_by_email(
+        existing_user_by_email = await self.user_repository.find_user_by_email(
             email_lowercase
         )
         if existing_user_by_email:
             raise AppException(ErrorCodes.EMAIL_ALREADY_EXISTS)
 
         # Check if handle already exists in MongoDB
-        existing_user_by_handle = self.user_repository.find_user_by_handle(
+        existing_user_by_handle = await self.user_repository.find_user_by_handle(
             request.handle.strip()
         )
         if existing_user_by_handle:
@@ -58,7 +58,7 @@ class AuthService:
                 date_of_birth=request.date_of_birth,
                 password_hash=hashed_password,
             )
-            user = self.user_repository.create_user(request=user_create_request)
+            user = await self.user_repository.create_user(request=user_create_request)
         except Exception as e:
             raise AppException(ErrorCodes.ERROR_CREATING_USER) from e
 
@@ -73,12 +73,12 @@ class AuthService:
 
         return response
 
-    def login(self, email: str, password: str):
+    async def login(self, email: str, password: str):
         """
         Authenticate user and return user object if successful.
         """
         email_lowercase = email.strip().lower()
-        user = self.user_repository.find_user_by_email(email_lowercase)
+        user = await self.user_repository.find_user_by_email(email_lowercase)
 
         if not user:
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
@@ -99,12 +99,12 @@ class AuthService:
 
         return user
 
-    def forgot_password(self, email: str):
+    async def forgot_password(self, email: str):
         """
         Generate reset code and send email (mocked).
         """
         email_lowercase = email.strip().lower()
-        user = self.user_repository.find_user_by_email(email_lowercase)
+        user = await self.user_repository.find_user_by_email(email_lowercase)
         if not user:
             # Security: Don't reveal if user exists.
             # But for migration UX, maybe we return success anyway.
@@ -114,21 +114,24 @@ class AuthService:
         reset_code = secrets.token_hex(3).upper()  # 6 chars
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
 
-        self.user_repository.set_reset_password_code(user, reset_code, expires_at)
+        await self.user_repository.set_reset_password_code(user, reset_code, expires_at)
 
         # Send email via EmailService
         self.email_service.send_reset_password_email(email_lowercase, reset_code)
 
-    def reset_password(self, email: str, code: str, new_password: str):
+    async def reset_password(self, email: str, code: str, new_password: str):
         """
         Verify reset code and set new password.
         """
         email_lowercase = email.strip().lower()
-        user = self.user_repository.find_user_by_email(email_lowercase)
+        user = await self.user_repository.find_user_by_email(email_lowercase)
         if not user:
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
 
         if not user.reset_password_code or user.reset_password_code != code:
+            raise AppException(ErrorCodes.INVALID_CREDENTIALS)
+
+        if user.reset_password_expires is None:
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
 
         if user.reset_password_expires.replace(tzinfo=timezone.utc) < datetime.now(
@@ -137,7 +140,7 @@ class AuthService:
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)  # Expired
 
         hashed_password = PasswordService.get_password_hash(new_password.strip())
-        self.user_repository.update_password(user, hashed_password)
-        self.user_repository.clear_reset_password_code(user)
+        await self.user_repository.update_password(user, hashed_password)
+        await self.user_repository.clear_reset_password_code(user)
 
         return True

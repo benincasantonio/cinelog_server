@@ -293,7 +293,7 @@ class TestAuthE2E:
         # Fetch the reset code directly from DB since it was mocked via email
         from app.models.user import User
 
-        user = User.objects(email="reset@example.com").first()
+        user = await User.find_one(User.email == "reset@example.com")
         code = user.reset_password_code
 
         # 2. Reset password with valid code

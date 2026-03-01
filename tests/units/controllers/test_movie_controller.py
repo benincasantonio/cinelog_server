@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from app import app
 from app.schemas.tmdb_schemas import (
@@ -31,7 +31,10 @@ def override_auth():
 class TestMovieController:
     """Tests for movie controller endpoints."""
 
-    @patch("app.controllers.movie_controller.tmdb_service.search_movie")
+    @patch(
+        "app.controllers.movie_controller.tmdb_service.search_movie",
+        new_callable=AsyncMock,
+    )
     def test_search_movies_success(self, mock_search, client, override_auth):
         """Test successful movie search."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -71,7 +74,7 @@ class TestMovieController:
         data = response.json()
         assert len(data["results"]) == 1
         assert data["results"][0]["title"] == "Fight Club"
-        mock_search.assert_called_once_with(query="Fight Club")
+        mock_search.assert_awaited_once_with(query="Fight Club")
 
     def test_search_movies_unauthorized(self, client):
         """Test movie search without authentication."""
@@ -79,7 +82,10 @@ class TestMovieController:
         response = client.get("/v1/movies/search?query=Fight Club")
         assert response.status_code == 401
 
-    @patch("app.controllers.movie_controller.tmdb_service.get_movie_details")
+    @patch(
+        "app.controllers.movie_controller.tmdb_service.get_movie_details",
+        new_callable=AsyncMock,
+    )
     def test_get_movie_details_success(self, mock_get_details, client, override_auth):
         """Test getting movie details."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -129,7 +135,7 @@ class TestMovieController:
         assert response.status_code == 200
         data = response.json()
         assert data["title"] == "Fight Club"
-        mock_get_details.assert_called_once_with(tmdb_id=550)
+        mock_get_details.assert_awaited_once_with(tmdb_id=550)
 
     def test_get_movie_details_unauthorized(self, client):
         """Test getting movie details without authentication."""
@@ -137,7 +143,10 @@ class TestMovieController:
         response = client.get("/v1/movies/550")
         assert response.status_code == 401
 
-    @patch("app.controllers.movie_controller.tmdb_service.search_movie")
+    @patch(
+        "app.controllers.movie_controller.tmdb_service.search_movie",
+        new_callable=AsyncMock,
+    )
     def test_search_movies_app_exception(self, mock_search, client, override_auth):
         """Test search movies re-raises AppException."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -153,7 +162,10 @@ class TestMovieController:
 
         assert response.status_code == ErrorCodes.MOVIE_NOT_FOUND.error_code
 
-    @patch("app.controllers.movie_controller.tmdb_service.get_movie_details")
+    @patch(
+        "app.controllers.movie_controller.tmdb_service.get_movie_details",
+        new_callable=AsyncMock,
+    )
     def test_get_movie_details_app_exception(
         self, mock_get_details, client, override_auth
     ):

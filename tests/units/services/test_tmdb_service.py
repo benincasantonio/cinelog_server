@@ -1,20 +1,25 @@
-import pytest
-from unittest.mock import Mock, patch
-import requests
+from unittest.mock import AsyncMock, Mock, patch
 
+import httpx
+import pytest
+import pytest_asyncio
+
+from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult
 from app.services.tmdb_service import TMDBService
-from app.schemas.tmdb_schemas import TMDBMovieSearchResult, TMDBMovieDetails
 
 
 class TestTMDBService:
     """Tests for TMDBService."""
 
-    @pytest.fixture
-    def tmdb_service(self):
-        return TMDBService(api_key="test_api_key")
+    @pytest_asyncio.fixture
+    async def tmdb_service(self):
+        service = TMDBService(api_key="test_api_key")
+        yield service
+        await service.aclose()
 
-    @patch("app.services.tmdb_service.requests.get")
-    def test_search_movie(self, mock_get, tmdb_service):
+    @pytest.mark.asyncio
+    @patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock)
+    async def test_search_movie(self, mock_get, tmdb_service):
         """Test searching for a movie."""
         mock_response = Mock()
         mock_response.json.return_value = {
@@ -42,17 +47,17 @@ class TestTMDBService:
         }
         mock_get.return_value = mock_response
 
-        result = tmdb_service.search_movie("Fight Club")
+        result = await tmdb_service.search_movie("Fight Club")
 
         assert isinstance(result, TMDBMovieSearchResult)
         assert result.total_results == 1
         assert len(result.results) == 1
         assert result.results[0].title == "Fight Club"
+        mock_get.assert_awaited_once()
 
-        mock_get.assert_called_once()
-
-    @patch("app.services.tmdb_service.requests.get")
-    def test_get_movie_details(self, mock_get, tmdb_service):
+    @pytest.mark.asyncio
+    @patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock)
+    async def test_get_movie_details(self, mock_get, tmdb_service):
         """Test getting full movie details."""
         mock_response = Mock()
         mock_response.json.return_value = {
@@ -83,24 +88,29 @@ class TestTMDBService:
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
-        result = tmdb_service.get_movie_details(550)
+        result = await tmdb_service.get_movie_details(550)
 
         assert isinstance(result, TMDBMovieDetails)
         assert result.id == 550
         assert result.title == "Fight Club"
         assert result.runtime == 139
-
-        mock_get.assert_called_once()
+        mock_get.assert_awaited_once()
         mock_response.raise_for_status.assert_called_once()
 
-    @patch("app.services.tmdb_service.requests.get")
-    def test_get_movie_details_not_found(self, mock_get, tmdb_service):
+    @pytest.mark.asyncio
+    @patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock)
+    async def test_get_movie_details_not_found(self, mock_get, tmdb_service):
         """Test getting movie details when movie doesn't exist."""
+        request = httpx.Request("GET", "https://api.themoviedb.org/3/movie/999999999")
+        response = httpx.Response(404, request=request)
+
         mock_response = Mock()
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-            "404 Not Found"
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "404 Not Found",
+            request=request,
+            response=response,
         )
         mock_get.return_value = mock_response
 
-        with pytest.raises(requests.exceptions.HTTPError):
-            tmdb_service.get_movie_details(999999999)
+        with pytest.raises(httpx.HTTPStatusError):
+            await tmdb_service.get_movie_details(999999999)

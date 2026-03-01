@@ -11,7 +11,7 @@ stats_service = StatsService()
 
 
 @router.get("/me", response_model=StatsResponse)
-def get_my_stats(
+async def get_my_stats(
     request: Request,
     stats_request: StatsRequest = Depends(),
     user_id: str = Depends(auth_dependency),
@@ -33,11 +33,12 @@ def get_my_stats(
         )
 
     try:
-        return stats_service.get_user_stats(
+        stats_payload = await stats_service.get_user_stats(
             user_id=user_id,
             year_from=stats_request.year_from,
             year_to=stats_request.year_to,
         )
+        return StatsResponse(**stats_payload)
     except NotImplementedError:
         raise HTTPException(
             status_code=501, detail="Stats endpoint not implemented yet"

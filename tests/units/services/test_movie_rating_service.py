@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 from datetime import datetime
 
 from app.services.movie_rating_service import MovieRatingService
@@ -7,12 +7,12 @@ from app.services.movie_rating_service import MovieRatingService
 
 @pytest.fixture
 def mock_movie_rating_repository():
-    return Mock()
+    return AsyncMock()
 
 
 @pytest.fixture
 def mock_movie_service():
-    return Mock()
+    return AsyncMock()
 
 
 @pytest.fixture
@@ -26,7 +26,8 @@ def movie_rating_service(mock_movie_rating_repository, mock_movie_service):
 class TestMovieRatingService:
     """Tests for MovieRatingService."""
 
-    def test_create_update_movie_rating(
+    @pytest.mark.asyncio
+    async def test_create_update_movie_rating(
         self, movie_rating_service, mock_movie_rating_repository, mock_movie_service
     ):
         """Test creating/updating a movie rating."""
@@ -50,7 +51,7 @@ class TestMovieRatingService:
         )
 
         # Execute
-        result = movie_rating_service.create_update_movie_rating(
+        result = await movie_rating_service.create_update_movie_rating(
             user_id="user123", tmdb_id="550", rating=8, comment="Great movie!"
         )
 
@@ -58,9 +59,10 @@ class TestMovieRatingService:
         assert result.id == "rating123"
         assert result.rating == 8
         assert result.comment == "Great movie!"
-        mock_movie_service.find_or_create_movie.assert_called_once_with(tmdb_id="550")
+        mock_movie_service.find_or_create_movie.assert_awaited_once_with(tmdb_id="550")
 
-    def test_get_movie_rating_found(
+    @pytest.mark.asyncio
+    async def test_get_movie_rating_found(
         self, movie_rating_service, mock_movie_rating_repository
     ):
         """Test getting an existing movie rating."""
@@ -76,23 +78,25 @@ class TestMovieRatingService:
 
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.return_value = mock_rating
 
-        result = movie_rating_service.get_movie_rating("user123", "movie123")
+        result = await movie_rating_service.get_movie_rating("user123", "movie123")
 
         assert result is not None
         assert result.id == "rating123"
         assert result.rating == 8
 
-    def test_get_movie_rating_not_found(
+    @pytest.mark.asyncio
+    async def test_get_movie_rating_not_found(
         self, movie_rating_service, mock_movie_rating_repository
     ):
         """Test getting a movie rating that doesn't exist."""
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.return_value = None
 
-        result = movie_rating_service.get_movie_rating("user123", "movie123")
+        result = await movie_rating_service.get_movie_rating("user123", "movie123")
 
         assert result is None
 
-    def test_get_movie_ratings_by_tmdb_id_found(
+    @pytest.mark.asyncio
+    async def test_get_movie_ratings_by_tmdb_id_found(
         self, movie_rating_service, mock_movie_rating_repository
     ):
         """Test getting movie rating by TMDB ID."""
@@ -110,12 +114,13 @@ class TestMovieRatingService:
             mock_rating
         )
 
-        result = movie_rating_service.get_movie_ratings_by_tmdb_id("user123", 550)
+        result = await movie_rating_service.get_movie_ratings_by_tmdb_id("user123", 550)
 
         assert result is not None
         assert result.rating == 9
 
-    def test_get_movie_ratings_by_tmdb_id_not_found(
+    @pytest.mark.asyncio
+    async def test_get_movie_ratings_by_tmdb_id_not_found(
         self, movie_rating_service, mock_movie_rating_repository
     ):
         """Test getting movie rating by TMDB ID when not found."""
@@ -123,6 +128,6 @@ class TestMovieRatingService:
             None
         )
 
-        result = movie_rating_service.get_movie_ratings_by_tmdb_id("user123", 550)
+        result = await movie_rating_service.get_movie_ratings_by_tmdb_id("user123", 550)
 
         assert result is None
