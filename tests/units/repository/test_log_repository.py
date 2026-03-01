@@ -218,6 +218,55 @@ async def test_sort_by_date_watched(
 
 
 @pytest.mark.asyncio
+async def test_sort_by_watched_where(
+    beanie_test_db,
+    sample_movie,
+    log_repository: LogRepository,
+    movie_create_request: LogCreateRequest,
+    user_id: str,
+):
+    movie_create_request.watched_where = "streaming"
+    movie_create_request.date_watched = datetime(2023, 10, 1, tzinfo=UTC).date()
+    log_streaming_older = await log_repository.create_log(user_id, movie_create_request)
+    log_streaming_older.created_at = datetime(2023, 10, 1, 8, 0, tzinfo=UTC)
+    await log_streaming_older.save()
+
+    movie_create_request.watched_where = "cinema"
+    movie_create_request.date_watched = datetime(2023, 10, 2, tzinfo=UTC).date()
+    log_cinema = await log_repository.create_log(user_id, movie_create_request)
+
+    movie_create_request.watched_where = "streaming"
+    movie_create_request.date_watched = datetime(2023, 10, 3, tzinfo=UTC).date()
+    log_streaming_newer = await log_repository.create_log(user_id, movie_create_request)
+    log_streaming_newer.created_at = datetime(2023, 10, 1, 20, 0, tzinfo=UTC)
+    await log_streaming_newer.save()
+
+    movie_create_request.watched_where = "tv"
+    movie_create_request.date_watched = datetime(2023, 10, 4, tzinfo=UTC).date()
+    log_tv = await log_repository.create_log(user_id, movie_create_request)
+
+    logs_asc = await log_repository.find_logs_by_user_id(
+        user_id, LogListRequest(sort_by="watchedWhere", sort_order="asc")
+    )
+    assert [log["id"] for log in logs_asc] == [
+        str(log_cinema.id),
+        str(log_streaming_older.id),
+        str(log_streaming_newer.id),
+        str(log_tv.id),
+    ]
+
+    logs_desc = await log_repository.find_logs_by_user_id(
+        user_id, LogListRequest(sort_by="watchedWhere", sort_order="desc")
+    )
+    assert [log["id"] for log in logs_desc] == [
+        str(log_tv.id),
+        str(log_streaming_newer.id),
+        str(log_streaming_older.id),
+        str(log_cinema.id),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_log_list_with_watched_where_filter(
     beanie_test_db,
     sample_movie,

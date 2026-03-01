@@ -29,7 +29,21 @@ class Log(BaseEntity):
             IndexModel([("userId", ASCENDING)]),
             IndexModel([("dateWatched", ASCENDING)]),
             IndexModel([("userId", ASCENDING), ("dateWatched", DESCENDING)]),
+            IndexModel(
+                [
+                    ("userId", ASCENDING),
+                    ("dateWatched", DESCENDING),
+                    ("createdAt", DESCENDING),
+                ]
+            ),
             IndexModel([("userId", ASCENDING), ("movieId", ASCENDING)]),
             IndexModel([("tmdbId", ASCENDING), ("dateWatched", DESCENDING)]),
             IndexModel([("watchedWhere", ASCENDING)]),
+            IndexModel(
+                [
+                    ("userId", ASCENDING),
+                    ("watchedWhere", ASCENDING),
+                    ("createdAt", ASCENDING),
+                ]
+            ),
         ]
