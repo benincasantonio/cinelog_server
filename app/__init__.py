@@ -5,7 +5,7 @@ from beanie import init_beanie
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 import app.controllers.auth_controller as auth_controller
 import app.controllers.movie_controller as movie_controller
 import app.controllers.log_controller as log_controller
@@ -37,7 +37,7 @@ def _get_mongodb_settings() -> tuple[str, str]:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     mongodb_uri, mongodb_db = _get_mongodb_settings()
-    mongo_client: AsyncIOMotorClient = AsyncIOMotorClient(
+    mongo_client: AsyncMongoClient = AsyncMongoClient(
         mongodb_uri, uuidRepresentation="standard"
     )
     await init_beanie(
@@ -48,7 +48,7 @@ async def lifespan(_: FastAPI):
         yield
     finally:
         await TMDBService.aclose_all()
-        mongo_client.close()
+        await mongo_client.close()
 
 
 app = FastAPI(title="Cinelog API", lifespan=lifespan)
