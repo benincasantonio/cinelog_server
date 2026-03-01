@@ -4,12 +4,13 @@ Uses httpx ASGITransport for direct FastAPI testing.
 """
 
 import os
+import asyncio
 import httpx
 import pytest
 import pytest_asyncio
 from beanie import init_beanie
 from dotenv import load_dotenv
-from mongomock_motor import AsyncMongoMockClient
+from pymongo import AsyncMongoClient
 from unittest.mock import patch
 
 from app.models.log import Log
@@ -30,23 +31,33 @@ os.environ["MONGODB_DB"] = "cinelog_e2e_db"
 MONGO_DB = "cinelog_e2e_db"
 
 
-@pytest.fixture(scope="session")
-def mock_mongo_client():
-    client = AsyncMongoMockClient()
+@pytest_asyncio.fixture
+async def mongo_client():
+    client = AsyncMongoClient(
+        f"mongodb://{os.environ['MONGODB_HOST']}:{os.environ['MONGODB_PORT']}",
+        uuidRepresentation="standard",
+    )
+    # Wait briefly for the MongoDB container to become ready.
+    for _ in range(30):
+        try:
+            await client.admin.command("ping")
+            break
+        except Exception:
+            await asyncio.sleep(0.25)
+    else:
+        raise RuntimeError("MongoDB for E2E tests is not reachable on port 27018")
+
     yield client
-    client.close()
+    await client.close()
 
 
 @pytest_asyncio.fixture
-async def async_client(mock_mongo_client):
+async def async_client(mongo_client):
     """Async HTTP client using ASGITransport for direct app testing."""
-    import app as app_module
-
-    app_module.AsyncIOMotorClient = lambda *args, **kwargs: mock_mongo_client
-    app = app_module.app
+    from app import app
 
     await init_beanie(
-        database=mock_mongo_client[MONGO_DB],
+        database=mongo_client[MONGO_DB],
         document_models=[User, Log, Movie, MovieRating],
     )
 
@@ -59,9 +70,9 @@ async def async_client(mock_mongo_client):
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def clean_db(mock_mongo_client):
+async def clean_db(mongo_client):
     """Clean all collections before each test."""
-    db = mock_mongo_client[MONGO_DB]
+    db = mongo_client[MONGO_DB]
     collection_names = await db.list_collection_names()
     for collection_name in collection_names:
         await db.drop_collection(collection_name)
