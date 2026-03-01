@@ -27,7 +27,6 @@ dev = [
     "pytest-cov==7.0.0",
     "ruff==0.15.4",
     "types-passlib==1.7.7.20260211",
-    "types-requests==2.32.4.20260107",
 ]
 
 [tool.pytest.ini_options]
