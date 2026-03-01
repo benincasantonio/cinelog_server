@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from datetime import date
 
 from app import app
@@ -24,7 +24,10 @@ def override_auth():
 class TestUserController:
     """Tests for user controller endpoints."""
 
-    @patch("app.controllers.user_controller.user_service.get_user_info")
+    @patch(
+        "app.controllers.user_controller.user_service.get_user_info",
+        new_callable=AsyncMock,
+    )
     def test_get_user_info_success(self, mock_get_user_info, client, override_auth):
         """Test successful user info retrieval."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -38,8 +41,6 @@ class TestUserController:
             handle="johndoe",
             bio="A bio",
             date_of_birth=date(1990, 1, 1),
-            firebase_uid="firebase_uid",
-            firebase_data=None,
         )
 
         response = client.get(
@@ -51,7 +52,7 @@ class TestUserController:
         assert response.status_code == 200
         data = response.json()
         assert data["firstName"] == "John"
-        mock_get_user_info.assert_called_once_with("user123")
+        mock_get_user_info.assert_awaited_once_with("user123")
 
     def test_get_user_info_unauthorized(self, client):
         """Test user info without authentication."""
@@ -59,7 +60,10 @@ class TestUserController:
         response = client.get("/v1/users/info")
         assert response.status_code == 401
 
-    @patch("app.controllers.user_controller.user_service.get_user_info")
+    @patch(
+        "app.controllers.user_controller.user_service.get_user_info",
+        new_callable=AsyncMock,
+    )
     def test_get_user_info_not_found(self, mock_get_user_info, client, override_auth):
         """Test user info retrieval when user not found."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -73,7 +77,10 @@ class TestUserController:
 
         assert response.status_code == 404
 
-    @patch("app.controllers.user_controller.log_service.get_user_logs")
+    @patch(
+        "app.controllers.user_controller.log_service.get_user_logs",
+        new_callable=AsyncMock,
+    )
     def test_get_user_logs_success(self, mock_get_user_logs, client, override_auth):
         """Test successful user logs retrieval."""
         from app.schemas.log_schemas import LogListResponse

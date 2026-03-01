@@ -1,5 +1,7 @@
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
+
+from beanie import PydanticObjectId
 
 from app.services.movie_service import MovieService
 
@@ -9,11 +11,11 @@ class TestMovieService:
 
     @pytest.fixture
     def mock_movie_repository(self):
-        return Mock()
+        return AsyncMock()
 
     @pytest.fixture
     def mock_tmdb_service(self):
-        return Mock()
+        return AsyncMock()
 
     @pytest.fixture
     def movie_service(self, mock_movie_repository, mock_tmdb_service):
@@ -21,53 +23,61 @@ class TestMovieService:
             movie_repository=mock_movie_repository, tmdb_service=mock_tmdb_service
         )
 
-    def test_get_movie_by_id(self, movie_service, mock_movie_repository):
+    @pytest.mark.asyncio
+    async def test_get_movie_by_id(self, movie_service, mock_movie_repository):
         """Test getting a movie by ID."""
         mock_movie = Mock()
-        mock_movie.id = "movie123"
+        movie_id = PydanticObjectId()
+        mock_movie.id = movie_id
         mock_movie.title = "Test Movie"
         mock_movie_repository.find_movie_by_id.return_value = mock_movie
 
-        result = movie_service.get_movie_by_id("movie123")
+        result = await movie_service.get_movie_by_id(movie_id)
 
         assert result == mock_movie
-        mock_movie_repository.find_movie_by_id.assert_called_once_with("movie123")
+        mock_movie_repository.find_movie_by_id.assert_awaited_once_with(movie_id)
 
-    def test_get_movie_by_id_not_found(self, movie_service, mock_movie_repository):
+    @pytest.mark.asyncio
+    async def test_get_movie_by_id_not_found(
+        self, movie_service, mock_movie_repository
+    ):
         """Test getting a movie by ID when not found."""
         mock_movie_repository.find_movie_by_id.return_value = None
 
-        result = movie_service.get_movie_by_id("nonexistent")
+        result = await movie_service.get_movie_by_id(PydanticObjectId())
 
         assert result is None
 
-    def test_get_movie_by_tmdb_id(self, movie_service, mock_movie_repository):
+    @pytest.mark.asyncio
+    async def test_get_movie_by_tmdb_id(self, movie_service, mock_movie_repository):
         """Test getting a movie by TMDB ID."""
         mock_movie = Mock()
-        mock_movie.id = "movie123"
+        mock_movie.id = PydanticObjectId()
         mock_movie.tmdb_id = 550
         mock_movie_repository.find_movie_by_tmdb_id.return_value = mock_movie
 
-        result = movie_service.get_movie_by_tmdb_id(550)
+        result = await movie_service.get_movie_by_tmdb_id(550)
 
         assert result == mock_movie
-        mock_movie_repository.find_movie_by_tmdb_id.assert_called_once_with(550)
+        mock_movie_repository.find_movie_by_tmdb_id.assert_awaited_once_with(550)
 
-    def test_find_or_create_movie_exists(
+    @pytest.mark.asyncio
+    async def test_find_or_create_movie_exists(
         self, movie_service, mock_movie_repository, mock_tmdb_service
     ):
         """Test find_or_create when movie already exists."""
         mock_movie = Mock()
-        mock_movie.id = "movie123"
+        mock_movie.id = PydanticObjectId()
         mock_movie_repository.find_movie_by_tmdb_id.return_value = mock_movie
 
-        result = movie_service.find_or_create_movie(550)
+        result = await movie_service.find_or_create_movie(550)
 
         assert result == mock_movie
         # Should not call TMDB API since movie exists
-        mock_tmdb_service.get_movie_details.assert_not_called()
+        mock_tmdb_service.get_movie_details.assert_not_awaited()
 
-    def test_find_or_create_movie_creates_new(
+    @pytest.mark.asyncio
+    async def test_find_or_create_movie_creates_new(
         self, movie_service, mock_movie_repository, mock_tmdb_service
     ):
         """Test find_or_create when movie doesn't exist."""
@@ -80,10 +90,10 @@ class TestMovieService:
         mock_new_movie = Mock()
         mock_movie_repository.create_from_tmdb_data.return_value = mock_new_movie
 
-        result = movie_service.find_or_create_movie(550)
+        result = await movie_service.find_or_create_movie(550)
 
         assert result == mock_new_movie
-        mock_tmdb_service.get_movie_details.assert_called_once_with(550)
-        mock_movie_repository.create_from_tmdb_data.assert_called_once_with(
+        mock_tmdb_service.get_movie_details.assert_awaited_once_with(550)
+        mock_movie_repository.create_from_tmdb_data.assert_awaited_once_with(
             mock_tmdb_data
         )

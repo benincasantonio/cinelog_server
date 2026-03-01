@@ -1,8 +1,11 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from mongoengine import connect
 import os
+from contextlib import asynccontextmanager
+
+from beanie import init_beanie
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pymongo import AsyncMongoClient
 import app.controllers.auth_controller as auth_controller
 import app.controllers.movie_controller as movie_controller
 import app.controllers.log_controller as log_controller
@@ -12,10 +15,43 @@ import app.controllers.stats_controller as stats_controller
 from app.middleware.csrf_middleware import CSRFMiddleware
 from app.utils.exceptions import AppException
 from app.config.cors import get_cors_config
+from app.models.log import Log
+from app.models.movie import Movie
+from app.models.movie_rating import MovieRating
+from app.models.user import User
+from app.services.tmdb_service import TMDBService
 
-app = FastAPI(
-    title="Cinelog API",
-)
+
+def _get_mongodb_settings() -> tuple[str, str]:
+    mongodb_uri = os.getenv("MONGODB_URI")
+    mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
+
+    if mongodb_uri:
+        return mongodb_uri, mongodb_db
+
+    mongodb_host = os.getenv("MONGODB_HOST", "localhost")
+    mongodb_port = int(os.getenv("MONGODB_PORT", "27017"))
+    return f"mongodb://{mongodb_host}:{mongodb_port}", mongodb_db
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    mongodb_uri, mongodb_db = _get_mongodb_settings()
+    mongo_client: AsyncMongoClient = AsyncMongoClient(
+        mongodb_uri, uuidRepresentation="standard"
+    )
+    await init_beanie(
+        database=mongo_client[mongodb_db],
+        document_models=[User, Log, Movie, MovieRating],
+    )
+    try:
+        yield
+    finally:
+        await TMDBService.aclose_all()
+        await mongo_client.close()
+
+
+app = FastAPI(title="Cinelog API", lifespan=lifespan)
 
 app.add_middleware(
     CSRFMiddleware,
@@ -32,21 +68,6 @@ app.add_middleware(
 )
 
 app.add_middleware(CORSMiddleware, **get_cors_config())
-
-
-mongodb_uri = os.getenv("MONGODB_URI")
-
-if mongodb_uri:
-    mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
-    connect(host=mongodb_uri, db=mongodb_db, uuidRepresentation="standard")
-else:
-    mongodb_host = os.getenv("MONGODB_HOST", "localhost")
-    mongodb_port = int(os.getenv("MONGODB_PORT", "27017"))
-    mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
-
-    connect(
-        mongodb_db, host=mongodb_host, port=mongodb_port, uuidRepresentation="standard"
-    )
 
 
 @app.exception_handler(AppException)

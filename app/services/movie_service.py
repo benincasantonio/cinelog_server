@@ -1,7 +1,8 @@
+from beanie import PydanticObjectId
+
 from app.repository.movie_repository import MovieRepository
 from app.services.tmdb_service import TMDBService
 from app.models.movie import Movie
-import os
 
 
 class MovieService:
@@ -9,11 +10,9 @@ class MovieService:
         self, movie_repository: MovieRepository, tmdb_service: TMDBService | None = None
     ):
         self.movie_repository = movie_repository
-        self.tmdb_service = tmdb_service or TMDBService(
-            api_key=os.getenv("TMDB_API_KEY")
-        )
+        self.tmdb_service = tmdb_service or TMDBService.get_instance()
 
-    def get_movie_by_id(self, movie_id: str) -> Movie:
+    async def get_movie_by_id(self, movie_id: PydanticObjectId) -> Movie | None:
         """
         Find a movie by its ID.
 
@@ -23,9 +22,9 @@ class MovieService:
         Returns:
             Movie: The found movie, or None
         """
-        return self.movie_repository.find_movie_by_id(movie_id)
+        return await self.movie_repository.find_movie_by_id(movie_id)
 
-    def get_movie_by_tmdb_id(self, tmdb_id: int) -> Movie:
+    async def get_movie_by_tmdb_id(self, tmdb_id: int) -> Movie | None:
         """
         Find a movie by its TMDB ID.
 
@@ -35,9 +34,9 @@ class MovieService:
         Returns:
             Movie: The found movie, or None
         """
-        return self.movie_repository.find_movie_by_tmdb_id(tmdb_id)
+        return await self.movie_repository.find_movie_by_tmdb_id(tmdb_id)
 
-    def find_or_create_movie(self, tmdb_id: int) -> Movie:
+    async def find_or_create_movie(self, tmdb_id: int) -> Movie:
         """
         Find a movie by TMDB ID, or create it if it doesn't exist.
 
@@ -57,15 +56,15 @@ class MovieService:
             Exception: If TMDB API request fails or movie not found on TMDB
         """
         # Check if movie already exists
-        movie = self.movie_repository.find_movie_by_tmdb_id(tmdb_id)
+        movie = await self.movie_repository.find_movie_by_tmdb_id(tmdb_id)
 
         if movie:
             return movie
 
         # Movie doesn't exist, fetch from TMDB
-        tmdb_data = self.tmdb_service.get_movie_details(tmdb_id)
+        tmdb_data = await self.tmdb_service.get_movie_details(tmdb_id)
 
         # Create movie from TMDB data
-        movie = self.movie_repository.create_from_tmdb_data(tmdb_data)
+        movie = await self.movie_repository.create_from_tmdb_data(tmdb_data)
 
         return movie

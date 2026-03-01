@@ -3,29 +3,27 @@ from fastapi import APIRouter, Depends
 from app.dependencies.auth_dependency import auth_dependency
 from app.schemas.tmdb_schemas import TMDBMovieSearchResult, TMDBMovieDetails
 from app.services.tmdb_service import TMDBService
-from os import getenv
 
 router = APIRouter()
 
-TMDB_API_KEY = getenv("TMDB_API_KEY")
-tmdb_service = TMDBService(api_key=TMDB_API_KEY)
+tmdb_service = TMDBService.get_instance()
 
 
 @router.get("/search")
-def search_movies(
+async def search_movies(
     query: str, _: bool = Depends(auth_dependency)
 ) -> TMDBMovieSearchResult:
     """
     Search for movies using TMDB API.
     """
-    return tmdb_service.search_movie(query=query)
+    return await tmdb_service.search_movie(query=query)
 
 
 @router.get("/{tmdb_id}")
-def get_movie_details(
+async def get_movie_details(
     tmdb_id: int, _: bool = Depends(auth_dependency)
 ) -> TMDBMovieDetails:
     """
     Get full movie details from TMDB by movie ID.
     """
-    return tmdb_service.get_movie_details(tmdb_id=tmdb_id)
+    return await tmdb_service.get_movie_details(tmdb_id=tmdb_id)

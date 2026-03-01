@@ -4,16 +4,15 @@ version = "0.1.0"
 description = "Cinelog FastAPI backend"
 requires-python = ">=3.12"
 dependencies = [
+    "beanie==2.0.1",
     "bcrypt==4.3.0",
     "fastapi==0.115.14",
     "httpx==0.28.1",
-    "mongoengine==0.29.1",
     "passlib[bcrypt]==1.7.4",
     "pydantic[email]==2.11.10",
     "PyJWT==2.11.0",
     "python-dotenv==1.1.1",
     "python-multipart==0.0.22",
-    "requests==2.32.5",
     "uvicorn==0.34.3",
 ]
 
@@ -22,13 +21,12 @@ dev = [
     "bandit==1.9.4",
     "freezegun==1.5.5",
     "mypy==1.19.1",
-    "mongomock==4.3.0",
+    "mongomock-motor==0.0.35",
     "pytest==9.0.2",
     "pytest-asyncio==1.3.0",
     "pytest-cov==7.0.0",
     "ruff==0.15.4",
     "types-passlib==1.7.7.20260211",
-    "types-requests==2.32.4.20260107",
 ]
 
 [tool.pytest.ini_options]

@@ -1,90 +1,130 @@
-from unittest.mock import Mock, patch
+from bson import ObjectId
+import pytest
 
+from app.models.movie_rating import MovieRating
 from app.repository.movie_rating_repository import MovieRatingRepository
 
 
-class TestMovieRatingRepository:
-    """Tests for MovieRatingRepository."""
+@pytest.mark.asyncio
+async def test_find_movie_rating_by_user_and_movie(beanie_test_db):
+    repo = MovieRatingRepository()
+    user_id = str(ObjectId())
+    movie_id = str(ObjectId())
 
-    @patch("app.repository.movie_rating_repository.MovieRating")
-    def test_find_movie_rating_by_user_and_movie(self, mock_movie_rating):
-        """Test finding a movie rating by user and movie ID."""
-        mock_rating = Mock()
-        mock_movie_rating.objects.return_value.first.return_value = mock_rating
-
-        result = MovieRatingRepository.find_movie_rating_by_user_and_movie(
-            "user123", "movie123"
-        )
-
-        assert result == mock_rating
-        mock_movie_rating.objects.assert_called_once_with(
-            user_id="user123", movie_id="movie123"
-        )
-
-    @patch("app.repository.movie_rating_repository.MovieRating")
-    def test_find_movie_rating_by_user_and_movie_not_found(self, mock_movie_rating):
-        """Test when movie rating is not found."""
-        mock_movie_rating.objects.return_value.first.return_value = None
-
-        result = MovieRatingRepository.find_movie_rating_by_user_and_movie(
-            "user123", "movie456"
-        )
-
-        assert result is None
-
-    @patch("app.repository.movie_rating_repository.MovieRating")
-    def test_find_movie_rating_by_user_and_tmdb(self, mock_movie_rating):
-        """Test finding a movie rating by user and TMDB ID."""
-        mock_rating = Mock()
-        mock_movie_rating.objects.return_value.first.return_value = mock_rating
-
-        repo = MovieRatingRepository()
-        result = repo.find_movie_rating_by_user_and_tmdb("user123", "550")
-
-        assert result == mock_rating
-        mock_movie_rating.objects.assert_called_once_with(
-            user_id="user123", tmdb_id="550"
-        )
-
-    @patch(
-        "app.repository.movie_rating_repository.MovieRatingRepository.find_movie_rating_by_user_and_movie"
+    await repo.create_update_movie_rating(
+        user_id=user_id,
+        movie_id=movie_id,
+        rating=8,
+        comment="Great movie!",
+        tmdb_id=550,
     )
-    @patch("app.repository.movie_rating_repository.MovieRating")
-    def test_create_movie_rating_new(self, mock_movie_rating_class, mock_find):
-        """Test creating a new movie rating."""
-        mock_find.return_value = None  # No existing rating
 
-        mock_new_rating = Mock()
-        mock_movie_rating_class.return_value = mock_new_rating
+    result = await repo.find_movie_rating_by_user_and_movie(user_id, movie_id)
 
-        result = MovieRatingRepository.create_update_movie_rating(
-            user_id="user123",
-            movie_id="movie123",
-            rating=8,
-            comment="Great movie!",
-            tmdb_id=550,
-        )
+    assert result is not None
+    assert result.rating == 8
 
-        assert result == mock_new_rating
-        mock_new_rating.save.assert_called_once()
 
-    @patch(
-        "app.repository.movie_rating_repository.MovieRatingRepository.find_movie_rating_by_user_and_movie"
+@pytest.mark.asyncio
+async def test_find_movie_rating_by_user_and_movie_not_found(beanie_test_db):
+    repo = MovieRatingRepository()
+    result = await repo.find_movie_rating_by_user_and_movie(
+        str(ObjectId()), str(ObjectId())
     )
-    def test_update_movie_rating_existing(self, mock_find):
-        """Test updating an existing movie rating."""
-        mock_existing = Mock()
-        mock_find.return_value = mock_existing
+    assert result is None
 
-        result = MovieRatingRepository.create_update_movie_rating(
-            user_id="user123",
-            movie_id="movie123",
-            rating=9,
-            comment="Even better on rewatch!",
-            tmdb_id=550,
-        )
 
-        assert result == mock_existing
-        assert mock_existing.rating == 9
-        assert mock_existing.review == "Even better on rewatch!"
-        mock_existing.save.assert_called_once()
+@pytest.mark.asyncio
+async def test_find_movie_rating_by_user_and_movie_invalid_object_ids(beanie_test_db):
+    repo = MovieRatingRepository()
+    result = await repo.find_movie_rating_by_user_and_movie(
+        "invalid-user-id", "invalid-movie-id"
+    )
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_find_movie_rating_by_user_and_tmdb(beanie_test_db):
+    repo = MovieRatingRepository()
+    user_id = str(ObjectId())
+    movie_id = str(ObjectId())
+    await repo.create_update_movie_rating(
+        user_id=user_id,
+        movie_id=movie_id,
+        rating=7,
+        comment="Nice",
+        tmdb_id=600,
+    )
+
+    result = await repo.find_movie_rating_by_user_and_tmdb(user_id, 600)
+    assert result is not None
+    assert result.tmdb_id == 600
+
+
+@pytest.mark.asyncio
+async def test_find_movie_rating_by_user_and_tmdb_invalid_object_id(beanie_test_db):
+    repo = MovieRatingRepository()
+    result = await repo.find_movie_rating_by_user_and_tmdb("invalid-user-id", 600)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_create_movie_rating_new(beanie_test_db):
+    repo = MovieRatingRepository()
+    result = await repo.create_update_movie_rating(
+        user_id=str(ObjectId()),
+        movie_id=str(ObjectId()),
+        rating=8,
+        comment="Great movie!",
+        tmdb_id=550,
+    )
+
+    assert result is not None
+    assert result.rating == 8
+
+
+@pytest.mark.asyncio
+async def test_update_movie_rating_existing(beanie_test_db):
+    repo = MovieRatingRepository()
+    user_id = str(ObjectId())
+    movie_id = str(ObjectId())
+    await repo.create_update_movie_rating(
+        user_id=user_id,
+        movie_id=movie_id,
+        rating=8,
+        comment="Great movie!",
+        tmdb_id=550,
+    )
+
+    result = await repo.create_update_movie_rating(
+        user_id=user_id,
+        movie_id=movie_id,
+        rating=9,
+        comment="Even better on rewatch!",
+        tmdb_id=550,
+    )
+
+    assert result.rating == 9
+    assert result.review == "Even better on rewatch!"
+
+
+@pytest.mark.asyncio
+async def test_find_movie_rating_filters_soft_deleted(beanie_test_db):
+    repo = MovieRatingRepository()
+    user_id = str(ObjectId())
+    movie_id = str(ObjectId())
+    rating = await repo.create_update_movie_rating(
+        user_id=user_id,
+        movie_id=movie_id,
+        rating=8,
+        comment="Great movie!",
+        tmdb_id=777,
+    )
+    rating.deleted = True
+    await rating.save()
+
+    assert await repo.find_movie_rating_by_user_and_movie(user_id, movie_id) is None
+    assert await repo.find_movie_rating_by_user_and_tmdb(user_id, 777) is None
+    raw_rating = await MovieRating.get(rating.id)
+    assert raw_rating is not None
+    assert raw_rating.deleted is True

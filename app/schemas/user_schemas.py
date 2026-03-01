@@ -66,5 +66,4 @@ class UserResponse(BaseSchema):
     email: EmailStr
     handle: str
     bio: Optional[str] = None
-    date_of_birth: date
-    firebase_uid: Optional[str] = None
+    date_of_birth: Optional[date] = None

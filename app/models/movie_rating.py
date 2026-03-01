@@ -1,23 +1,25 @@
-from mongoengine import StringField, ObjectIdField, IntField
+from beanie import PydanticObjectId
+from pydantic import Field
+from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from app.models.base_entity import BaseEntity
-from bson import ObjectId
 
 
 class MovieRating(BaseEntity):
-    id = ObjectIdField(primary_key=True, default=lambda: ObjectId())
-    movie_id = ObjectIdField(db_field="movieId", required=True)
-    review = StringField()
-    rating = IntField(min_value=1, max_value=10)
-    user_id = ObjectIdField(db_field="userId", required=True)
-    tmdb_id = IntField(db_field="tmdbId", required=True)
+    id: PydanticObjectId = Field(default_factory=PydanticObjectId)
+    movie_id: PydanticObjectId = Field(alias="movieId")
+    review: str | None = None
+    rating: int | None = Field(default=None, ge=1, le=10)
+    user_id: PydanticObjectId = Field(alias="userId")
+    tmdb_id: int = Field(alias="tmdbId")
 
-    meta = {
-        "collection": "movie_ratings",
-        "indexes": [
-            {"fields": ["movie_id"]},
-            {"fields": ["rating"]},
-            {"fields": ["tmdb_id"]},
-            {"fields": ["user_id", "tmdb_id"], "unique": True},
-        ],
-    }
+    class Settings:
+        name = "movie_ratings"
+        indexes = [
+            IndexModel([("createdAt", DESCENDING)]),
+            IndexModel([("deleted", ASCENDING)]),
+            IndexModel([("movieId", ASCENDING)]),
+            IndexModel([("rating", ASCENDING)]),
+            IndexModel([("tmdbId", ASCENDING)]),
+            IndexModel([("userId", ASCENDING), ("tmdbId", ASCENDING)], unique=True),
+        ]

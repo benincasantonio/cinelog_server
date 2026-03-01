@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from datetime import date
 
 from app import app
@@ -92,7 +92,9 @@ def override_auth():
 class TestCreateLog:
     """Tests for POST /v1/logs endpoint."""
 
-    @patch("app.controllers.log_controller.log_service.create_log")
+    @patch(
+        "app.controllers.log_controller.log_service.create_log", new_callable=AsyncMock
+    )
     def test_create_log_success(
         self,
         mock_create_log,
@@ -157,7 +159,9 @@ class TestCreateLog:
 class TestUpdateLog:
     """Tests for PUT /v1/logs/{log_id} endpoint."""
 
-    @patch("app.controllers.log_controller.log_service.update_log")
+    @patch(
+        "app.controllers.log_controller.log_service.update_log", new_callable=AsyncMock
+    )
     def test_update_log_success(
         self, mock_update_log, client, sample_log_response, override_auth
     ):
@@ -199,7 +203,10 @@ class TestUpdateLog:
 class TestGetLogs:
     """Tests for GET /v1/logs endpoint."""
 
-    @patch("app.controllers.log_controller.log_service.get_user_logs")
+    @patch(
+        "app.controllers.log_controller.log_service.get_user_logs",
+        new_callable=AsyncMock,
+    )
     def test_get_logs_success(
         self, mock_get_logs, client, sample_log_list_response, override_auth
     ):
@@ -216,7 +223,10 @@ class TestGetLogs:
         assert len(data["logs"]) == 1
         mock_get_logs.assert_called_once()
 
-    @patch("app.controllers.log_controller.log_service.get_user_logs")
+    @patch(
+        "app.controllers.log_controller.log_service.get_user_logs",
+        new_callable=AsyncMock,
+    )
     def test_get_logs_with_filters(
         self, mock_get_logs, client, sample_log_list_response, override_auth
     ):

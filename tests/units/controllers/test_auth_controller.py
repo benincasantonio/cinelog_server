@@ -4,7 +4,7 @@ Unit tests for auth controller endpoints.
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from app import app
 from app.schemas.auth_schemas import RegisterResponse
@@ -18,7 +18,9 @@ def client():
 class TestAuthController:
     """Tests for auth controller endpoints."""
 
-    @patch("app.controllers.auth_controller.auth_service.register")
+    @patch(
+        "app.controllers.auth_controller.auth_service.register", new_callable=AsyncMock
+    )
     def test_register_success(self, mock_register, client):
         """Test successful user registration."""
         mock_register.return_value = RegisterResponse(
@@ -49,7 +51,9 @@ class TestAuthController:
         assert data["handle"] == "johndoe"
         mock_register.assert_called_once()
 
-    @patch("app.controllers.auth_controller.auth_service.register")
+    @patch(
+        "app.controllers.auth_controller.auth_service.register", new_callable=AsyncMock
+    )
     def test_register_with_exception(self, mock_register, client):
         """Test registration that raises AppException."""
         from app.utils.exceptions import AppException

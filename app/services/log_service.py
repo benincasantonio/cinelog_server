@@ -44,7 +44,9 @@ class LogService:
             updated_at=movie.updated_at,
         )
 
-    def create_log(self, user_id: str, request: LogCreateRequest) -> LogCreateResponse:
+    async def create_log(
+        self, user_id: str, request: LogCreateRequest
+    ) -> LogCreateResponse:
         """
         Create a new viewing log entry.
 
@@ -52,7 +54,9 @@ class LogService:
         and created automatically.
         """
         # Ensure movie exists (find or create from TMDB)
-        movie: Movie = self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
+        movie: Movie = await self.movie_service.find_or_create_movie(
+            tmdb_id=request.tmdb_id
+        )
 
         # Update the movieId in the request with the actual database ID
         request.movie_id = str(movie.id)
@@ -61,7 +65,7 @@ class LogService:
         if not request.poster_path and movie.poster_path:
             request.poster_path = movie.poster_path
 
-        log = self.log_repository.create_log(
+        log = await self.log_repository.create_log(
             user_id=user_id, create_log_request=request
         )
 
@@ -76,13 +80,13 @@ class LogService:
             watched_where=log.watched_where,
         )
 
-    def update_log(
+    async def update_log(
         self, user_id: str, log_id: str, request: LogUpdateRequest
     ) -> LogCreateResponse:
         """
         Update an existing log entry.
         """
-        log = self.log_repository.update_log(
+        log = await self.log_repository.update_log(
             log_id=log_id, user_id=user_id, update_request=request
         )
 
@@ -90,7 +94,9 @@ class LogService:
             # Log not found or doesn't belong to user
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
 
-        movie: Movie = self.movie_service.get_movie_by_id(str(log.movie_id))
+        movie = await self.movie_service.get_movie_by_id(log.movie_id)
+        if movie is None:
+            raise AppException(ErrorCodes.MOVIE_NOT_FOUND)
 
         return LogCreateResponse(
             id=str(log.id),
@@ -103,11 +109,13 @@ class LogService:
             watched_where=log.watched_where,
         )
 
-    def get_user_logs(self, user_id: str, request: LogListRequest) -> LogListResponse:
+    async def get_user_logs(
+        self, user_id: str, request: LogListRequest
+    ) -> LogListResponse:
         """
         Get list of user's viewing logs with optional filtering and sorting.
         """
-        logs_data = self.log_repository.find_logs_by_user_id(
+        logs_data = await self.log_repository.find_logs_by_user_id(
             user_id=user_id, request=request
         )
 

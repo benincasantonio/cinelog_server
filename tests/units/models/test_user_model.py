@@ -1,33 +1,14 @@
-import pytest
-from mongoengine import connect, disconnect
-import mongomock
-from app.models.user import User
 from datetime import datetime
 
+import pytest
+from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 
-@pytest.fixture(scope="module", autouse=True)
-def setup_and_teardown():
-    # Disconnect from any existing connections first
-    disconnect()
-    # Connect to a test database using the new mongo_client_class parameter
-    connect(
-        "mongoenginetest",
-        host="localhost",
-        mongo_client_class=mongomock.MongoClient,
-        uuidRepresentation="standard",
-    )
-    yield
-    # Disconnect from the test database
-    disconnect()
+from app.models.user import User
 
 
-@pytest.fixture(autouse=True)
-def clear_database():
-    # Clear the database before each test
-    User.objects.delete()
-
-
-def test_user_creation():
+@pytest.mark.asyncio
+async def test_user_creation(beanie_test_db):
     user = User(
         first_name="John",
         last_name="Doe",
@@ -35,22 +16,24 @@ def test_user_creation():
         date_of_birth="1990-01-01",
         handle="johndoe",
     )
-    user.save()
-    assert User.objects.count() == 1
+    await user.insert()
+
+    assert await User.find_all().count() == 1
 
 
-def test_required_fields():
-    user = User(
-        last_name="Doe",
-        email="john.doe@example.com",
-        date_of_birth="1990-01-01",
-        handle="johndoe",
-    )
+@pytest.mark.asyncio
+async def test_required_fields():
     with pytest.raises(Exception):
-        user.save()
+        User(
+            last_name="Doe",
+            email="john.doe@example.com",
+            date_of_birth="1990-01-01",
+            handle="johndoe",
+        )
 
 
-def test_email_uniqueness():
+@pytest.mark.asyncio
+async def test_email_uniqueness(beanie_test_db):
     user1 = User(
         first_name="John",
         last_name="Doe",
@@ -58,7 +41,7 @@ def test_email_uniqueness():
         date_of_birth="1990-01-01",
         handle="johndoe",
     )
-    user1.save()
+    await user1.insert()
 
     user2 = User(
         first_name="Jane",
@@ -67,11 +50,12 @@ def test_email_uniqueness():
         date_of_birth="1992-02-02",
         handle="janesmith",
     )
-    with pytest.raises(Exception):
-        user2.save()
+    with pytest.raises(DuplicateKeyError):
+        await user2.insert()
 
 
-def test_handle_uniqueness():
+@pytest.mark.asyncio
+async def test_handle_uniqueness(beanie_test_db):
     user1 = User(
         first_name="John",
         last_name="Doe",
@@ -79,8 +63,7 @@ def test_handle_uniqueness():
         date_of_birth="1990-01-01",
         handle="johndoe",
     )
-
-    user1.save()
+    await user1.insert()
 
     user2 = User(
         first_name="Jane",
@@ -89,12 +72,12 @@ def test_handle_uniqueness():
         date_of_birth="1992-02-02",
         handle="johndoe",
     )
+    with pytest.raises(DuplicateKeyError):
+        await user2.insert()
 
-    with pytest.raises(Exception):
-        user2.save()
 
-
-def test_created_at_field():
+@pytest.mark.asyncio
+async def test_created_at_field(beanie_test_db):
     user = User(
         first_name="John",
         last_name="Doe",
@@ -102,13 +85,14 @@ def test_created_at_field():
         date_of_birth="1990-01-01",
         handle="johndoe",
     )
-    user.save()
+    await user.insert()
 
     assert user.created_at is not None
     assert isinstance(user.created_at, datetime)
 
 
-def test_object_id_field():
+@pytest.mark.asyncio
+async def test_object_id_field(beanie_test_db):
     user = User(
         first_name="John",
         last_name="Doe",
@@ -116,7 +100,7 @@ def test_object_id_field():
         date_of_birth="1990-01-01",
         handle="johndoe",
     )
-    user.save()
+    await user.insert()
 
     assert user.id is not None
-    assert isinstance(user.id, mongomock.ObjectId)
+    assert isinstance(user.id, ObjectId)

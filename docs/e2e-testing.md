@@ -4,7 +4,7 @@ This guide walks through setting up and running end-to-end tests locally.
 
 ## Prerequisites
 
-- **Docker** - For running MongoDB and Firebase Emulator
+- **Docker** - For running MongoDB
 - **Python 3.12+** - With `uv` installed
 - **.env file** - With `TMDB_API_KEY` configured
 
@@ -14,14 +14,8 @@ This guide walks through setting up and running end-to-end tests locally.
 # 0. Sync dependencies
 uv sync --group dev
 
-# 1. Start Docker containers
-docker-compose -f docker-compose.e2e.yml up -d
-
-# 2. Run e2e tests
-uv run pytest tests/e2e -v
-
-# 3. Stop containers when done
-docker-compose -f docker-compose.e2e.yml down
+# 1. Run e2e tests with Docker MongoDB lifecycle managed automatically
+make test-e2e
 ```
 
 ## Infrastructure Components
@@ -29,15 +23,12 @@ docker-compose -f docker-compose.e2e.yml down
 | Service | Container | Port | Purpose |
 |---------|-----------|------|---------|
 | MongoDB | `cinelog_mongo_e2e` | 27018 | Test database |
-| Firebase Auth Emulator | `cinelog_firebase_emulator` | 9099 | Auth testing |
-| Firebase Emulator UI | - | 4000 | Web dashboard |
 
 ## Configuration Files
 
 | File | Purpose |
 |------|---------|
 | `docker-compose.e2e.yml` | Docker infrastructure |
-| `firebase.e2e.json` | Firebase emulator config |
 | `pyproject.toml` | pytest-asyncio settings (`[tool.pytest.ini_options]`) |
 | `tests/e2e/conftest.py` | Test fixtures |
 
@@ -49,8 +40,6 @@ The e2e tests automatically configure these (via `conftest.py`):
 MONGODB_HOST=localhost
 MONGODB_PORT=27018
 MONGODB_DB=cinelog_e2e_db
-FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
-FIREBASE_PROJECT_ID=demo-cinelog-e2e
 ```
 
 **Note:** `TMDB_API_KEY` is loaded from `.env` for log tests that fetch movie data.
@@ -66,11 +55,6 @@ tests/e2e/
 ```
 
 ## Debugging
-
-### View Firebase Emulator UI
-```
-http://localhost:4000
-```
 
 ### Connect to MongoDB
 ```bash

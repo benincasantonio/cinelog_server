@@ -1,31 +1,9 @@
-from mongoengine import disconnect, connect
-import mongomock
-from app.models.movie import Movie
 import pytest
+from beanie import PydanticObjectId
 
+from app.models.movie import Movie
 from app.repository.movie_repository import MovieRepository
 from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup_and_teardown():
-    # Disconnect from any existing connections first
-    disconnect()
-    # Connect to a test database using mongomock
-    connect(
-        "mongoenginetest",
-        host="localhost",
-        mongo_client_class=mongomock.MongoClient,
-        uuidRepresentation="standard",
-    )
-    yield
-    # Disconnect from the test database
-    disconnect()
-
-
-@pytest.fixture(autouse=True)
-def clear_database():
-    Movie.objects.delete()
 
 
 @pytest.fixture
@@ -35,98 +13,110 @@ def movie_create_request() -> MovieCreateRequest:
 
 @pytest.fixture
 def movie_update_request() -> MovieUpdateRequest:
-    return MovieUpdateRequest(
-        title="Inception Updated",
-    )
+    return MovieUpdateRequest(title="Inception Updated")
 
 
-def test_movie_creation(movie_create_request: MovieCreateRequest):
-    # Test movie creation
+@pytest.mark.asyncio
+async def test_movie_creation(beanie_test_db, movie_create_request: MovieCreateRequest):
     repository = MovieRepository()
-    movie = repository.create_movie(movie_create_request)
+    movie = await repository.create_movie(movie_create_request)
 
-    # Assertions
     assert movie is not None
     assert movie.id is not None
     assert movie.title == movie_create_request.title
     assert movie.tmdb_id == movie_create_request.tmdb_id
-    assert Movie.objects.count() == 1
 
 
-def test_movie_update(
-    movie_create_request: MovieCreateRequest, movie_update_request: MovieUpdateRequest
+@pytest.mark.asyncio
+async def test_movie_update(
+    beanie_test_db,
+    movie_create_request: MovieCreateRequest,
+    movie_update_request: MovieUpdateRequest,
 ):
-    # Test movie update
     repository = MovieRepository()
-    movie = repository.create_movie(movie_create_request)
+    movie = await repository.create_movie(movie_create_request)
 
-    repository.update_movie(movie.id, movie_update_request)
+    await repository.update_movie(movie.id, movie_update_request)
+    updated_movie = await repository.find_movie_by_id(movie.id)
 
-    updated_movie = repository.find_movie_by_id(movie.id)
-
-    # Assertions
     assert updated_movie is not None
     assert updated_movie.id == movie.id
     assert updated_movie.title == movie_update_request.title
 
 
-def test_find_movie_by_id(movie_create_request: MovieCreateRequest):
-    # Test finding a movie by ID
+@pytest.mark.asyncio
+async def test_find_movie_by_id(
+    beanie_test_db, movie_create_request: MovieCreateRequest
+):
     repository = MovieRepository()
-    movie = repository.create_movie(movie_create_request)
+    movie = await repository.create_movie(movie_create_request)
 
-    found_movie = repository.find_movie_by_id(movie.id)
+    found_movie = await repository.find_movie_by_id(movie.id)
 
-    # Assertions
     assert found_movie is not None
     assert found_movie.id == movie.id
     assert found_movie.title == movie_create_request.title
     assert found_movie.tmdb_id == movie_create_request.tmdb_id
 
 
-def test_find_movie_by_tmdb_id(movie_create_request: MovieCreateRequest):
-    # Test finding a movie by TMDB ID
+@pytest.mark.asyncio
+async def test_find_movie_by_tmdb_id(
+    beanie_test_db, movie_create_request: MovieCreateRequest
+):
     repository = MovieRepository()
-    movie = repository.create_movie(movie_create_request)
+    movie = await repository.create_movie(movie_create_request)
 
-    found_movie = repository.find_movie_by_tmdb_id(movie.tmdb_id)
+    found_movie = await repository.find_movie_by_tmdb_id(movie.tmdb_id)
 
-    # Assertions
     assert found_movie is not None
     assert found_movie.id == movie.id
     assert found_movie.title == movie_create_request.title
     assert found_movie.tmdb_id == movie_create_request.tmdb_id
 
 
-def test_update_movie_not_found(movie_update_request: MovieUpdateRequest):
-    """Test update_movie returns None when movie doesn't exist."""
+@pytest.mark.asyncio
+async def test_update_movie_not_found(
+    beanie_test_db, movie_update_request: MovieUpdateRequest
+):
     repository = MovieRepository()
-
-    result = repository.update_movie("507f1f77bcf86cd799439011", movie_update_request)
-
+    result = await repository.update_movie(
+        PydanticObjectId("507f1f77bcf86cd799439011"), movie_update_request
+    )
     assert result is None
 
 
-def test_find_movie_by_id_not_found():
-    """Test find_movie_by_id returns None when movie doesn't exist."""
+@pytest.mark.asyncio
+async def test_find_movie_by_id_not_found(beanie_test_db):
     repository = MovieRepository()
-
-    result = repository.find_movie_by_id("507f1f77bcf86cd799439011")
-
+    result = await repository.find_movie_by_id(PydanticObjectId("507f1f77bcf86cd799439011"))
     assert result is None
 
 
-def test_find_movie_by_tmdb_id_not_found():
-    """Test find_movie_by_tmdb_id returns None when movie doesn't exist."""
+@pytest.mark.asyncio
+async def test_find_movie_by_tmdb_id_not_found(beanie_test_db):
     repository = MovieRepository()
-
-    result = repository.find_movie_by_tmdb_id(999999999)
-
+    result = await repository.find_movie_by_tmdb_id(999999999)
     assert result is None
 
 
-def test_create_from_tmdb_data():
-    """Test creating a movie from TMDB data."""
+@pytest.mark.asyncio
+async def test_find_movie_filters_soft_deleted(
+    beanie_test_db, movie_create_request: MovieCreateRequest
+):
+    repository = MovieRepository()
+    movie = await repository.create_movie(movie_create_request)
+    movie.deleted = True
+    await movie.save()
+
+    assert await repository.find_movie_by_id(movie.id) is None
+    assert await repository.find_movie_by_tmdb_id(movie.tmdb_id) is None
+    raw_movie = await Movie.get(movie.id)
+    assert raw_movie is not None
+    assert raw_movie.deleted is True
+
+
+@pytest.mark.asyncio
+async def test_create_from_tmdb_data(beanie_test_db):
     from app.schemas.tmdb_schemas import TMDBMovieDetails
 
     repository = MovieRepository()
@@ -153,7 +143,7 @@ def test_create_from_tmdb_data():
         spoken_languages=[],
     )
 
-    movie = repository.create_from_tmdb_data(tmdb_data)
+    movie = await repository.create_from_tmdb_data(tmdb_data)
 
     assert movie is not None
     assert movie.tmdb_id == 12345
@@ -166,8 +156,8 @@ def test_create_from_tmdb_data():
     assert movie.release_date is not None
 
 
-def test_create_from_tmdb_data_without_release_date():
-    """Test creating a movie from TMDB data with empty release date."""
+@pytest.mark.asyncio
+async def test_create_from_tmdb_data_without_release_date(beanie_test_db):
     from app.schemas.tmdb_schemas import TMDBMovieDetails
 
     repository = MovieRepository()
@@ -175,7 +165,7 @@ def test_create_from_tmdb_data_without_release_date():
         id=12346,
         title="Test Movie No Date",
         original_title="Test Movie No Date Original",
-        release_date="",  # Empty string for no release date
+        release_date="",
         overview="Movie without release date",
         poster_path="/test/poster2.jpg",
         backdrop_path=None,
@@ -194,15 +184,15 @@ def test_create_from_tmdb_data_without_release_date():
         spoken_languages=[],
     )
 
-    movie = repository.create_from_tmdb_data(tmdb_data)
+    movie = await repository.create_from_tmdb_data(tmdb_data)
 
     assert movie is not None
     assert movie.tmdb_id == 12346
-    assert movie.release_date is None  # Empty string should result in None
+    assert movie.release_date is None
 
 
-def test_create_from_tmdb_data_with_invalid_date():
-    """Test creating a movie from TMDB data with invalid release date."""
+@pytest.mark.asyncio
+async def test_create_from_tmdb_data_with_invalid_date(beanie_test_db):
     from app.schemas.tmdb_schemas import TMDBMovieDetails
 
     repository = MovieRepository()
@@ -229,9 +219,46 @@ def test_create_from_tmdb_data_with_invalid_date():
         spoken_languages=[],
     )
 
-    movie = repository.create_from_tmdb_data(tmdb_data)
+    movie = await repository.create_from_tmdb_data(tmdb_data)
 
     assert movie is not None
     assert movie.tmdb_id == 12347
-    # Invalid date should result in None
     assert movie.release_date is None
+
+
+@pytest.mark.asyncio
+async def test_create_from_tmdb_data_duplicate_key_returns_existing(beanie_test_db):
+    from app.schemas.tmdb_schemas import TMDBMovieDetails
+
+    repository = MovieRepository()
+    existing = await repository.create_movie(
+        MovieCreateRequest(title="Existing Movie", tmdb_id=98765)
+    )
+
+    tmdb_data = TMDBMovieDetails(
+        id=98765,
+        title="Incoming Duplicate",
+        original_title="Incoming Duplicate",
+        release_date="2024-01-01",
+        overview="Duplicate TMDB movie payload",
+        poster_path="/duplicate.jpg",
+        backdrop_path=None,
+        vote_average=7.0,
+        vote_count=10,
+        runtime=100,
+        budget=1,
+        revenue=1,
+        status="Released",
+        original_language="en",
+        popularity=1.0,
+        adult=False,
+        genres=[],
+        production_companies=[],
+        production_countries=[],
+        spoken_languages=[],
+    )
+
+    returned = await repository.create_from_tmdb_data(tmdb_data)
+
+    assert returned.id == existing.id
+    assert returned.tmdb_id == existing.tmdb_id
