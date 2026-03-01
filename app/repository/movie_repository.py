@@ -39,9 +39,7 @@ class MovieRepository:
     @staticmethod
     async def find_movie_by_tmdb_id(tmdb_id: int) -> Movie | None:
         """Find a movie by TMDB ID."""
-        return await Movie.find_one(
-            Movie.active_filter({"tmdbId": tmdb_id})
-        )
+        return await Movie.find_one(Movie.active_filter({"tmdbId": tmdb_id}))
 
     @staticmethod
     async def create_from_tmdb_data(tmdb_data: TMDBMovieDetails) -> Movie:

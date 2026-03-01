@@ -20,8 +20,9 @@ class MovieRatingRepository:
             )
         )
 
+    @staticmethod
     async def find_movie_rating_by_user_and_tmdb(
-        self, user_id: str, tmdb_id: int
+        user_id: str, tmdb_id: int
     ) -> MovieRating | None:
         """
         Find a movie rating by user ID and TMDB ID.
@@ -30,9 +31,7 @@ class MovieRatingRepository:
         if user_object_id is None:
             return None
         return await MovieRating.find_one(
-            MovieRating.active_filter(
-                {"userId": user_object_id, "tmdbId": tmdb_id}
-            )
+            MovieRating.active_filter({"userId": user_object_id, "tmdbId": tmdb_id})
         )
 
     @staticmethod
