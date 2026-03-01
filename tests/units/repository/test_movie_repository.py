@@ -1,4 +1,5 @@
 import pytest
+from beanie import PydanticObjectId
 
 from app.models.movie import Movie
 from app.repository.movie_repository import MovieRepository
@@ -79,7 +80,7 @@ async def test_update_movie_not_found(
 ):
     repository = MovieRepository()
     result = await repository.update_movie(
-        "507f1f77bcf86cd799439011", movie_update_request
+        PydanticObjectId("507f1f77bcf86cd799439011"), movie_update_request
     )
     assert result is None
 
@@ -87,7 +88,7 @@ async def test_update_movie_not_found(
 @pytest.mark.asyncio
 async def test_find_movie_by_id_not_found(beanie_test_db):
     repository = MovieRepository()
-    result = await repository.find_movie_by_id("507f1f77bcf86cd799439011")
+    result = await repository.find_movie_by_id(PydanticObjectId("507f1f77bcf86cd799439011"))
     assert result is None
 
 

@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+from beanie import PydanticObjectId
 from bson import ObjectId
 import pytest
 
@@ -22,12 +23,13 @@ def user_id() -> str:
 
 @pytest.fixture
 def movie_id() -> str:
-    return str(ObjectId())
+    oid = PydanticObjectId()
+    return str(oid)
 
 
 @pytest.fixture
 async def sample_movie(beanie_test_db, movie_id: str):
-    movie = Movie(id=movie_id, tmdb_id=111111, title="Test Movie")
+    movie = Movie(id=PydanticObjectId(movie_id), tmdb_id=111111, title="Test Movie")
     await movie.insert()
     return movie
 

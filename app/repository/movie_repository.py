@@ -1,4 +1,6 @@
 from datetime import datetime, UTC
+
+from beanie import PydanticObjectId
 from pymongo.errors import DuplicateKeyError
 
 from app.models.movie import Movie
@@ -19,7 +21,7 @@ class MovieRepository:
         return movie
 
     @staticmethod
-    async def update_movie(id: str, request: MovieUpdateRequest) -> None:
+    async def update_movie(id: PydanticObjectId, request: MovieUpdateRequest) -> None:
         """Update a movie in the database."""
 
         movie = await MovieRepository.find_movie_by_id(id)
@@ -32,7 +34,7 @@ class MovieRepository:
         await movie.save()
 
     @staticmethod
-    async def find_movie_by_id(movie_id: str) -> Movie | None:
+    async def find_movie_by_id(movie_id: PydanticObjectId) -> Movie | None:
         """Find a movie by ID."""
         return await Movie.find_one(Movie.active_filter({"_id": movie_id}))
 

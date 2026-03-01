@@ -94,7 +94,7 @@ class LogService:
             # Log not found or doesn't belong to user
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
 
-        movie = await self.movie_service.get_movie_by_id(str(log.movie_id))
+        movie = await self.movie_service.get_movie_by_id(log.movie_id)
         if movie is None:
             raise AppException(ErrorCodes.MOVIE_NOT_FOUND)
 
