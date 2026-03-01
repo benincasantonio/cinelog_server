@@ -23,6 +23,14 @@ class BaseEntity(Document):
             self.created_at = now
         self.updated_at = now
 
+    @staticmethod
+    def active_filter(extra: dict | None = None) -> dict:
+        """Return a filter dict that excludes soft-deleted documents."""
+        filters: dict = {"deleted": {"$ne": True}}
+        if extra:
+            filters.update(extra)
+        return filters
+
     @before_event([Replace, SaveChanges])
     def set_updated_date(self) -> None:
         self.updated_at = utc_now()

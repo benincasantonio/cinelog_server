@@ -375,6 +375,22 @@ async def test_delete_log_success(
 
 
 @pytest.mark.asyncio
+async def test_find_log_by_id_filters_soft_deleted(
+    beanie_test_db,
+    sample_movie,
+    log_repository: LogRepository,
+    movie_create_request: LogCreateRequest,
+    user_id: str,
+):
+    log = await log_repository.create_log(user_id, movie_create_request)
+    log.deleted = True
+    await log.save()
+
+    found = await log_repository.find_log_by_id(str(log.id), user_id)
+    assert found is None
+
+
+@pytest.mark.asyncio
 async def test_find_logs_by_user_id_empty(
     beanie_test_db, log_repository: LogRepository, user_id: str
 ):
@@ -399,6 +415,27 @@ async def test_find_logs_by_user_id_without_request(
 
 
 @pytest.mark.asyncio
+async def test_find_logs_by_user_id_excludes_soft_deleted(
+    beanie_test_db,
+    sample_movie,
+    log_repository: LogRepository,
+    movie_create_request: LogCreateRequest,
+    user_id: str,
+):
+    active_log = await log_repository.create_log(user_id, movie_create_request)
+    movie_create_request.date_watched = datetime(2023, 10, 2, tzinfo=UTC).date()
+    deleted_log = await log_repository.create_log(user_id, movie_create_request)
+    deleted_log.deleted = True
+    await deleted_log.save()
+
+    logs = await log_repository.find_logs_by_user_id(
+        user_id, LogListRequest(sort_by="dateWatched", sort_order="desc")
+    )
+    assert len(logs) == 1
+    assert logs[0]["id"] == str(active_log.id)
+
+
+@pytest.mark.asyncio
 async def test_find_logs_by_movie_id_with_user_filter(
     beanie_test_db,
     sample_movie,
@@ -418,3 +455,19 @@ async def test_find_logs_by_movie_id_with_user_filter(
         movie_create_request.movie_id, other_user_id
     )
     assert len(logs) == 0
+
+
+@pytest.mark.asyncio
+async def test_find_logs_by_movie_id_excludes_soft_deleted(
+    beanie_test_db,
+    sample_movie,
+    log_repository: LogRepository,
+    movie_create_request: LogCreateRequest,
+    user_id: str,
+):
+    log = await log_repository.create_log(user_id, movie_create_request)
+    log.deleted = True
+    await log.save()
+
+    logs = await log_repository.find_logs_by_movie_id(movie_create_request.movie_id)
+    assert logs == []

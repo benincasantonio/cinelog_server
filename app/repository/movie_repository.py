@@ -34,12 +34,14 @@ class MovieRepository:
     @staticmethod
     async def find_movie_by_id(movie_id: str) -> Movie | None:
         """Find a movie by ID."""
-        return await Movie.get(movie_id)
+        return await Movie.find_one(Movie.active_filter({"_id": movie_id}))
 
     @staticmethod
     async def find_movie_by_tmdb_id(tmdb_id: int) -> Movie | None:
         """Find a movie by TMDB ID."""
-        return await Movie.find_one(Movie.tmdb_id == tmdb_id)
+        return await Movie.find_one(
+            Movie.active_filter({"tmdbId": tmdb_id})
+        )
 
     @staticmethod
     async def create_from_tmdb_data(tmdb_data: TMDBMovieDetails) -> Movie:

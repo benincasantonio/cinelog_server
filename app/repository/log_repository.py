@@ -39,7 +39,9 @@ class LogRepository:
         user_object_id = to_object_id(user_id)
         if log_object_id is None or user_object_id is None:
             return None
-        return await Log.find_one({"_id": log_object_id, "userId": user_object_id})
+        return await Log.find_one(
+            Log.active_filter({"_id": log_object_id, "userId": user_object_id})
+        )
 
     @staticmethod
     async def update_log(
@@ -73,7 +75,7 @@ class LogRepository:
         if user_object_id is None:
             return []
 
-        filters: dict = {"userId": user_object_id}
+        filters: dict = Log.active_filter({"userId": user_object_id})
         date_filters: dict = {}
 
         if request:
@@ -110,9 +112,13 @@ class LogRepository:
         object_movie_ids = list({to_object_id(movie_id) for movie_id in movie_ids})
         object_movie_ids = [movie_id for movie_id in object_movie_ids if movie_id]
 
-        movies = await Movie.find({"_id": {"$in": movie_ids}}).to_list()
+        movies = await Movie.find(
+            Movie.active_filter({"_id": {"$in": movie_ids}})
+        ).to_list()
         movie_ratings = await MovieRating.find(
-            {"userId": user_object_id, "movieId": {"$in": object_movie_ids}}
+            MovieRating.active_filter(
+                {"userId": user_object_id, "movieId": {"$in": object_movie_ids}}
+            )
         ).to_list()
 
         rating_map: dict[str, float] = {str(rating.movie_id): rating.rating for rating in movie_ratings}
@@ -157,7 +163,7 @@ class LogRepository:
         if movie_object_id is None:
             return []
 
-        query_params: dict = {"movieId": movie_object_id}
+        query_params: dict = Log.active_filter({"movieId": movie_object_id})
         if user_id:
             user_object_id = to_object_id(user_id)
             if user_object_id is None:

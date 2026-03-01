@@ -96,8 +96,10 @@ async def test_logical_delete_user(beanie_test_db):
 
     assert deleted is True
     user = await repository.find_user_by_id(str(created_user.id))
-    assert user is not None
-    assert user.deleted is True
+    assert user is None
+    raw_user = await User.get(created_user.id)
+    assert raw_user is not None
+    assert raw_user.deleted is True
 
 
 @pytest.mark.asyncio
@@ -119,7 +121,66 @@ async def test_oblivion_user(beanie_test_db):
     assert user is not None
     assert user.first_name == "Deleted"
     assert user.last_name == "User"
-    assert user.email == ""
+    assert user.email == f"deleted_{created_user.id}@deleted.local"
+    assert user.handle == f"deleted_{created_user.id}"
+    assert user.date_of_birth is None
+    assert user.password_hash is None
+    assert user.deleted is True
+    assert user.deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_oblivion_user_uses_unique_email_for_multiple_users(beanie_test_db):
+    repository = UserRepository()
+    first = await repository.create_user(
+        UserCreateRequest(
+            first_name="First",
+            last_name="User",
+            email="first@example.com",
+            password_hash="hash",
+            handle="firstuser",
+            date_of_birth=date(1990, 1, 1),
+        )
+    )
+    second = await repository.create_user(
+        UserCreateRequest(
+            first_name="Second",
+            last_name="User",
+            email="second@example.com",
+            password_hash="hash",
+            handle="seconduser",
+            date_of_birth=date(1990, 1, 1),
+        )
+    )
+
+    assert await repository.delete_user_oblivion(str(first.id)) is True
+    assert await repository.delete_user_oblivion(str(second.id)) is True
+
+    first_after = await User.get(first.id)
+    second_after = await User.get(second.id)
+    assert first_after is not None
+    assert second_after is not None
+    assert first_after.email != second_after.email
+
+
+@pytest.mark.asyncio
+async def test_find_user_filters_soft_deleted(beanie_test_db):
+    repository = UserRepository()
+    created_user = await repository.create_user(
+        UserCreateRequest(
+            first_name="Deleted",
+            last_name="User",
+            email="deleted.user@example.com",
+            password_hash="hash",
+            handle="deleteduser",
+            date_of_birth=date(1990, 1, 1),
+        )
+    )
+    assert await repository.delete_user(str(created_user.id)) is True
+
+    assert await repository.find_user_by_id(str(created_user.id)) is None
+    assert await repository.find_user_by_email("deleted.user@example.com") is None
+    assert await repository.find_user_by_handle("deleteduser") is None
 
 
 @pytest.mark.asyncio
