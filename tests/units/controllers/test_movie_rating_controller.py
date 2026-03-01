@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from datetime import datetime
 
 from app import app
@@ -23,7 +23,8 @@ class TestMovieRatingController:
     """Tests for movie rating controller endpoints."""
 
     @patch(
-        "app.controllers.movie_rating_controller.movie_rating_service.create_update_movie_rating"
+        "app.controllers.movie_rating_controller.movie_rating_service.create_update_movie_rating",
+        new_callable=AsyncMock,
     )
     def test_create_movie_rating_success(
         self, mock_create_rating, client, override_auth
@@ -67,7 +68,8 @@ class TestMovieRatingController:
         assert response.status_code == 401
 
     @patch(
-        "app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id"
+        "app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id",
+        new_callable=AsyncMock,
     )
     def test_get_movie_rating_success(self, mock_get_rating, client, override_auth):
         """Test getting a movie rating."""
@@ -95,7 +97,8 @@ class TestMovieRatingController:
         assert data["rating"] == 8
 
     @patch(
-        "app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id"
+        "app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id",
+        new_callable=AsyncMock,
     )
     def test_get_movie_rating_not_found(self, mock_get_rating, client, override_auth):
         """Test getting a movie rating that doesn't exist."""
@@ -111,7 +114,8 @@ class TestMovieRatingController:
         assert response.status_code == 404
 
     @patch(
-        "app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id"
+        "app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id",
+        new_callable=AsyncMock,
     )
     def test_get_movie_rating_with_user_id_param(
         self, mock_get_rating, client, override_auth

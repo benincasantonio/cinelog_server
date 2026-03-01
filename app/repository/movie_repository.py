@@ -1,11 +1,8 @@
-from mongoengine.errors import NotUniqueError
-from app.models.movie import Movie
-from app.schemas.movie_schemas import (
-    MovieCreateRequest,
-    MovieUpdateRequest,
-)
 from datetime import datetime, UTC
+from pymongo.errors import DuplicateKeyError
 
+from app.models.movie import Movie
+from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
 from app.schemas.tmdb_schemas import TMDBMovieDetails
 
 
@@ -13,37 +10,39 @@ class MovieRepository:
     """Repository class for movie-related operations."""
 
     @staticmethod
-    def create_movie(request: MovieCreateRequest) -> Movie:
+    async def create_movie(request: MovieCreateRequest) -> Movie:
         """Create a new movie in the database."""
 
         movie_data = request.model_dump()
         movie = Movie(**movie_data)
-        movie.save()
+        await movie.insert()
         return movie
 
     @staticmethod
-    def update_movie(id: str, request: MovieUpdateRequest) -> None:
+    async def update_movie(id: str, request: MovieUpdateRequest) -> None:
         """Update a movie in the database."""
 
-        movie = MovieRepository.find_movie_by_id(id)
+        movie = await MovieRepository.find_movie_by_id(id)
 
         if not movie:
             return None
 
-        movie.update(set__title=request.title, set__updated_at=datetime.now(UTC))
+        movie.title = request.title
+        movie.updated_at = datetime.now(UTC)
+        await movie.save()
 
     @staticmethod
-    def find_movie_by_id(movie_id: str) -> Movie:
+    async def find_movie_by_id(movie_id: str) -> Movie | None:
         """Find a movie by ID."""
-        return Movie.objects(id=movie_id).first()
+        return await Movie.get(movie_id)
 
     @staticmethod
-    def find_movie_by_tmdb_id(tmdb_id: int) -> Movie:
+    async def find_movie_by_tmdb_id(tmdb_id: int) -> Movie | None:
         """Find a movie by TMDB ID."""
-        return Movie.objects(tmdb_id=tmdb_id).first()
+        return await Movie.find_one(Movie.tmdb_id == tmdb_id)
 
     @staticmethod
-    def create_from_tmdb_data(tmdb_data: TMDBMovieDetails) -> Movie:
+    async def create_from_tmdb_data(tmdb_data: TMDBMovieDetails) -> Movie:
         """
         Create a movie from TMDB API response data.
 
@@ -79,7 +78,10 @@ class MovieRepository:
         )
 
         try:
-            movie.save()
+            await movie.insert()
             return movie
-        except NotUniqueError:
-            return MovieRepository.find_movie_by_tmdb_id(tmdb_data.id)
+        except DuplicateKeyError:
+            existing_movie = await MovieRepository.find_movie_by_tmdb_id(tmdb_data.id)
+            if existing_movie is None:
+                raise
+            return existing_movie

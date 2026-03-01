@@ -8,7 +8,7 @@ class StatsService:
     def __init__(self, log_repository: LogRepository | None = None):
         self.log_repository = log_repository or LogRepository()
 
-    def get_user_stats(
+    async def get_user_stats(
         self, user_id: str, year_from: int | None = None, year_to: int | None = None
     ) -> dict:
         """
@@ -26,11 +26,14 @@ class StatsService:
         request: LogListRequest | None = None
         if date_from is not None or date_to is not None:
             request = LogListRequest(
+                sort_by="dateWatched",
+                sort_order="desc",
+                watched_where=None,
                 date_watched_from=date_from,
                 date_watched_to=date_to,
             )
 
-        logs = self.log_repository.find_logs_by_user_id(user_id, request=request)
+        logs = await self.log_repository.find_logs_by_user_id(user_id, request=request)
 
         summary = self.compute_summary(logs)
 

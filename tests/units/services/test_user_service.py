@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 from datetime import date
 
 from app.services.user_service import UserService
@@ -9,7 +9,7 @@ from app.utils.error_codes import ErrorCodes
 
 @pytest.fixture
 def mock_user_repository():
-    return Mock()
+    return AsyncMock()
 
 
 @pytest.fixture
@@ -43,27 +43,31 @@ def create_mock_user(
 class TestUserService:
     """Tests for UserService."""
 
-    def test_get_user_info_success(self, user_service, mock_user_repository):
+    @pytest.mark.asyncio
+    async def test_get_user_info_success(self, user_service, mock_user_repository):
         """Test successful user info retrieval."""
         # Setup mock user
         mock_user = create_mock_user()
         mock_user_repository.find_user_by_id.return_value = mock_user
 
         # Execute
-        result = user_service.get_user_info("user123")
+        result = await user_service.get_user_info("user123")
 
         # Verify
         assert result.id == "user123"
         assert result.first_name == "John"
         assert result.last_name == "Doe"
         assert result.firebase_uid is None
-        mock_user_repository.find_user_by_id.assert_called_once_with("user123")
+        mock_user_repository.find_user_by_id.assert_awaited_once_with("user123")
 
-    def test_get_user_info_user_not_found(self, user_service, mock_user_repository):
+    @pytest.mark.asyncio
+    async def test_get_user_info_user_not_found(
+        self, user_service, mock_user_repository
+    ):
         """Test get_user_info when user is not found."""
         mock_user_repository.find_user_by_id.return_value = None
 
         with pytest.raises(AppException) as exc_info:
-            user_service.get_user_info("nonexistent_user")
+            await user_service.get_user_info("nonexistent_user")
 
         assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
