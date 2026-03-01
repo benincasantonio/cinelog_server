@@ -41,8 +41,6 @@ class TestUserController:
             handle="johndoe",
             bio="A bio",
             date_of_birth=date(1990, 1, 1),
-            firebase_uid="firebase_uid",
-            firebase_data=None,
         )
 
         response = client.get(

@@ -25,7 +25,6 @@ def create_mock_user(
     handle="johndoe",
     bio=None,
     date_of_birth=None,
-    firebase_uid=None,
 ):
     """Helper to create a mock user with proper attributes."""
     mock_user = Mock()
@@ -36,7 +35,6 @@ def create_mock_user(
     mock_user.handle = handle
     mock_user.bio = bio
     mock_user.date_of_birth = date_of_birth or date(1990, 1, 1)
-    mock_user.firebase_uid = firebase_uid
     return mock_user
 
 
@@ -57,7 +55,6 @@ class TestUserService:
         assert result.id == "user123"
         assert result.first_name == "John"
         assert result.last_name == "Doe"
-        assert result.firebase_uid is None
         mock_user_repository.find_user_by_id.assert_awaited_once_with("user123")
 
     @pytest.mark.asyncio

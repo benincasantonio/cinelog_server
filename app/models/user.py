@@ -15,8 +15,6 @@ class User(BaseEntity):
     handle: str
     bio: str | None = None
     date_of_birth: datetime | None = Field(default=None, alias="dateOfBirth")
-    firebase_uid: str | None = Field(default=None, alias="firebaseUid")
-
     password_hash: str | None = Field(default=None, alias="passwordHash")
     reset_password_code: str | None = Field(default=None, alias="resetPasswordCode")
     reset_password_expires: datetime | None = Field(
@@ -30,5 +28,4 @@ class User(BaseEntity):
             IndexModel([("deleted", ASCENDING)]),
             IndexModel([("email", ASCENDING)], unique=True),
             IndexModel([("handle", ASCENDING)], unique=True),
-            IndexModel([("firebaseUid", ASCENDING)], unique=True, sparse=True),
         ]
