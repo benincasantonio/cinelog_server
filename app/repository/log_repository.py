@@ -6,6 +6,8 @@ from app.models.movie_rating import MovieRating
 from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogUpdateRequest
 from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
 from app.utils.object_id_utils import to_object_id
+from beanie import SortDirection
+
 
 
 class LogRepository:
@@ -85,18 +87,24 @@ class LogRepository:
         if date_filters:
             filters["dateWatched"] = date_filters
 
-        logs = await Log.find(filters).to_list()
+        sort_spec: list[tuple[str, SortDirection]] = [("dateWatched", SortDirection.DESCENDING)]
+        sort_direction: SortDirection = SortDirection.DESCENDING
+        if request:
+            sort_direction = SortDirection.DESCENDING if request.sort_order == "desc" else SortDirection.ASCENDING
+            if request.sort_by == "watchedWhere":
+                sort_spec = [
+                    ("watchedWhere", sort_direction),
+                    ("createdAt", sort_direction),
+                ]
+            else:
+                sort_spec = [
+                    ("dateWatched", sort_direction),
+                    ("createdAt", sort_direction),
+                ]
+
+        logs = await Log.find(filters).sort(sort_spec).to_list()
         if not logs:
             return []
-
-        sort_field = "date_watched"
-        reverse = True
-        if request and request.sort_by:
-            sort_field = (
-                "watched_where" if request.sort_by == "watchedWhere" else "date_watched"
-            )
-            reverse = request.sort_order == "desc"
-        logs.sort(key=lambda log: getattr(log, sort_field), reverse=reverse)
 
         movie_ids = list({str(log.movie_id) for log in logs})
         object_movie_ids = list({to_object_id(movie_id) for movie_id in movie_ids})
@@ -107,8 +115,8 @@ class LogRepository:
             {"userId": user_object_id, "movieId": {"$in": object_movie_ids}}
         ).to_list()
 
-        rating_map = {str(rating.movie_id): rating.rating for rating in movie_ratings}
-        movie_map = {movie.id: movie for movie in movies}
+        rating_map: dict[str, float] = {str(rating.movie_id): rating.rating for rating in movie_ratings}
+        movie_map: dict[str, Movie] = {str(movie.id): movie for movie in movies}
 
         result: list[dict] = []
         for log in logs:
