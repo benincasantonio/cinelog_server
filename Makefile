@@ -1,4 +1,4 @@
-.PHONY: install dev test-unit test-e2e lint format typecheck security run docker-up docker-down
+.PHONY: install dev test-unit test-e2e lint format typecheck security run docker-up docker-down migrate migrate-dry-run
 
 install:
 	uv sync
@@ -34,3 +34,9 @@ docker-up:
 
 docker-down:
 	docker compose -f docker-compose.local.yml down
+
+migrate:
+	uv run python -m migrations.runner
+
+migrate-dry-run:
+	uv run python -m migrations.runner --dry-run

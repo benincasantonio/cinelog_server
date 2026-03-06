@@ -57,7 +57,7 @@ class TestLogE2E:
         assert response.status_code in [401, 403]
 
     async def test_get_logs_success(self, async_client):
-        """Test getting user's logs."""
+        """Test getting user's logs with rated movie."""
         user_data = {
             "email": "getlogs_test@example.com",
             "password": "securepassword123",
@@ -76,6 +76,13 @@ class TestLogE2E:
             json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
         )
 
+        # Rate the movie
+        await async_client.post(
+            "/v1/movie-ratings/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"tmdbId": 550, "rating": 8, "comment": "Great movie!"},
+        )
+
         # Get logs (GET is safe, no CSRF needed, cookies auto-sent)
         response = await async_client.get("/v1/logs/")
 
@@ -84,6 +91,40 @@ class TestLogE2E:
         assert len(data["logs"]) == 1
         assert data["logs"][0]["tmdbId"] == 550
         assert data["logs"][0]["movie"]["tmdbId"] == 550
+        # Verify movieRating is included when movie is rated
+        assert "movieRating" in data["logs"][0]
+        assert data["logs"][0]["movieRating"] == 8
+
+    async def test_get_logs_unrated_movie(self, async_client):
+        """Test getting user's logs with unrated movie."""
+        user_data = {
+            "email": "unrated_logs_test@example.com",
+            "password": "securepassword123",
+            "firstName": "UnratedLogs",
+            "lastName": "Test",
+            "handle": "unratedlogstest",
+            "dateOfBirth": "1990-01-01",
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+
+        # Create a log entry WITHOUT rating the movie
+        await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"tmdbId": 13, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
+        )
+
+        # Get logs
+        response = await async_client.get("/v1/logs/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["logs"]) == 1
+        assert data["logs"][0]["tmdbId"] == 13
+        assert data["logs"][0]["movie"]["tmdbId"] == 13
+        # Verify movieRating is None when movie is not rated
+        assert data["logs"][0].get("movieRating") is None
 
     async def test_update_log_success(self, async_client):
         """Test updating an existing log entry."""
