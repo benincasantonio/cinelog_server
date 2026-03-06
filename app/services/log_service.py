@@ -1,4 +1,7 @@
+from beanie import PydanticObjectId
+
 from app.repository.log_repository import LogRepository
+from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
 from app.services.movie_service import MovieService
 from app.schemas.movie_schemas import MovieResponse
@@ -19,7 +22,11 @@ class LogService:
     """Service layer for log operations."""
 
     def __init__(
-        self, log_repository: LogRepository, movie_service: MovieService | None = None
+        self,
+        log_repository: LogRepository,
+        movie_service: MovieService | None = None,
+        movie_repository: MovieRepository | None = None,
+        movie_rating_repository: MovieRatingRepository | None = None,
     ):
         self.log_repository = log_repository
         # Initialize movie service if not provided
@@ -28,10 +35,14 @@ class LogService:
             movie_service = MovieService(movie_repository)
 
         self.movie_service = movie_service
+        self.movie_rating_repository = (
+            movie_rating_repository or MovieRatingRepository()
+        )
+        self.movie_repository = movie_repository or MovieRepository()
 
     def _map_movie_to_response(self, movie: Movie) -> MovieResponse:
         return MovieResponse(
-            id=str(movie.id),
+            id=movie.id,
             title=movie.title,
             tmdb_id=movie.tmdb_id,
             poster_path=movie.poster_path,
@@ -45,7 +56,7 @@ class LogService:
         )
 
     async def create_log(
-        self, user_id: str, request: LogCreateRequest
+        self, user_id: PydanticObjectId, request: LogCreateRequest
     ) -> LogCreateResponse:
         """
         Create a new viewing log entry.
@@ -81,7 +92,7 @@ class LogService:
         )
 
     async def update_log(
-        self, user_id: str, log_id: str, request: LogUpdateRequest
+        self, user_id: PydanticObjectId, log_id: str, request: LogUpdateRequest
     ) -> LogCreateResponse:
         """
         Update an existing log entry.
@@ -110,31 +121,52 @@ class LogService:
         )
 
     async def get_user_logs(
-        self, user_id: str, request: LogListRequest
+        self, user_id: PydanticObjectId, request: LogListRequest
     ) -> LogListResponse:
         """
         Get list of user's viewing logs with optional filtering and sorting.
         """
+
         logs_data = await self.log_repository.find_logs_by_user_id(
-            user_id=user_id, request=request
+            user_id=user_id,
+            watched_where=request.watched_where,
+            date_watched_from=request.date_watched_from or None,
+            date_watched_to=request.date_watched_to or None,
+            sort_by=request.sort_by,
+            sort_order=request.sort_order,
         )
+
+        unique_movie_ids = {log_data.movie_id for log_data in logs_data}
+
+        movie_ratings = (
+            await self.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids(
+                user_id=user_id, movie_ids=unique_movie_ids
+            )
+        )
+
+        movies = await self.movie_repository.find_movies_by_ids(unique_movie_ids)
 
         log_items = []
         for log_data in logs_data:
-            movie = log_data.get("movie")
+            movie = next((m for m in movies if m.id == log_data.movie_id), None)
             movie_response = self._map_movie_to_response(movie) if movie else None
-            log_items.append(
-                LogListItem(
-                    id=log_data["id"],
-                    movie_id=str(log_data["movieId"]),
-                    movie=movie_response,
-                    movie_rating=log_data.get("movieRating"),
-                    tmdb_id=log_data["tmdbId"],
-                    date_watched=log_data["dateWatched"],
-                    viewing_notes=log_data.get("viewingNotes"),
-                    poster_path=log_data.get("posterPath"),
-                    watched_where=log_data.get("watchedWhere"),
-                )
+
+            movie_rating = next(
+                (r.rating for r in movie_ratings if r.movie_id == log_data.movie_id),
+                None,
             )
 
+            log_items.append(
+                LogListItem(
+                    id=log_data.id,
+                    movie_id=log_data.movie_id,
+                    movie=movie_response,
+                    movie_rating=movie_rating,
+                    tmdb_id=log_data.tmdb_id,
+                    date_watched=log_data.date_watched,
+                    viewing_notes=log_data.viewing_notes,
+                    poster_path=log_data.poster_path,
+                    watched_where=log_data.watched_where,
+                )
+            )
         return LogListResponse(logs=log_items)

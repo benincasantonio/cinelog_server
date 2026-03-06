@@ -1,3 +1,5 @@
+from beanie import PydanticObjectId
+
 from app.models.movie_rating import MovieRating
 from app.utils.object_id_utils import to_object_id
 
@@ -5,7 +7,7 @@ from app.utils.object_id_utils import to_object_id
 class MovieRatingRepository:
     @staticmethod
     async def find_movie_rating_by_user_and_movie(
-        user_id: str, movie_id: str
+        user_id: str, movie_id: PydanticObjectId
     ) -> MovieRating | None:
         """
         Find a movie rating by user ID and movie ID.
@@ -36,7 +38,7 @@ class MovieRatingRepository:
 
     @staticmethod
     async def create_update_movie_rating(
-        user_id: str, movie_id: str, rating: int, comment: str | None, tmdb_id: int
+        user_id: str, movie_id: PydanticObjectId, rating: int, comment: str | None, tmdb_id: int
     ) -> MovieRating:
         """
         Create or update a movie rating for a specific user and movie.
@@ -68,3 +70,18 @@ class MovieRatingRepository:
         )
         await new_rating.insert()
         return new_rating
+
+    async def find_movie_ratings_by_user_and_movie_ids(
+        self, user_id: PydanticObjectId, movie_ids: set[PydanticObjectId]
+    ) -> list[MovieRating]:
+        """
+        Find all movie ratings for a specific user and a set of movie IDs.
+        """
+        user_object_id = to_object_id(user_id)
+        if user_object_id is None:
+            return []
+        return await MovieRating.find(
+            MovieRating.active_filter(
+                {"userId": user_object_id, "movieId": {"$in": list(movie_ids)}}
+            )
+        ).to_list()

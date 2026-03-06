@@ -1,5 +1,7 @@
 from datetime import date
 
+from beanie import PydanticObjectId
+
 from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import LogListRequest
 
@@ -9,7 +11,10 @@ class StatsService:
         self.log_repository = log_repository or LogRepository()
 
     async def get_user_stats(
-        self, user_id: str, year_from: int | None = None, year_to: int | None = None
+        self,
+        user_id: PydanticObjectId,
+        year_from: int | None = None,
+        year_to: int | None = None,
     ) -> dict:
         """
         Retrieve summary stats for a given user.
@@ -23,17 +28,14 @@ class StatsService:
         )
         date_to: date | None = date(year_to, 12, 31) if year_to is not None else None
 
-        request: LogListRequest | None = None
-        if date_from is not None or date_to is not None:
-            request = LogListRequest(
-                sort_by="dateWatched",
-                sort_order="desc",
-                watched_where=None,
-                date_watched_from=date_from,
-                date_watched_to=date_to,
-            )
-
-        logs = await self.log_repository.find_logs_by_user_id(user_id, request=request)
+        logs = await self.log_repository.find_logs_by_user_id(
+            user_id,
+            sort_by="dateWatched",
+            sort_order="desc",
+            watched_where=None,
+            date_watched_from=date_from,
+            date_watched_to=date_to,
+        )
 
         summary = self.compute_summary(logs)
 
@@ -45,10 +47,10 @@ class StatsService:
 
     def compute_summary(self, logs: list) -> dict:
         """
-        Compute the summary stats from a list of log records.
+        Compute summary stats from a list of log records.
 
         Args:
-            logs: list of log dicts or objects returned by the repository
+            logs: list of Log objects returned by the repository
 
         Returns:
             dict with keys: total_watches, unique_titles, total_rewatches, total_minutes
@@ -65,7 +67,7 @@ class StatsService:
         total_watches = len(logs)
 
         # unique titles are unique movieId values
-        unique_titles = len({str(log.get("movieId")) for log in logs}) if logs else 0
+        unique_titles = len({str(log.movie_id) for log in logs}) if logs else 0
 
         total_rewatches = max(0, total_watches - unique_titles)
 
@@ -74,15 +76,21 @@ class StatsService:
 
         total_minutes = 0
         for log in logs:
-            movie = log.get("movie") if isinstance(log, dict) else None
-            movie_rating: int | None = (
-                log.get("movieRating") if isinstance(log, dict) else None
-            )
+            # Log objects don't have movie or movie_rating fields directly
+            # These need to be joined at the service level
+            # For now, we only compute what we have from the log objects
+            # Runtime and ratings would need to be joined from movie and rating collections
+
+            # Try to get runtime from a joined movie if available
             runtime = 0
+            movie = getattr(log, "movie", None)
             if movie:
                 runtime = getattr(movie, "runtime", 0) or 0
             else:
-                runtime = log.get("runtime", 0) if isinstance(log, dict) else 0
+                runtime = getattr(log, "runtime", 0) or 0
+
+            # Try to get movie_rating if it was joined
+            movie_rating = getattr(log, "movie_rating", None)
 
             if movie_rating:
                 try:
@@ -114,7 +122,7 @@ class StatsService:
         Compute the distribution stats from a list of log records.
 
         Args:
-            logs: list of log dicts or objects returned by the repository
+            logs: list of Log objects returned by the repository
 
         Returns:
             dict with keys: by_method (cinema, streaming, home_video, tv, other
@@ -132,11 +140,7 @@ class StatsService:
         }
 
         for log in logs:
-            watched_where = None
-            if isinstance(log, dict):
-                watched_where = log.get("watchedWhere")
-            else:
-                watched_where = getattr(log, "watched_where", None)
+            watched_where = getattr(log, "watched_where", None)
 
             if watched_where == "cinema":
                 distribution["by_method"]["cinema"] += 1

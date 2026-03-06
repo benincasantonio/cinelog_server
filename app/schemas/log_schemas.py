@@ -1,5 +1,6 @@
 from typing import Optional
 
+from beanie import PydanticObjectId
 from pydantic import Field, field_validator, model_validator
 from datetime import date
 
@@ -80,8 +81,8 @@ class LogUpdateRequest(BaseSchema):
 
 
 class LogListItem(BaseSchema):
-    id: str = Field(..., description="Unique identifier of the log entry")
-    movie_id: str = Field(..., description="Unique identifier of the movie")
+    id: PydanticObjectId = Field(..., description="Unique identifier of the log entry")
+    movie_id: PydanticObjectId = Field(..., description="Unique identifier of the movie")
     movie: Optional[MovieResponse] = Field(None, description="Details of the movie")
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
@@ -109,14 +110,14 @@ class LogListRequest(BaseSchema):
         "dateWatched", description="Field to sort by (e.g., dateWatched)"
     )
     sort_order: str = Field("desc", description="Sort order (asc or desc)")
-    watched_where: Optional[str] = Field(
+    watched_where: str | None = Field(
         None,
         description="Filter logs by where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
-    date_watched_from: Optional[date] = Field(
+    date_watched_from: date | None = Field(
         None, description="Filter logs by date watched from"
     )
-    date_watched_to: Optional[date] = Field(
+    date_watched_to: date | None = Field(
         None, description="Filter logs by date watched to"
     )
 

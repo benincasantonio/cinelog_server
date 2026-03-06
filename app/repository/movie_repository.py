@@ -87,3 +87,7 @@ class MovieRepository:
             if existing_movie is None:
                 raise
             return existing_movie
+
+    async def find_movies_by_ids(self, movie_ids: set[PydanticObjectId]) -> list[Movie]:
+        """Find multiple movies by their IDs."""
+        return await Movie.find(Movie.active_filter({"_id": {"$in": list(movie_ids)}})).to_list()

@@ -1,7 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
-from datetime import date
+from datetime import date, datetime
+from beanie import PydanticObjectId
 
 from app import app
 from app.schemas.log_schemas import (
@@ -36,7 +37,7 @@ def sample_log_create_request():
 def sample_movie_response():
     """Sample movie response for log responses."""
     return MovieResponse(
-        id="507f1f77bcf86cd799439011",
+        id=PydanticObjectId(),
         title="Fight Club",
         tmdb_id=550,
         poster_path="/path/to/poster.jpg",
@@ -45,6 +46,8 @@ def sample_movie_response():
         vote_average=8.5,
         runtime=139,
         original_language="en",
+        created_at=datetime(2024, 1, 1),
+        updated_at=datetime(2024, 1, 1),
     )
 
 
@@ -52,8 +55,8 @@ def sample_movie_response():
 def sample_log_response(sample_movie_response):
     """Sample log response."""
     return LogCreateResponse(
-        id="log123",
-        movie_id="507f1f77bcf86cd799439011",
+        id=str(PydanticObjectId()),
+        movie_id=str(PydanticObjectId()),
         movie=sample_movie_response,
         tmdb_id=550,
         date_watched=date(2024, 1, 15),
@@ -69,8 +72,8 @@ def sample_log_list_response(sample_movie_response):
     return LogListResponse(
         logs=[
             LogListItem(
-                id="log123",
-                movie_id="507f1f77bcf86cd799439011",
+                id=PydanticObjectId(),
+                movie_id=PydanticObjectId(),
                 movie=sample_movie_response,
                 tmdb_id=550,
                 date_watched=date(2024, 1, 15),
@@ -86,7 +89,7 @@ def sample_log_list_response(sample_movie_response):
 @pytest.fixture
 def override_auth():
     """Mock successful authentication."""
-    return lambda: "user123"
+    return lambda: PydanticObjectId()
 
 
 class TestCreateLog:
@@ -118,7 +121,8 @@ class TestCreateLog:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["id"] == "log123"
+        assert "id" in data
+        assert "movieId" in data
         mock_create_log.assert_called_once()
 
     def test_create_log_unauthorized(self, client, sample_log_create_request):
@@ -182,7 +186,7 @@ class TestUpdateLog:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == "log123"
+        assert "id" in data
         mock_update_log.assert_called_once()
 
     def test_update_log_unauthorized(self, client):

@@ -1,3 +1,4 @@
+from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request
 from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import (
@@ -9,6 +10,7 @@ from app.schemas.log_schemas import (
 )
 from app.services.log_service import LogService
 from app.dependencies.auth_dependency import auth_dependency
+from app.utils.object_id_utils import to_object_id
 
 
 router = APIRouter()
@@ -21,7 +23,7 @@ log_service = LogService(log_repository)
 async def create_log(
     request_body: LogCreateRequest,
     request: Request,
-    user_id: str = Depends(auth_dependency),
+    user_id: PydanticObjectId = Depends(auth_dependency),
 ) -> LogCreateResponse:
     """
     Create a new viewing log entry.
@@ -36,7 +38,7 @@ async def update_log(
     log_id: str,
     request_body: LogUpdateRequest,
     request: Request,
-    user_id: str = Depends(auth_dependency),
+    user_id: PydanticObjectId = Depends(auth_dependency),
 ) -> LogCreateResponse:
     """
     Update an existing viewing log entry.
@@ -61,4 +63,11 @@ async def get_logs(
     Requires authentication via Cookie token.
     Returns all logs filtered and sorted according to query parameters.
     """
-    return await log_service.get_user_logs(user_id=user_id, request=list_request)
+
+    id = to_object_id(user_id)
+
+    if id is None:
+        # This should not happen if auth_dependency is working correctly
+        raise ValueError("Invalid user_id")
+    
+    return await log_service.get_user_logs(user_id=id, request=list_request)

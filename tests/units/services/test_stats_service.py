@@ -1,5 +1,7 @@
 import pytest
+from datetime import date
 from unittest.mock import AsyncMock, Mock
+from beanie import PydanticObjectId
 from app.services.stats_service import StatsService
 
 
@@ -37,29 +39,31 @@ class TestStatsService:
         mock_movie = Mock()
         mock_movie.runtime = 120
 
-        mock_logs = [
-            {
-                "movieId": "movie1",
-                "watchedWhere": "cinema",
-                "movie": mock_movie,
-                "movieRating": 8,
-            },
-            {
-                "movieId": "movie2",
-                "watchedWhere": "streaming",
-                "movie": mock_movie,
-                "movieRating": 7,
-            },
-            {
-                "movieId": "movie1",
-                "watchedWhere": "tv",
-                "movie": mock_movie,
-                "movieRating": 9,
-            },  # Rewatch
-        ]
+        mock_log1 = Mock()
+        mock_log1.movie_id = PydanticObjectId()
+        mock_log1.watched_where = "cinema"
+        mock_log1.movie = mock_movie
+        mock_log1.movie_rating = 8
+        mock_log1.runtime = 120
+
+        mock_log2 = Mock()
+        mock_log2.movie_id = PydanticObjectId()
+        mock_log2.watched_where = "streaming"
+        mock_log2.movie = mock_movie
+        mock_log2.movie_rating = 7
+        mock_log2.runtime = 120
+
+        mock_log3 = Mock()
+        mock_log3.movie_id = mock_log1.movie_id  # Same as log1 (rewatch)
+        mock_log3.watched_where = "tv"
+        mock_log3.movie = mock_movie
+        mock_log3.movie_rating = 9
+        mock_log3.runtime = 120
+
+        mock_logs = [mock_log1, mock_log2, mock_log3]
         mock_log_repository.find_logs_by_user_id.return_value = mock_logs
 
-        result = await stats_service.get_user_stats("user123")
+        result = await stats_service.get_user_stats(PydanticObjectId())
 
         assert result["summary"]["total_watches"] == 3
         assert result["summary"]["unique_titles"] == 2
@@ -74,21 +78,27 @@ class TestStatsService:
         """Test stats with year filters."""
         mock_log_repository.find_logs_by_user_id.return_value = []
 
-        await stats_service.get_user_stats("user123", year_from=2023, year_to=2024)
+        user_id = PydanticObjectId()
+        await stats_service.get_user_stats(user_id, year_from=2023, year_to=2024)
 
         # Verify the request was made with proper date filters
-        call_args = mock_log_repository.find_logs_by_user_id.call_args
-        assert call_args is not None
-        request = call_args.kwargs.get("request")
-        assert request is not None
-        assert str(request.date_watched_from) == "2023-01-01"
-        assert str(request.date_watched_to) == "2024-12-31"
+        mock_log_repository.find_logs_by_user_id.assert_awaited_once_with(
+            user_id,
+            sort_by="dateWatched",
+            sort_order="desc",
+            watched_where=None,
+            date_watched_from=date(2023, 1, 1),
+            date_watched_to=date(2024, 12, 31),
+        )
 
     def test_compute_summary_with_invalid_runtime(self, stats_service):
         """Test compute_summary handles invalid runtime gracefully."""
-        logs = [
-            {"movieId": "movie1", "movie": None, "runtime": "invalid"},
-        ]
+        mock_log = Mock()
+        mock_log.movie_id = PydanticObjectId()
+        mock_log.movie = None
+        mock_log.runtime = "invalid"
+        mock_log.movie_rating = None
+        logs = [mock_log]
 
         result = stats_service.compute_summary(logs)
 
@@ -97,9 +107,12 @@ class TestStatsService:
 
     def test_compute_summary_with_none_movie(self, stats_service):
         """Test compute_summary when movie is None but runtime is in log."""
-        logs = [
-            {"movieId": "movie1", "movie": None, "runtime": 90},
-        ]
+        mock_log = Mock()
+        mock_log.movie_id = PydanticObjectId()
+        mock_log.movie = None
+        mock_log.runtime = 90
+        mock_log.movie_rating = None
+        logs = [mock_log]
 
         result = stats_service.compute_summary(logs)
 
@@ -107,14 +120,18 @@ class TestStatsService:
 
     def test_compute_distribution_all_methods(self, stats_service):
         """Test distribution computation for all watch methods."""
-        logs = [
-            {"watchedWhere": "cinema"},
-            {"watchedWhere": "streaming"},
-            {"watchedWhere": "homeVideo"},
-            {"watchedWhere": "tv"},
-            {"watchedWhere": "other"},
-            {"watchedWhere": "cinema"},  # Second cinema
-        ]
+        logs = []
+        for watched_where in [
+            "cinema",
+            "streaming",
+            "homeVideo",
+            "tv",
+            "other",
+            "cinema",
+        ]:
+            mock_log = Mock()
+            mock_log.watched_where = watched_where
+            logs.append(mock_log)
 
         result = stats_service.compute_distribution(logs)
 
@@ -137,15 +154,14 @@ class TestStatsService:
 
     def test_compute_summary_with_invalid_movie_rating(self, stats_service):
         """Test compute_summary handles invalid movie rating gracefully."""
-        logs = [
-            {
-                "movieId": "movie1",
-                "movie": None,
-                "runtime": 100,
-                "movieRating": "invalid",
-            },
-        ]
+        mock_log = Mock()
+        mock_log.movie_id = PydanticObjectId()
+        mock_log.movie = None
+        mock_log.runtime = 100
+        mock_log.movie_rating = "invalid"
+        logs = [mock_log]
 
         result = stats_service.compute_summary(logs)
 
         assert result["vote_average"] is None  # Invalid rating is ignored
+        assert result["total_minutes"] == 100

@@ -1,3 +1,5 @@
+from beanie import PydanticObjectId
+
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.schemas.movie_rating_schemas import MovieRatingResponse
 from app.services.movie_service import MovieService
@@ -29,7 +31,7 @@ class MovieRatingService:
 
         return self._get_movie_rating_response(movie_rating)
 
-    async def get_movie_rating(self, user_id: str, movie_id: str):
+    async def get_movie_rating(self, user_id: str, movie_id: PydanticObjectId):
         """
         Get a movie rating for a specific user and movie.
         """

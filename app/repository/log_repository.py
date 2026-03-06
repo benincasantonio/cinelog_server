@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from app.models.log import Log
 from app.models.movie import Movie
@@ -6,12 +6,12 @@ from app.models.movie_rating import MovieRating
 from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogUpdateRequest
 from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
 from app.utils.object_id_utils import to_object_id
-from beanie import SortDirection
+from beanie import SortDirection, PydanticObjectId
 
 
 class LogRepository:
     @staticmethod
-    async def create_log(user_id: str, create_log_request: LogCreateRequest) -> Log:
+    async def create_log(user_id: PydanticObjectId, create_log_request: LogCreateRequest) -> Log:
         """
         Create a new log entry in the database.
         """
@@ -30,21 +30,20 @@ class LogRepository:
         return log
 
     @staticmethod
-    async def find_log_by_id(log_id: str, user_id: str) -> Log | None:
+    async def find_log_by_id(log_id: str, user_id: PydanticObjectId) -> Log | None:
         """
         Find a log entry by its ID, ensuring it belongs to the user.
         """
         log_object_id = to_object_id(log_id)
-        user_object_id = to_object_id(user_id)
-        if log_object_id is None or user_object_id is None:
+        if log_object_id is None or user_id is None:
             return None
         return await Log.find_one(
-            Log.active_filter({"_id": log_object_id, "userId": user_object_id})
+            Log.active_filter({"_id": log_object_id, "userId": user_id})
         )
 
     @staticmethod
     async def update_log(
-        log_id: str, user_id: str, update_request: LogUpdateRequest
+        log_id: str, user_id: PydanticObjectId, update_request: LogUpdateRequest
     ) -> Log | None:
         """
         Update an existing log entry.
@@ -64,26 +63,27 @@ class LogRepository:
 
     @staticmethod
     async def find_logs_by_user_id(
-        user_id: str, request: LogListRequest | None = None
-    ) -> list[dict]:
+        user_id: PydanticObjectId,
+        watched_where: str | None = None,
+        date_watched_from: date | None = None,
+        date_watched_to: date | None = None,
+        sort_by: str = "dateWatched",
+        sort_order: str = "desc",
+    ):
         """
         Find all log entries for a specific user with optional filtering and sorting.
         Returns a list of dictionaries containing log data with joined movie data.
         """
-        user_object_id = to_object_id(user_id)
-        if user_object_id is None:
-            return []
-
-        filters: dict = Log.active_filter({"userId": user_object_id})
+        filters: dict = Log.active_filter({"userId": user_id})
         date_filters: dict = {}
 
-        if request:
-            if request.watched_where is not None:
-                filters["watchedWhere"] = request.watched_where
-            if request.date_watched_from is not None:
-                date_filters["$gte"] = date_start_utc(request.date_watched_from)
-            if request.date_watched_to is not None:
-                date_filters["$lte"] = date_end_utc(request.date_watched_to)
+        if watched_where is not None:
+            filters["watchedWhere"] = watched_where
+        if date_watched_from is not None:
+            date_filters["$gte"] = date_start_utc(date_watched_from)
+
+        if date_watched_to is not None:
+            date_filters["$lte"] = date_end_utc(date_watched_to)
 
         if date_filters:
             filters["dateWatched"] = date_filters
@@ -91,74 +91,27 @@ class LogRepository:
         sort_spec: list[tuple[str, SortDirection]] = [
             ("dateWatched", SortDirection.DESCENDING)
         ]
-        sort_direction: SortDirection = SortDirection.DESCENDING
-        if request:
-            sort_direction = (
-                SortDirection.DESCENDING
-                if request.sort_order == "desc"
-                else SortDirection.ASCENDING
-            )
-            if request.sort_by == "watchedWhere":
-                sort_spec = [
-                    ("watchedWhere", sort_direction),
-                    ("createdAt", sort_direction),
-                ]
-            else:
-                sort_spec = [
-                    ("dateWatched", sort_direction),
-                    ("createdAt", sort_direction),
-                ]
+        sort_direction: SortDirection = (
+            SortDirection.DESCENDING
+            if sort_order == "desc"
+            else SortDirection.ASCENDING
+        )
+        if sort_by == "watchedWhere":
+            sort_spec = [
+                ("watchedWhere", sort_direction),
+                ("createdAt", sort_direction),
+            ]
+        else:
+            sort_spec = [
+                ("dateWatched", sort_direction),
+                ("createdAt", sort_direction),
+            ]
 
-        logs = await Log.find(filters).sort(sort_spec).to_list()
-        if not logs:
-            return []
-
-        object_movie_ids = list({log.movie_id for log in logs})
-
-        movies = await Movie.find(
-            Movie.active_filter({"_id": {"$in": object_movie_ids}})
-        ).to_list()
-        movie_ratings = await MovieRating.find(
-            MovieRating.active_filter(
-                {"userId": user_object_id, "movieId": {"$in": object_movie_ids}}
-            )
-        ).to_list()
-
-        rating_map: dict[str, float] = {
-            str(rating.movie_id): rating.rating for rating in movie_ratings
-        }
-        movie_map: dict[str, Movie] = {str(movie.id): movie for movie in movies}
-
-        result: list[dict] = []
-        for log in logs:
-            log_dict = {
-                "id": str(log.id),
-                "movieId": str(log.movie_id),
-                "tmdbId": log.tmdb_id,
-                "dateWatched": (
-                    log.date_watched.date()
-                    if isinstance(log.date_watched, datetime)
-                    else log.date_watched
-                ),
-                "viewingNotes": log.viewing_notes,
-                "posterPath": log.poster_path,
-                "watchedWhere": log.watched_where,
-            }
-            movie_rating = rating_map.get(str(log.movie_id))
-            if movie_rating is not None:
-                log_dict["movieRating"] = movie_rating
-
-            movie = movie_map.get(str(log.movie_id))
-            if movie:
-                log_dict["movie"] = movie
-
-            result.append(log_dict)
-
-        return result
+        return await Log.find(filters).sort(sort_spec).to_list()
 
     @staticmethod
     async def find_logs_by_movie_id(
-        movie_id: str, user_id: str | None = None
+        movie_id: str, user_id: PydanticObjectId | None = None
     ) -> list[Log]:
         """
         Find all log entries for a specific movie by its ID.
@@ -170,15 +123,14 @@ class LogRepository:
 
         query_params: dict = Log.active_filter({"movieId": movie_object_id})
         if user_id:
-            user_object_id = to_object_id(user_id)
-            if user_object_id is None:
+            if user_id is None:
                 return []
-            query_params["userId"] = user_object_id
+            query_params["userId"] = user_id
 
         return await Log.find(query_params).to_list()
 
     @staticmethod
-    async def delete_log(log_id: str, user_id: str) -> bool:
+    async def delete_log(log_id: str, user_id: PydanticObjectId) -> bool:
         """
         Delete a log entry (soft delete).
         """

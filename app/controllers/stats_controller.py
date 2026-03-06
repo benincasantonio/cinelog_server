@@ -1,3 +1,4 @@
+from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.dependencies.auth_dependency import auth_dependency
@@ -14,7 +15,7 @@ stats_service = StatsService()
 async def get_my_stats(
     request: Request,
     stats_request: StatsRequest = Depends(),
-    user_id: str = Depends(auth_dependency),
+    user_id: PydanticObjectId = Depends(auth_dependency),
 ) -> StatsResponse:
     """
     Get stats for the logged in user.
