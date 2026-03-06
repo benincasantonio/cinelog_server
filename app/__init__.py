@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from contextlib import asynccontextmanager
 
 from beanie import init_beanie
@@ -24,13 +25,24 @@ from app.services.tmdb_service import TMDBService
 
 def _get_mongodb_settings() -> tuple[str, str]:
     mongodb_uri = os.getenv("MONGODB_URI")
-    mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
 
     if mongodb_uri:
+        # Parse the database name from the URI path
+        parsed = urllib.parse.urlparse(mongodb_uri)
+        db_name_from_uri = parsed.path.lstrip("/") if parsed.path else None
+
+        if db_name_from_uri:
+            return mongodb_uri, db_name_from_uri
+
+        # If no DB name in URI, fall back to MONGODB_DB env var
+        mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
         return mongodb_uri, mongodb_db
 
+    # Fallback: Use MONGODB_HOST/MONGODB_PORT/MONGODB_DB
     mongodb_host = os.getenv("MONGODB_HOST", "localhost")
     mongodb_port = int(os.getenv("MONGODB_PORT", "27017"))
+    mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
+
     return f"mongodb://{mongodb_host}:{mongodb_port}", mongodb_db
 
 
@@ -38,7 +50,7 @@ def _get_mongodb_settings() -> tuple[str, str]:
 async def lifespan(_: FastAPI):
     mongodb_uri, mongodb_db = _get_mongodb_settings()
     mongo_client: AsyncMongoClient = AsyncMongoClient(
-        mongodb_uri, uuidRepresentation="standard"
+        mongodb_uri, uuidRepresentation="standard", directConnection=True
     )
     await init_beanie(
         database=mongo_client[mongodb_db],

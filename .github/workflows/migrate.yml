@@ -1,0 +1,93 @@
+name: Database Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no changes)'
+        required: false
+        type: boolean
+        default: false
+      environment:
+        description: 'Target environment'
+        required: false
+        type: choice
+        options:
+          - production
+          - staging
+        default: staging
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'migrations/**'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - 'migrations/**'
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen --group dev
+
+      - name: Run migrations (dry-run)
+        run: |
+          uv run python -m migrations.runner --dry-run
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+
+  migrate:
+    runs-on: ubuntu-latest
+    needs: dry-run
+    if: github.event_name != 'pull_request' && github.event.inputs.dry_run != 'true'
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    # Prevent concurrent migration runs to avoid race conditions
+    concurrency:
+      group: migrations-${{ github.event.inputs.environment || github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen --group dev
+
+      - name: Run migrations
+        run: |
+          uv run python -m migrations.runner --yes
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}

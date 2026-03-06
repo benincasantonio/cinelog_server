@@ -4,10 +4,16 @@ services:
   mongo:
     image: mongo:8
     container_name: cinelog_mongo_local
+    command: ["mongod", "--replSet", "rs0"]
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: mongosh --eval 'db.runCommand("ping").ok' --quiet
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
@@ -29,8 +35,21 @@ services:
       - SMTP_PORT=1025
     command: uv run uvicorn app:app --host 0.0.0.0 --port 5009 --reload --reload-dir app
     depends_on:
-      - mongo
+      - mongo-init-replica
       - mailpit
+
+  mongo-init-replica:
+    image: mongo:8
+    container_name: cinelog_mongo_init
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: >
+      mongosh --host mongo:27017 --eval '
+        try { rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongo:27017"}]}) }
+        catch(e) { if (e.codeName !== "AlreadyInitialized") throw e; }
+      '
 
   mailpit:
     image: axllent/mailpit

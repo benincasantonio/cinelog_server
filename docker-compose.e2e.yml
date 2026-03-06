@@ -11,4 +11,3 @@ services:
     tmpfs:
       - /data/db
 
-
