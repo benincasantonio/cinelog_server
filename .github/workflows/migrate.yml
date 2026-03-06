@@ -22,12 +22,6 @@ on:
       - master
     paths:
       - 'migrations/**'
-  pull_request:
-    branches:
-      - main
-      - master
-    paths:
-      - 'migrations/**'
 
 jobs:
   dry-run:
@@ -60,7 +54,7 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     needs: dry-run
-    if: github.event_name != 'pull_request' && github.event.inputs.dry_run != 'true'
+    if: github.event.inputs.dry_run != 'true'
     environment: ${{ github.event.inputs.environment || 'staging' }}
 
     # Prevent concurrent migration runs to avoid race conditions
