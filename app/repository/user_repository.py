@@ -1,6 +1,8 @@
 from datetime import datetime, UTC
 import re
 
+from beanie import PydanticObjectId
+
 from app.models.user import User
 from app.schemas.user_schemas import UserCreateRequest
 from app.utils.object_id_utils import to_object_id
@@ -42,7 +44,7 @@ class UserRepository:
         ) or await UserRepository.find_user_by_handle(email_or_handle)
 
     @staticmethod
-    async def find_user_by_id(user_id: str) -> User | None:
+    async def find_user_by_id(user_id: PydanticObjectId) -> User | None:
         """Find a user by ID."""
         parsed_user_id = to_object_id(user_id)
         if parsed_user_id is None:
@@ -50,7 +52,7 @@ class UserRepository:
         return await User.find_one(User.active_filter({"_id": parsed_user_id}))
 
     @staticmethod
-    async def delete_user(user_id: str) -> bool:
+    async def delete_user(user_id: PydanticObjectId) -> bool:
         """Delete a user logically by ID."""
         user = await UserRepository.find_user_by_id(user_id)
         if not user:
@@ -63,7 +65,7 @@ class UserRepository:
         return True
 
     @staticmethod
-    async def delete_user_oblivion(user_id: str) -> bool:
+    async def delete_user_oblivion(user_id: PydanticObjectId) -> bool:
         """Obscure all the user information and delete the user logically."""
         user = await UserRepository.find_user_by_id(user_id)
         if not user:

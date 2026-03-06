@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from beanie import PydanticObjectId
+
 from app.repository.user_repository import UserRepository
 from app.schemas.user_schemas import UserResponse
 from app.utils.error_codes import ErrorCodes
@@ -15,7 +17,7 @@ class UserService:
     ):
         self.user_repository = user_repository
 
-    async def get_user_info(self, user_id: str) -> UserResponse:
+    async def get_user_info(self, user_id: PydanticObjectId) -> UserResponse:
         """
         Get user information from MongoDB.
         """

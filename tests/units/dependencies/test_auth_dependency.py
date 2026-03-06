@@ -1,8 +1,10 @@
 import pytest
 from unittest.mock import Mock, patch
+from beanie import PydanticObjectId
 from app.dependencies.auth_dependency import auth_dependency
 from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
+from bson import ObjectId
 
 
 class TestAuthDependency:
@@ -17,11 +19,12 @@ class TestAuthDependency:
         with patch(
             "app.dependencies.auth_dependency.TokenService.decode_token"
         ) as mock_decode:
-            mock_decode.return_value = {"sub": "user123", "type": "access"}
+            user_id_str = str(ObjectId())
+            mock_decode.return_value = {"sub": user_id_str, "type": "access"}
 
             result = auth_dependency(mock_request)
 
-            assert result == "user123"
+            assert result == PydanticObjectId(user_id_str)
             mock_decode.assert_called_once_with("valid_token")
 
     def test_when_cookie_is_missing(self):

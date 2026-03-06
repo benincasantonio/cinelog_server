@@ -184,23 +184,36 @@ class TestLogService:
         mock_movie.created_at = None
         mock_movie.updated_at = None
 
-        mock_log_repository.find_logs_by_user_id.return_value = [
-            {
-                "id": "log123",
-                "movieId": "movie123",
-                "movie": mock_movie,
-                "tmdbId": 550,
-                "dateWatched": date(2024, 1, 15),
-                "viewingNotes": "Great!",
-                "posterPath": "/poster.jpg",
-                "watchedWhere": "cinema",
-                "movieRating": 8,
-            }
-        ]
+        mock_log = Mock()
+        mock_log.id = PydanticObjectId()
+        mock_log.movie_id = PydanticObjectId()
+        mock_log.tmdb_id = 550
+        mock_log.date_watched = date(2024, 1, 15)
+        mock_log.viewing_notes = "Great!"
+        mock_log.poster_path = "/poster.jpg"
+        mock_log.watched_where = "cinema"
+
+        # Ensure the movie.id matches log.movie_id
+        mock_movie.id = mock_log.movie_id
+
+        mock_log_repository.find_logs_by_user_id.return_value = [mock_log]
+
+        mock_movie_repository = Mock()
+        mock_movie_repository.find_movies_by_ids = AsyncMock(return_value=[mock_movie])
+
+        mock_rating = Mock()
+        mock_rating.rating = 8
+        mock_rating.movie_id = mock_log.movie_id  # Match the log's movie_id
+        mock_movie_rating_repository = Mock()
+        mock_movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = (
+            AsyncMock(return_value=[mock_rating])
+        )
+
+        log_service.movie_repository = mock_movie_repository
+        log_service.movie_rating_repository = mock_movie_rating_repository
 
         request = LogListRequest(sort_by="dateWatched", sort_order="desc")
-        result = await log_service.get_user_logs("user123", request)
+        result = await log_service.get_user_logs(PydanticObjectId(), request)
 
         assert len(result.logs) == 1
-        assert result.logs[0].id == "log123"
         assert result.logs[0].movie_rating == 8

@@ -88,7 +88,9 @@ async def test_update_movie_not_found(
 @pytest.mark.asyncio
 async def test_find_movie_by_id_not_found(beanie_test_db):
     repository = MovieRepository()
-    result = await repository.find_movie_by_id(PydanticObjectId("507f1f77bcf86cd799439011"))
+    result = await repository.find_movie_by_id(
+        PydanticObjectId("507f1f77bcf86cd799439011")
+    )
     assert result is None
 
 

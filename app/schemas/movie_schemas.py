@@ -1,3 +1,4 @@
+from beanie import PydanticObjectId
 from pydantic import Field
 from datetime import date, datetime
 from typing import Optional
@@ -19,7 +20,7 @@ class MovieUpdateRequest(BaseSchema):
 
 
 class MovieResponse(BaseSchema):
-    id: str = Field(..., description="Unique identifier of the movie")
+    id: PydanticObjectId = Field(..., description="Unique identifier of the movie")
     title: str = Field(
         ..., min_length=1, max_length=100, description="Title of the movie"
     )
