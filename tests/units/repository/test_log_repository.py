@@ -6,9 +6,8 @@ import pytest
 
 from app.models.log import Log
 from app.models.movie import Movie
-from app.models.movie_rating import MovieRating
 from app.repository.log_repository import LogRepository
-from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogUpdateRequest
+from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 
 
 @pytest.fixture

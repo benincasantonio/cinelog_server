@@ -69,5 +69,5 @@ async def get_logs(
     if id is None:
         # This should not happen if auth_dependency is working correctly
         raise ValueError("Invalid user_id")
-    
+
     return await log_service.get_user_logs(user_id=id, request=list_request)

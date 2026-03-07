@@ -19,8 +19,7 @@ class BaseEntity(Document):
     @before_event(Insert)
     def set_created_updated_dates(self) -> None:
         now = utc_now()
-        if self.created_at is None:
-            self.created_at = now
+        self.created_at = now
         self.updated_at = now
 
     @staticmethod

@@ -1,9 +1,7 @@
-from datetime import date, datetime
+from datetime import date
 
 from app.models.log import Log
-from app.models.movie import Movie
-from app.models.movie_rating import MovieRating
-from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogUpdateRequest
+from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
 from app.utils.object_id_utils import to_object_id
 from beanie import SortDirection, PydanticObjectId
@@ -11,7 +9,9 @@ from beanie import SortDirection, PydanticObjectId
 
 class LogRepository:
     @staticmethod
-    async def create_log(user_id: PydanticObjectId, create_log_request: LogCreateRequest) -> Log:
+    async def create_log(
+        user_id: PydanticObjectId, create_log_request: LogCreateRequest
+    ) -> Log:
         """
         Create a new log entry in the database.
         """
