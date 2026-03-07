@@ -37,6 +37,14 @@ class TestAuthService:
         mock_user_repo.set_reset_password_code.assert_awaited_once()
         mock_email_service.send_reset_password_email.assert_called_once()
 
+        repo_call_args = mock_user_repo.set_reset_password_code.call_args[0]
+        email_call_args = mock_email_service.send_reset_password_email.call_args[0]
+
+        reset_code_repo = repo_call_args[1]
+        reset_code_email = email_call_args[1]
+
+        assert reset_code_repo == reset_code_email
+
     @pytest.mark.asyncio
     async def test_register_success(self, auth_service, mock_user_repo):
         request = RegisterRequest(
