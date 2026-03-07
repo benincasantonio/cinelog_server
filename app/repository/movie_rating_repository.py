@@ -38,7 +38,11 @@ class MovieRatingRepository:
 
     @staticmethod
     async def create_update_movie_rating(
-        user_id: str, movie_id: PydanticObjectId, rating: int, comment: str | None, tmdb_id: int
+        user_id: str,
+        movie_id: PydanticObjectId,
+        rating: int,
+        comment: str | None,
+        tmdb_id: int,
     ) -> MovieRating:
         """
         Create or update a movie rating for a specific user and movie.

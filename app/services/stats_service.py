@@ -3,7 +3,6 @@ from datetime import date
 from beanie import PydanticObjectId
 
 from app.repository.log_repository import LogRepository
-from app.schemas.log_schemas import LogListRequest
 
 
 class StatsService:
