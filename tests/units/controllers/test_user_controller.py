@@ -91,7 +91,8 @@ class TestUserController:
         mock_get_user_logs.return_value = LogListResponse(logs=[])
 
         response = client.get(
-            "/v1/users/user123/logs", cookies={"__Host-access_token": "token"}
+            "/v1/users/507f1f77bcf86cd799439011/logs",
+            cookies={"__Host-access_token": "token"},
         )
 
         app.dependency_overrides = {}
