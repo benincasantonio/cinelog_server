@@ -88,6 +88,9 @@ class StatsService:
         votes_sum: float = 0
         movie_with_votes_count: int = 0
 
+        movie_map = {movie.id: movie for movie in movies}
+        rating_map = {rating.movie_id: rating.rating for rating in movie_ratings}
+
         total_minutes = 0
         for log in logs:
             # Log objects don't have movie or movie_rating fields directly
@@ -95,16 +98,16 @@ class StatsService:
             # For now, we only compute what we have from the log objects
             # Runtime and ratings would need to be joined from movie and rating collections
 
-            movie = next((movie for movie in movies if movie.id == log.movie_id), None)
+            movie: Movie | None = movie_map.get(log.movie_id)
             
             runtime: int = movie.runtime or 0 if movie is not None else 0
 
             # Try to get movie_rating if it was joined
-            movie_rating: int = next((movie_rating.rating or 0 for movie_rating in movie_ratings if movie_rating.movie_id == log.movie_id), 0)
+            movie_rating: int | None = rating_map.get(log.movie_id)
 
             if movie_rating:
                 try:
-                    votes_sum += float(movie_rating)
+                    votes_sum += float(movie_rating or 0)
                     movie_with_votes_count += 1
                 except (TypeError, ValueError):
                     pass
