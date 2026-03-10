@@ -146,15 +146,15 @@ class LogService:
 
         movies = await self.movie_repository.find_movies_by_ids(unique_movie_ids)
 
+        movie_map = {movie.id: movie for movie in movies}
+        rating_map = {rating.movie_id: rating.rating for rating in movie_ratings}
+
         log_items = []
         for log_data in logs_data:
-            movie = next((m for m in movies if m.id == log_data.movie_id), None)
+            movie = movie_map.get(log_data.movie_id)
             movie_response = self._map_movie_to_response(movie) if movie else None
 
-            movie_rating = next(
-                (r.rating for r in movie_ratings if r.movie_id == log_data.movie_id),
-                None,
-            )
+            movie_rating = rating_map.get(log_data.movie_id)
 
             log_items.append(
                 LogListItem(
