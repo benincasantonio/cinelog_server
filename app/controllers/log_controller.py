@@ -10,7 +10,6 @@ from app.schemas.log_schemas import (
 )
 from app.services.log_service import LogService
 from app.dependencies.auth_dependency import auth_dependency
-from app.utils.object_id_utils import to_object_id
 
 
 router = APIRouter()
@@ -55,7 +54,7 @@ async def update_log(
 async def get_logs(
     request: Request,
     list_request: LogListRequest = Depends(),
-    user_id: str = Depends(auth_dependency),
+    user_id: PydanticObjectId = Depends(auth_dependency),
 ) -> LogListResponse:
     """
     Get list of user's viewing logs.
@@ -64,10 +63,4 @@ async def get_logs(
     Returns all logs filtered and sorted according to query parameters.
     """
 
-    id = to_object_id(user_id)
-
-    if id is None:
-        # This should not happen if auth_dependency is working correctly
-        raise ValueError("Invalid user_id")
-
-    return await log_service.get_user_logs(user_id=id, request=list_request)
+    return await log_service.get_user_logs(user_id=user_id, request=list_request)
