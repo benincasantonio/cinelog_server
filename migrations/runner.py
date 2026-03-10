@@ -180,7 +180,6 @@ def _run_down_migration(
 
     if dry_run:
         print(f"  [dry-run] Would call {module_name}.down(db)")
-        _remove_migration_record(db, version, module_name)
         return True
 
     module = _load_migration_module(version, module_name)
