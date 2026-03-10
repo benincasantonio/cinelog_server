@@ -31,8 +31,9 @@ async def get_user_info(
 
 @router.get("/{user_id}/logs", response_model=LogListResponse)
 async def get_user_logs(
+    user_id: PydanticObjectId,
     list_request: LogListRequest = Depends(),
-    user_id: PydanticObjectId = Depends(auth_dependency),
+    _: PydanticObjectId = Depends(auth_dependency),
 ) -> LogListResponse:
     """
     Get list of a specific user's viewing logs.
