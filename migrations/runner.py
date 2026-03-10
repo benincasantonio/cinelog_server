@@ -217,7 +217,9 @@ def _run_pending_migrations(
     applied_versions = _get_applied_versions(db)
     discovered = _discover_migrations()
 
-    pending = [(v, n) for v, n in discovered if v not in applied_versions]
+    pending = [
+        (v, n) for v, n in discovered if f"{v}_{n}" not in applied_versions
+    ]
 
     if not pending:
         print("[migrate] No pending migrations")
@@ -261,10 +263,6 @@ def _rollback_migration(
     """
     applied_versions = _get_applied_versions(db)
 
-    if target_version not in applied_versions:
-        print(f"[rollback] Migration {target_version} is not applied")
-        return False
-
     discovered = _discover_migrations()
     version_map = {v: n for v, n in discovered}
 
@@ -273,6 +271,11 @@ def _rollback_migration(
         return False
 
     module_name = version_map[target_version]
+    migration_id = f"{target_version}_{module_name}"
+
+    if migration_id not in applied_versions:
+        print(f"[rollback] Migration {target_version} is not applied")
+        return False
 
     if not yes and not dry_run:
         response = input(
