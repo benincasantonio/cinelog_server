@@ -34,12 +34,12 @@ async def get_my_stats(
         )
 
     try:
-        stats_payload = await stats_service.get_user_stats(
+        stats_response = await stats_service.get_user_stats(
             user_id=user_id,
             year_from=stats_request.year_from,
             year_to=stats_request.year_to,
         )
-        return StatsResponse(**stats_payload)
+        return stats_response
     except NotImplementedError:
         raise HTTPException(
             status_code=501, detail="Stats endpoint not implemented yet"

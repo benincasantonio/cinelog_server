@@ -1,7 +1,7 @@
 from app.schemas.base_schema import BaseSchema
 
 
-class Summary(BaseSchema):
+class StatsSummary(BaseSchema):
     total_watches: int
     unique_titles: int
     total_rewatches: int
@@ -9,7 +9,7 @@ class Summary(BaseSchema):
     vote_average: float | None = None
 
 
-class ByMethod(BaseSchema):
+class StatsByMethod(BaseSchema):
     cinema: int
     streaming: int
     home_video: int
@@ -17,11 +17,11 @@ class ByMethod(BaseSchema):
     other: int
 
 
-class Distribution(BaseSchema):
-    by_method: ByMethod
+class StatsDistribution(BaseSchema):
+    by_method: StatsByMethod
 
 
-class Pace(BaseSchema):
+class StatsPace(BaseSchema):
     on_track_for: int
     current_average: float
     days_since_last_log: int
@@ -36,6 +36,6 @@ class StatsRequest(BaseSchema):
 
 
 class StatsResponse(BaseSchema):
-    summary: Summary
-    distribution: Distribution
-    pace: Pace
+    summary: StatsSummary
+    distribution: StatsDistribution
+    pace: StatsPace
