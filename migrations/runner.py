@@ -45,7 +45,7 @@ def _get_mongodb_settings() -> tuple[str, str]:
     mongodb_port = int(os.getenv("MONGODB_PORT", "27017"))
     mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
 
-    return f"mongodb://{mongodb_host}:{mongodb_port}", mongodb_db
+    return f"mongodb://{mongodb_host}:{mongodb_port}/?directConnection=true", mongodb_db
 
 
 def _get_applied_versions(db: Database) -> set[str]:
@@ -314,7 +314,7 @@ def main() -> int:
 
     client: MongoClient | None = None
     try:
-        client = MongoClient(mongodb_uri, directConnection=True)
+        client = MongoClient(mongodb_uri)
         db = client[mongodb_db_name]
 
         print(f"[migrate] Connected to MongoDB: {mongodb_db_name}")
