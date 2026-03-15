@@ -1,5 +1,6 @@
 from datetime import date
 
+from app.schemas.movie_rating_schemas import MovieRatingStats
 from beanie import PydanticObjectId
 
 from app.models.log import Log
@@ -8,13 +9,26 @@ from app.models.movie_rating import MovieRating
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
-from app.schemas.stats_schemas import StatsByMethod, StatsDistribution, StatsDistribution, StatsPace, StatsResponse, StatsSummary
+from app.schemas.stats_schemas import (
+    StatsByMethod,
+    StatsDistribution,
+    StatsPace,
+    StatsResponse,
+    StatsSummary,
+)
 
 
 class StatsService:
-    def __init__(self, log_repository: LogRepository | None = None, movie_rating_repository: MovieRatingRepository | None = None, movie_repository: MovieRepository | None =None):
+    def __init__(
+        self,
+        log_repository: LogRepository | None = None,
+        movie_rating_repository: MovieRatingRepository | None = None,
+        movie_repository: MovieRepository | None = None,
+    ):
         self.log_repository = log_repository or LogRepository()
-        self.movie_rating_repository = movie_rating_repository or MovieRatingRepository()
+        self.movie_rating_repository = (
+            movie_rating_repository or MovieRatingRepository()
+        )
         self.movie_repository = movie_repository or MovieRepository()
 
     async def get_user_stats(
@@ -46,19 +60,27 @@ class StatsService:
 
         movie_ids: set[PydanticObjectId] = {log.movie_id for log in logs}
 
-        movie_ratings = await self.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids(user_id, movie_ids);
+        movie_rating_stats = (
+            await self.movie_rating_repository.get_user_movie_ratings_avarage(
+                user_id, movie_ids
+            )
+        )
 
         movies = await self.movie_repository.find_movies_by_ids(movie_ids)
 
-        summary = self.compute_summary(logs, movie_ratings, movies)
+        summary = self.compute_summary(logs, movie_rating_stats, movies)
 
         distribution = self.compute_distribution(logs)
 
-        pace: StatsPace = StatsPace(on_track_for=0, current_average=0.0, days_since_last_log=0)
+        pace: StatsPace = StatsPace(
+            on_track_for=0, current_average=0.0, days_since_last_log=0
+        )
 
         return StatsResponse(summary=summary, distribution=distribution, pace=pace)
 
-    def compute_summary(self, logs: list[Log], movie_ratings: list[MovieRating], movies: list[Movie]) -> StatsSummary:
+    def compute_summary(
+        self, logs: list[Log], movie_rating_stats: MovieRatingStats, movies: list[Movie]
+    ) -> StatsSummary:
         """
         Compute summary stats from a list of log records.
 
@@ -83,13 +105,8 @@ class StatsService:
         unique_titles = len({str(log.movie_id) for log in logs}) if logs else 0
 
         total_rewatches = max(0, total_watches - unique_titles)
-        
-
-        votes_sum: float = 0
-        movie_with_votes_count: int = 0
 
         movie_map = {movie.id: movie for movie in movies}
-        rating_map = {rating.movie_id: rating.rating for rating in movie_ratings}
 
         total_minutes = 0
         for log in logs:
@@ -99,18 +116,8 @@ class StatsService:
             # Runtime and ratings would need to be joined from movie and rating collections
 
             movie: Movie | None = movie_map.get(log.movie_id)
-            
+
             runtime: int = movie.runtime or 0 if movie is not None else 0
-
-            # Try to get movie_rating if it was joined
-            movie_rating: int | None = rating_map.get(log.movie_id)
-
-            if movie_rating:
-                try:
-                    votes_sum += float(movie_rating or 0)
-                    movie_with_votes_count += 1
-                except (TypeError, ValueError):
-                    pass
 
             try:
                 total_minutes += int(runtime)
@@ -123,11 +130,9 @@ class StatsService:
             unique_titles=unique_titles,
             total_rewatches=total_rewatches,
             total_minutes=total_minutes,
-            vote_average=(
-                votes_sum / movie_with_votes_count
-                if movie_with_votes_count > 0
-                else None
-            ),
+            vote_average=movie_rating_stats.average_rating
+            if movie_rating_stats
+            else None,
         )
 
     def compute_distribution(self, logs: list) -> StatsDistribution:
