@@ -5,7 +5,7 @@ from beanie import PydanticObjectId
 
 from app.models.log import Log
 from app.models.movie import Movie
-from app.models.movie_rating import MovieRating
+from app.schemas.movie_schemas import MovieStats
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
@@ -66,11 +66,11 @@ class StatsService:
             )
         )
 
-        movies = await self.movie_repository.find_movies_by_ids(movie_ids)
+        movie_stats = await self.movie_repository.get_movie_stats(movie_ids)
 
-        summary = self.compute_summary(logs, movie_rating_stats, movies)
+        summary = self._compute_summary(logs, movie_rating_stats, movie_stats)
 
-        distribution = self.compute_distribution(logs)
+        distribution = self._compute_distribution(logs)
 
         pace: StatsPace = StatsPace(
             on_track_for=0, current_average=0.0, days_since_last_log=0
@@ -78,8 +78,11 @@ class StatsService:
 
         return StatsResponse(summary=summary, distribution=distribution, pace=pace)
 
-    def compute_summary(
-        self, logs: list[Log], movie_rating_stats: MovieRatingStats, movies: list[Movie]
+    def _compute_summary(
+        self,
+        logs: list[Log],
+        movie_rating_stats: MovieRatingStats,
+        movie_stats: MovieStats,
     ) -> StatsSummary:
         """
         Compute summary stats from a list of log records.
@@ -106,36 +109,17 @@ class StatsService:
 
         total_rewatches = max(0, total_watches - unique_titles)
 
-        movie_map = {movie.id: movie for movie in movies}
-
-        total_minutes = 0
-        for log in logs:
-            # Log objects don't have movie or movie_rating fields directly
-            # These need to be joined at the service level
-            # For now, we only compute what we have from the log objects
-            # Runtime and ratings would need to be joined from movie and rating collections
-
-            movie: Movie | None = movie_map.get(log.movie_id)
-
-            runtime: int = movie.runtime or 0 if movie is not None else 0
-
-            try:
-                total_minutes += int(runtime)
-            except (TypeError, ValueError):
-                # ignore invalid runtime values
-                pass
-
         return StatsSummary(
             total_watches=total_watches,
             unique_titles=unique_titles,
             total_rewatches=total_rewatches,
-            total_minutes=total_minutes,
+            total_minutes=movie_stats.total_runtime,
             vote_average=movie_rating_stats.average_rating
             if movie_rating_stats
             else None,
         )
 
-    def compute_distribution(self, logs: list) -> StatsDistribution:
+    def _compute_distribution(self, logs: list) -> StatsDistribution:
         """
         Compute the distribution stats from a list of log records.
 

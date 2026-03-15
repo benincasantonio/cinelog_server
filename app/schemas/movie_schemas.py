@@ -39,3 +39,9 @@ class MovieResponse(BaseSchema):
     updated_at: Optional[datetime] = Field(
         None, description="Last update date of the movie"
     )
+
+
+class MovieStats(BaseSchema):
+    total_runtime: int = Field(
+        0, description="Total runtime of the movie in minutes"
+    )
