@@ -4,7 +4,7 @@ from beanie import PydanticObjectId
 from pymongo.errors import DuplicateKeyError
 
 from app.models.movie import Movie
-from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
+from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest, MovieStats
 from app.schemas.tmdb_schemas import TMDBMovieDetails
 
 
@@ -93,3 +93,20 @@ class MovieRepository:
         return await Movie.find(
             Movie.active_filter({"_id": {"$in": list(movie_ids)}})
         ).to_list()
+
+    async def get_movie_stats(self, movie_ids: set[PydanticObjectId]) -> MovieStats:
+        pipeline = [
+            {"$match": {"_id": {"$in": list(movie_ids)}}},
+            {
+                "$group": {
+                    "_id": None,
+                    "totalRuntime": {"$sum": "$runtime"},
+                }
+            },
+        ]
+
+        movie_stats = await Movie.aggregate(
+            pipeline, projection_model=MovieStats
+        ).to_list(length=1)
+
+        return movie_stats[0] if movie_stats else MovieStats(total_runtime=0)
