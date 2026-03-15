@@ -2,6 +2,7 @@ from beanie import PydanticObjectId
 
 from app.models.movie_rating import MovieRating
 from app.utils.object_id_utils import to_object_id
+from app.schemas.movie_rating_schemas import MovieRatingStats
 
 
 class MovieRatingRepository:
@@ -76,7 +77,9 @@ class MovieRatingRepository:
         return new_rating
 
     async def find_movie_ratings_by_user_and_movie_ids(
-        self, user_id: PydanticObjectId, movie_ids: set[PydanticObjectId]
+        self,
+        user_id: PydanticObjectId,
+        movie_ids: set[PydanticObjectId],
     ) -> list[MovieRating]:
         """
         Find all movie ratings for a specific user and a set of movie IDs.
@@ -89,3 +92,31 @@ class MovieRatingRepository:
                 {"userId": user_object_id, "movieId": {"$in": list(movie_ids)}}
             )
         ).to_list()
+
+    async def get_user_movie_ratings_avarage(
+        self,
+        user_id: PydanticObjectId,
+        movie_ids: set[PydanticObjectId],
+    ) -> MovieRatingStats | None:
+        pipeline = [
+            {
+                "$match": {
+                    "movieId": {"$in": list(movie_ids)},
+                    "userId": user_id,
+                    "deleted": {"$ne": True},
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "averageRating": {"$avg": "$rating"},
+                    "totalRatings": {"$sum": 1},
+                }
+            },
+        ]
+
+        stats = await MovieRating.aggregate(
+            pipeline, projection_model=MovieRatingStats
+        ).to_list(length=1)
+
+        return stats[0] if stats else None

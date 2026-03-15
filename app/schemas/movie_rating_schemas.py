@@ -36,3 +36,12 @@ class MovieRatingResponse(BaseSchema):
     updated_at: datetime = Field(
         ..., description="Timestamp when the rating was last updated"
     )
+
+
+class MovieRatingStats(BaseSchema):
+    """Schema for movie rating statistics."""
+
+    average_rating: Optional[float] = Field(
+        None, description="Average rating for the movie"
+    )
+    total_ratings: int = Field(..., description="Total number of ratings for the movie")
