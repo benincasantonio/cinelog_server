@@ -96,139 +96,19 @@ All work must be tied to a GitHub issue. Follow this workflow:
 
 ## Architecture
 
-> For a deeper architectural overview, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+For the full architecture reference, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-### Layered Architecture
+**Quick orientation — layered architecture:**
 
-The codebase follows a clean layered architecture:
-
-1. **Controllers** (`app/controllers/`): FastAPI route handlers that define API endpoints
-2. **Services** (`app/services/`): Business logic layer that orchestrates repository operations and external integrations (e.g., `AuthService`, `TMDBService`)
-3. **Repositories** (`app/repositories/`): Data access layer using Beanie ODM
-4. **Models** (`app/models/`): Beanie document models representing database entities
-5. **Schemas** (`app/schemas/`): Pydantic models for request/response validation
-6. **Utils** (`app/utils/`): Shared utilities for hashing, JWT tokens, etc.
-
-### Key Patterns
-
-**Dependency Flow:**
-
-- Controllers instantiate services with required repositories
-- Services contain business logic and call repositories
-- Repositories handle direct database operations using Beanie models
-
-**Error Handling:**
-
-- Custom `AppException` class with structured `ErrorSchema` objects
-- Centralized error codes in `app/utils/error_codes.py`
-- Global exception handler in `app/__init__.py` converts `AppException` to JSON responses
-
-**Authentication:**
-
-- JWT-based authentication using access tokens
-- `auth_dependency` in `app/dependencies/auth_dependency.py` validates tokens
-- Tokens generated via `generate_access_token` in `app/utils/access_token_utils.py`
-
-### Base Entity Pattern
-
-All database models inherit from `BaseEntity` (`app/models/base_entity.py`) which provides:
-
-- Soft delete support (`deleted`, `deletedAt`)
-- Automatic timestamps (`createdAt`, `updatedAt`)
-- Common indexes
-
-### Data Models
-
-**Core Entities:**
-
-- `User`: User accounts with authentication (email/handle login supported)
-- `Movie`: Movie metadata (linked to TMDB via `tmdbId`)
-- `Log`: Movie viewing records with ratings, dates, and viewing location
-- `MovieRating`: Movie rating collection data
-
-### Testing Approach
-
-Tests use:
-
-- `pytest` for test framework
-- `mongomock` for mocking MongoDB in unit tests
-- `freezegun` for time-based testing
-- Mock pattern for isolating services from repositories
-
-## Important Implementation Details
-
-### User Repository Deletion Methods
-
-The `UserRepository` provides two deletion strategies:
-
-- `delete_user()`: Soft delete (sets `deleted=True`)
-- `delete_user_oblivion()`: GDPR-compliant deletion that obscures all user information
-
-### Authentication Flow
-
-1. Login/Register endpoints return JWT token and user info
-2. Protected endpoints use `Depends(auth_dependency)` to require authentication
-3. Token validation checks expiration and signature using `JWT_SECRET_KEY`
-
-### TMDB Integration
-
-`TMDBService` handles external API calls to The Movie Database:
-
-- Search movies by title
-- Returns structured `TMDBMovieSearchResult` Pydantic models
-
-### MongoDB Connection
-
-Connection is established in `app/__init__.py`:
-
-- Uses environment variables for configuration (`MONGODB_URI` or `MONGODB_HOST`/`MONGODB_PORT`/`MONGODB_DB`)
-- Creates an async PyMongo `AsyncMongoClient` for Beanie ODM operations
-- Beanie 2.0.1 provides async ODM functionality using Pydantic v2 models
-- `directConnection=True` is used for single-node replica sets in local development
-
-### Migrations
-
-The project includes a lightweight database migration system:
-
-**Location:** `migrations/` directory
-
-**Components:**
-
-- `migrations/runner.py` — CLI tool for discovering and running migrations
-- `migrations/NNN_name.py` — Individual migration scripts (e.g., `001_movie_ids_to_objectid.py`)
-
-**How it works:**
-
-- Migrations are numbered (`001`, `002`, etc.) and run in order
-- Applied migrations are tracked in the `migration_versions` collection
-- Uses sync PyMongo (not the async Beanie connection) for direct database operations
-- Supports dry-run mode (`--dry-run`) to preview impact before applying
-
-**Running migrations:**
-
-```bash
-make migrate           # Run pending migrations with confirmation
-make migrate-dry-run   # Preview what would change
-uv run python -m migrations.runner --yes  # CI/CD mode (no prompts)
-```
-
-**Writing a migration:**
-
-Each migration file must define `up(db, dry_run=False)` and `down(db)` functions:
-
-```python
-from pymongo.database import Database
-
-def up(db: Database, dry_run: bool = False) -> None:
-    """Apply the migration."""
-    pass
-
-def down(db: Database) -> None:
-    """Rollback the migration (optional, may be no-op)."""
-    pass
-```
-
-See `docs/migrations.md` for full documentation.
+1. **Controllers** (`app/controllers/`) → API endpoints
+2. **Services** (`app/services/`) → Business logic
+3. **Repositories** (`app/repositories/`) → Data access (Beanie ODM)
+4. **Models** (`app/models/`) → Database entities
+5. **Schemas** (`app/schemas/`) → Request/response validation
+6. **Dependencies** (`app/dependencies/`) → FastAPI dependency injection (e.g., JWT auth)
+7. **Middleware** (`app/middleware/`) → Request processing middleware (e.g., CSRF protection)
+8. **Config** (`app/config/`) → Application configuration (e.g., CORS)
+9. **Utils** (`app/utils/`) → Shared utilities
 
 ## Documentation
 
