@@ -1,8 +1,11 @@
 import pytest
 from datetime import date
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 from beanie import PydanticObjectId
 from app.services.stats_service import StatsService
+from app.schemas.stats_schemas import LogStats, LogDistributionEntry
+from app.schemas.movie_rating_schemas import MovieRatingStats
+from app.schemas.movie_schemas import MovieStats
 
 
 @pytest.fixture
@@ -31,6 +34,18 @@ def stats_service(
     )
 
 
+def _empty_log_stats():
+    return LogStats()
+
+
+def _empty_movie_rating_stats():
+    return MovieRatingStats(average_rating=0.0, total_ratings=0)
+
+
+def _empty_movie_stats():
+    return MovieStats(total_runtime=0)
+
+
 class TestStatsService:
     """Tests for StatsService."""
 
@@ -43,11 +58,11 @@ class TestStatsService:
         mock_movie_repository,
     ):
         """Test stats with no logs."""
-        mock_log_repository.find_logs_by_user_id.return_value = []
-        mock_movie_rating_repository.find_movie_ratings_by_user_and_movie_ids.return_value = (
-            []
+        mock_log_repository.get_log_stats.return_value = _empty_log_stats()
+        mock_movie_rating_repository.get_user_movie_ratings_avarage.return_value = (
+            _empty_movie_rating_stats()
         )
-        mock_movie_repository.find_movies_by_ids.return_value = []
+        mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
         result = await stats_service.get_user_stats(PydanticObjectId())
 
@@ -55,7 +70,7 @@ class TestStatsService:
         assert result.summary.unique_titles == 0
         assert result.summary.total_rewatches == 0
         assert result.summary.total_minutes == 0
-        assert result.summary.vote_average is None
+        assert result.summary.vote_average == 0.0
         assert result.distribution.by_method.cinema == 0
         assert result.pace.on_track_for == 0
 
@@ -71,52 +86,29 @@ class TestStatsService:
         movie_id_1 = PydanticObjectId()
         movie_id_2 = PydanticObjectId()
 
-        mock_movie = Mock()
-        mock_movie.id = movie_id_1
-        mock_movie.runtime = 120
-
-        mock_movie_2 = Mock()
-        mock_movie_2.id = movie_id_2
-        mock_movie_2.runtime = 120
-
-        mock_log1 = Mock()
-        mock_log1.movie_id = movie_id_1
-        mock_log1.watched_where = "cinema"
-
-        mock_log2 = Mock()
-        mock_log2.movie_id = movie_id_2
-        mock_log2.watched_where = "streaming"
-
-        mock_log3 = Mock()
-        mock_log3.movie_id = movie_id_1  # Same as log1 (rewatch)
-        mock_log3.watched_where = "tv"
-
-        mock_rating1 = Mock()
-        mock_rating1.movie_id = movie_id_1
-        mock_rating1.rating = 8
-
-        mock_rating2 = Mock()
-        mock_rating2.movie_id = movie_id_2
-        mock_rating2.rating = 7
-
-        mock_logs = [mock_log1, mock_log2, mock_log3]
-        mock_log_repository.find_logs_by_user_id.return_value = mock_logs
-        mock_movie_rating_repository.find_movie_ratings_by_user_and_movie_ids.return_value = [
-            mock_rating1,
-            mock_rating2,
-        ]
-        mock_movie_repository.find_movies_by_ids.return_value = [
-            mock_movie,
-            mock_movie_2,
-        ]
+        mock_log_repository.get_log_stats.return_value = LogStats(
+            total_watches=3,
+            unique_titles=2,
+            unique_movie_ids=[movie_id_1, movie_id_2],
+            distribution=[
+                LogDistributionEntry(watched_where="cinema", count=1),
+                LogDistributionEntry(watched_where="streaming", count=1),
+                LogDistributionEntry(watched_where="tv", count=1),
+            ],
+        )
+        mock_movie_rating_repository.get_user_movie_ratings_avarage.return_value = (
+            MovieRatingStats(average_rating=7.666, total_ratings=2)
+        )
+        mock_movie_repository.get_movie_stats.return_value = MovieStats(
+            total_runtime=360
+        )
 
         result = await stats_service.get_user_stats(PydanticObjectId())
 
         assert result.summary.total_watches == 3
         assert result.summary.unique_titles == 2
         assert result.summary.total_rewatches == 1
-        assert result.summary.total_minutes == 360  # 3 * 120
-        # Rating for movie_id_1 (8) counted twice (log1+log3), movie_id_2 (7) once → (8+7+8)/3
+        assert result.summary.total_minutes == 360
         assert result.summary.vote_average == pytest.approx(7.666, abs=0.01)
 
     @pytest.mark.asyncio
@@ -128,98 +120,51 @@ class TestStatsService:
         mock_movie_repository,
     ):
         """Test stats with year filters."""
-        mock_log_repository.find_logs_by_user_id.return_value = []
-        mock_movie_rating_repository.find_movie_ratings_by_user_and_movie_ids.return_value = (
-            []
+        mock_log_repository.get_log_stats.return_value = _empty_log_stats()
+        mock_movie_rating_repository.get_user_movie_ratings_avarage.return_value = (
+            _empty_movie_rating_stats()
         )
-        mock_movie_repository.find_movies_by_ids.return_value = []
+        mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
         user_id = PydanticObjectId()
         await stats_service.get_user_stats(user_id, year_from=2023, year_to=2024)
 
-        # Verify the request was made with proper date filters
-        mock_log_repository.find_logs_by_user_id.assert_awaited_once_with(
+        mock_log_repository.get_log_stats.assert_awaited_once_with(
             user_id,
-            sort_by="dateWatched",
-            sort_order="desc",
-            watched_where=None,
-            date_watched_from=date(2023, 1, 1),
-            date_watched_to=date(2024, 12, 31),
+            date_from=date(2023, 1, 1),
+            date_to=date(2024, 12, 31),
         )
 
-    def test_compute_summary_with_invalid_runtime(self, stats_service):
-        """Test compute_summary handles invalid runtime gracefully."""
-        movie_id = PydanticObjectId()
+    @pytest.mark.asyncio
+    async def test_distribution_maps_correctly(
+        self,
+        stats_service,
+        mock_log_repository,
+        mock_movie_rating_repository,
+        mock_movie_repository,
+    ):
+        """Test that distribution entries map correctly to StatsByMethod."""
+        mock_log_repository.get_log_stats.return_value = LogStats(
+            total_watches=7,
+            unique_titles=7,
+            unique_movie_ids=[PydanticObjectId() for _ in range(7)],
+            distribution=[
+                LogDistributionEntry(watched_where="cinema", count=2),
+                LogDistributionEntry(watched_where="streaming", count=1),
+                LogDistributionEntry(watched_where="homeVideo", count=1),
+                LogDistributionEntry(watched_where="tv", count=1),
+                LogDistributionEntry(watched_where="other", count=2),
+            ],
+        )
+        mock_movie_rating_repository.get_user_movie_ratings_avarage.return_value = (
+            _empty_movie_rating_stats()
+        )
+        mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
-        mock_log = Mock()
-        mock_log.movie_id = movie_id
+        result = await stats_service.get_user_stats(PydanticObjectId())
 
-        mock_movie = Mock()
-        mock_movie.id = movie_id
-        mock_movie.runtime = "invalid"
-
-        result = stats_service.compute_summary([mock_log], [], [mock_movie])
-
-        assert result.total_watches == 1
-        assert result.total_minutes == 0  # Invalid runtime is ignored
-
-    def test_compute_summary_with_none_movie(self, stats_service):
-        """Test compute_summary when movie is not found for the log."""
-        mock_log = Mock()
-        mock_log.movie_id = PydanticObjectId()
-
-        result = stats_service.compute_summary([mock_log], [], [])
-
-        assert result.total_minutes == 0
-
-    def test_compute_distribution_all_methods(self, stats_service):
-        """Test distribution computation for all watch methods."""
-        logs = []
-        for watched_where in [
-            "cinema",
-            "streaming",
-            "homeVideo",
-            "tv",
-            "other",
-            "cinema",
-        ]:
-            mock_log = Mock()
-            mock_log.watched_where = watched_where
-            logs.append(mock_log)
-
-        result = stats_service.compute_distribution(logs)
-
-        assert result.by_method.cinema == 2
-        assert result.by_method.streaming == 1
-        assert result.by_method.home_video == 1
-        assert result.by_method.tv == 1
-        assert result.by_method.other == 1
-
-    def test_compute_distribution_with_object_logs(self, stats_service):
-        """Test distribution with object logs instead of dicts."""
-        mock_log = Mock()
-        mock_log.watched_where = "cinema"
-
-        result = stats_service.compute_distribution([mock_log])
-
-        assert result.by_method.cinema == 1
-
-    def test_compute_summary_with_invalid_movie_rating(self, stats_service):
-        """Test compute_summary handles invalid movie rating gracefully."""
-        movie_id = PydanticObjectId()
-
-        mock_log = Mock()
-        mock_log.movie_id = movie_id
-
-        mock_movie = Mock()
-        mock_movie.id = movie_id
-        mock_movie.runtime = 100
-
-        mock_rating = Mock()
-        mock_rating.movie_id = movie_id
-        mock_rating.rating = "invalid"
-
-        result = stats_service.compute_summary([mock_log], [mock_rating], [mock_movie])
-
-        assert result.vote_average is None  # Invalid rating is ignored
-        assert result.total_minutes == 100
+        assert result.distribution.by_method.cinema == 2
+        assert result.distribution.by_method.streaming == 1
+        assert result.distribution.by_method.home_video == 1
+        assert result.distribution.by_method.tv == 1
+        assert result.distribution.by_method.other == 2

@@ -3,20 +3,18 @@ from datetime import date
 from app.schemas.movie_rating_schemas import MovieRatingStats
 from beanie import PydanticObjectId
 
-from app.models.log import Log
-from app.models.movie import Movie
 from app.schemas.movie_schemas import MovieStats
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
 from app.schemas.stats_schemas import (
+    LogStats,
     StatsByMethod,
     StatsDistribution,
     StatsPace,
     StatsResponse,
     StatsSummary,
 )
-
 
 class StatsService:
     def __init__(
@@ -37,81 +35,36 @@ class StatsService:
         year_from: int | None = None,
         year_to: int | None = None,
     ) -> StatsResponse:
-        """
-        Retrieve summary stats for a given user.
-
-        Returns a dictionary matching the `StatsResponse` schema. For now this
-        implements only the `summary` section; `distribution` and `pace` are
-        returned with zeroed/default values.
-        """
         date_from: date | None = (
             date(year_from, 1, 1) if year_from is not None else None
         )
         date_to: date | None = date(year_to, 12, 31) if year_to is not None else None
 
-        logs = await self.log_repository.find_logs_by_user_id(
+        log_stats: LogStats = await self.log_repository.get_log_stats(
             user_id,
-            sort_by="dateWatched",
-            sort_order="desc",
-            watched_where=None,
-            date_watched_from=date_from,
-            date_watched_to=date_to,
+            date_from=date_from,
+            date_to=date_to,
         )
 
-        movie_ids: set[PydanticObjectId] = {log.movie_id for log in logs}
+        movie_ids = set(log_stats.unique_movie_ids)
 
-        movie_rating_stats = (
+        movie_rating_stats: MovieRatingStats = (
             await self.movie_rating_repository.get_user_movie_ratings_avarage(
                 user_id, movie_ids
             )
         )
 
-        movie_stats = await self.movie_repository.get_movie_stats(movie_ids)
-
-        summary = self._compute_summary(logs, movie_rating_stats, movie_stats)
-
-        distribution = self._compute_distribution(logs)
-
-        pace: StatsPace = StatsPace(
-            on_track_for=0, current_average=0.0, days_since_last_log=0
+        movie_stats: MovieStats = await self.movie_repository.get_movie_stats(
+            movie_ids
         )
 
-        return StatsResponse(summary=summary, distribution=distribution, pace=pace)
+        total_rewatches = max(
+            0, log_stats.total_watches - log_stats.unique_titles
+        )
 
-    def _compute_summary(
-        self,
-        logs: list[Log],
-        movie_rating_stats: MovieRatingStats,
-        movie_stats: MovieStats,
-    ) -> StatsSummary:
-        """
-        Compute summary stats from a list of log records.
-
-        Args:
-            logs: list of Log objects returned by the repository
-
-        Returns:
-            dict with keys: total_watches, unique_titles, total_rewatches, total_minutes
-        """
-        if not logs:
-            return StatsSummary(
-                total_watches=0,
-                unique_titles=0,
-                total_rewatches=0,
-                total_minutes=0,
-                vote_average=None,
-            )
-
-        total_watches = len(logs)
-
-        # unique titles are unique movieId values
-        unique_titles = len({str(log.movie_id) for log in logs}) if logs else 0
-
-        total_rewatches = max(0, total_watches - unique_titles)
-
-        return StatsSummary(
-            total_watches=total_watches,
-            unique_titles=unique_titles,
+        summary = StatsSummary(
+            total_watches=log_stats.total_watches,
+            unique_titles=log_stats.unique_titles,
             total_rewatches=total_rewatches,
             total_minutes=movie_stats.total_runtime,
             vote_average=movie_rating_stats.average_rating
@@ -119,40 +72,23 @@ class StatsService:
             else None,
         )
 
-    def _compute_distribution(self, logs: list) -> StatsDistribution:
-        """
-        Compute the distribution stats from a list of log records.
+        distribution = self._build_distribution(log_stats)
 
-        Args:
-            logs: list of Log objects returned by the repository
-
-        Returns:
-            StatsDistribution object with counts of watches by method (cinema, streaming, home video, tv, other)
-
-        """
-
-        distribution: StatsDistribution = StatsDistribution(
-            by_method=StatsByMethod(
-                cinema=0,
-                streaming=0,
-                home_video=0,
-                tv=0,
-                other=0,
-            )
+        pace = StatsPace(
+            on_track_for=0, current_average=0.0, days_since_last_log=0
         )
 
-        for log in logs:
-            watched_where = getattr(log, "watched_where", None)
+        return StatsResponse(summary=summary, distribution=distribution, pace=pace)
 
-            if watched_where == "cinema":
-                distribution.by_method.cinema += 1
-            elif watched_where == "streaming":
-                distribution.by_method.streaming += 1
-            elif watched_where == "homeVideo":
-                distribution.by_method.home_video += 1
-            elif watched_where == "tv":
-                distribution.by_method.tv += 1
-            elif watched_where == "other":
-                distribution.by_method.other += 1
-
-        return distribution
+    @staticmethod
+    def _build_distribution(log_stats: LogStats) -> StatsDistribution:
+        counts = {e.watched_where: e.count for e in log_stats.distribution}
+        return StatsDistribution(
+            by_method=StatsByMethod(
+                cinema=counts.get("cinema", 0),
+                streaming=counts.get("streaming", 0),
+                home_video=counts.get("homeVideo", 0),
+                tv=counts.get("tv", 0),
+                other=counts.get("other", 0),
+            )
+        )
