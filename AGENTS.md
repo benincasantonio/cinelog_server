@@ -76,11 +76,19 @@ All work must be tied to a GitHub issue. Follow this workflow:
    ```
    If `gh` CLI is not installed, suggest installing it: https://cli.github.com/
 
-3. **Write unit tests for all new code.** Every new function, method, or behavior must have corresponding unit tests.
+3. **Check off acceptance criteria** on the GitHub issue as they are met, using the GitHub CLI:
+   ```bash
+   # View issue body to find acceptance criteria
+   gh issue view <issue-number>
+   # Edit the issue body to check off completed criteria
+   gh issue edit <issue-number> --body "..."
+   ```
 
-4. **Do not commit changes autonomously.** Let the developer review changes step by step. Only commit when explicitly asked.
+4. **Write unit tests for all new code.** Every new function, method, or behavior must have corresponding unit tests.
 
-5. **Create a pull request** when the developer asks for it:
+5. **Do not commit changes autonomously.** Let the developer review changes step by step. Only commit when explicitly asked.
+
+6. **Create a pull request** when the developer asks for it:
    ```bash
    gh pr create
    ```
