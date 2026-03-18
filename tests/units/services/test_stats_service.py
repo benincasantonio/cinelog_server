@@ -59,7 +59,7 @@ class TestStatsService:
     ):
         """Test stats with no logs."""
         mock_log_repository.get_log_stats.return_value = _empty_log_stats()
-        mock_movie_rating_repository.get_user_movie_ratings_avarage.return_value = (
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
             _empty_movie_rating_stats()
         )
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
@@ -96,7 +96,7 @@ class TestStatsService:
                 LogDistributionEntry(watched_where="tv", count=1),
             ],
         )
-        mock_movie_rating_repository.get_user_movie_ratings_avarage.return_value = (
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
             MovieRatingStats(average_rating=7.666, total_ratings=2)
         )
         mock_movie_repository.get_movie_stats.return_value = MovieStats(
@@ -121,7 +121,7 @@ class TestStatsService:
     ):
         """Test stats with year filters."""
         mock_log_repository.get_log_stats.return_value = _empty_log_stats()
-        mock_movie_rating_repository.get_user_movie_ratings_avarage.return_value = (
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
             _empty_movie_rating_stats()
         )
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
@@ -156,7 +156,7 @@ class TestStatsService:
                 LogDistributionEntry(watched_where="other", count=2),
             ],
         )
-        mock_movie_rating_repository.get_user_movie_ratings_avarage.return_value = (
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
             _empty_movie_rating_stats()
         )
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
