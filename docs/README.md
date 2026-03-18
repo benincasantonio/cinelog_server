@@ -22,7 +22,8 @@ Welcome to the Cinelog Server documentation.
 | Command | Description |
 |---------|-------------|
 | `make install` | Install runtime dependencies (`uv sync`) |
-| `make dev` | Install runtime + development dependencies |
+| `make dev` | Install runtime + development dependencies and configure git hooks |
+| `make hooks` | Configure git pre-commit hooks (lint, format, typecheck) |
 | `make test-unit` | Run unit tests with coverage report |
 | `make test-e2e` | Start e2e MongoDB, run e2e tests, then stop e2e MongoDB |
 | `make migrate` | Run pending database migrations with confirmation |

@@ -64,6 +64,24 @@ Required environment variables (see `.env`):
 - `MONGODB_PORT`: MongoDB port (default: 27017) — only used if `MONGODB_URI` not set
 - `MONGODB_DB`: MongoDB database name (default: cinelog_db) — only used if `MONGODB_URI` not set
 
+### Git Hooks
+
+Pre-commit hooks enforce linting (Ruff), formatting (Ruff), and type checking (mypy) before each commit.
+
+**Auto-installed with dev setup:**
+
+```bash
+make dev
+```
+
+**Manual setup (if already installed deps):**
+
+```bash
+make hooks
+```
+
+Both commands set `core.hooksPath` to `.githooks/`. The pre-commit hook runs `ruff check --fix`, `ruff format --check`, and `mypy` against the `app/` directory.
+
 ## Development Flow
 
 All work must be tied to a GitHub issue. Follow this workflow:
