@@ -2,6 +2,7 @@ from datetime import date
 
 from app.models.log import Log
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
+from app.schemas.stats_schemas import LogDistributionEntry, LogStats
 from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
 from app.utils.object_id_utils import to_object_id
 from beanie import SortDirection, PydanticObjectId
@@ -141,3 +142,78 @@ class LogRepository:
         log.deleted = True
         await log.save()
         return True
+
+    @staticmethod
+    async def get_log_stats(
+        user_id: PydanticObjectId,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> LogStats:
+        """
+        Compute log statistics using a single MongoDB aggregation with $facet.
+        Returns total watches, unique titles, unique movie IDs, and distribution.
+        """
+        match_filter: dict = Log.active_filter({"userId": user_id})
+
+        date_filters: dict = {}
+        if date_from is not None:
+            date_filters["$gte"] = date_start_utc(date_from)
+        if date_to is not None:
+            date_filters["$lte"] = date_end_utc(date_to)
+        if date_filters:
+            match_filter["dateWatched"] = date_filters
+
+        pipeline = [
+            {"$match": match_filter},
+            {
+                "$facet": {
+                    "summary": [
+                        {
+                            "$group": {
+                                "_id": None,
+                                "totalWatches": {"$sum": 1},
+                                "uniqueMovieIds": {"$addToSet": "$movieId"},
+                            }
+                        },
+                        {"$addFields": {"uniqueTitles": {"$size": "$uniqueMovieIds"}}},
+                    ],
+                    "distribution": [
+                        {
+                            "$group": {
+                                "_id": "$watchedWhere",
+                                "count": {"$sum": 1},
+                            }
+                        },
+                    ],
+                }
+            },
+        ]
+
+        results = await Log.aggregate(pipeline).to_list(length=1)
+
+        if not results:
+            return LogStats()
+
+        result = results[0]
+        summary = result.get("summary", [])
+        distribution_raw = result.get("distribution", [])
+
+        if not summary:
+            return LogStats()
+
+        summary_data = summary[0]
+
+        distribution = [
+            LogDistributionEntry(
+                watched_where=entry["_id"],
+                count=entry["count"],
+            )
+            for entry in distribution_raw
+        ]
+
+        return LogStats(
+            total_watches=summary_data.get("totalWatches", 0),
+            unique_titles=summary_data.get("uniqueTitles", 0),
+            unique_movie_ids=summary_data.get("uniqueMovieIds", []),
+            distribution=distribution,
+        )

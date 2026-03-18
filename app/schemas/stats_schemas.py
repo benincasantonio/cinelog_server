@@ -1,3 +1,7 @@
+from typing import Literal
+
+from beanie import PydanticObjectId
+
 from app.schemas.base_schema import BaseSchema
 
 
@@ -39,3 +43,17 @@ class StatsResponse(BaseSchema):
     summary: StatsSummary
     distribution: StatsDistribution
     pace: StatsPace
+
+
+class LogDistributionEntry(BaseSchema):
+    watched_where: Literal["cinema", "streaming", "homeVideo", "tv", "other"] | None = (
+        None
+    )
+    count: int = 0
+
+
+class LogStats(BaseSchema):
+    total_watches: int = 0
+    unique_titles: int = 0
+    unique_movie_ids: list[PydanticObjectId] = []
+    distribution: list[LogDistributionEntry] = []
