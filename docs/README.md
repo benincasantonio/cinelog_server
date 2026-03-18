@@ -14,7 +14,8 @@ Welcome to the Cinelog Server documentation.
 ## Quick Links
 
 - **API Base URL**: `http://localhost:5009`
-- **Main README**: [AGENTS.md](../AGENTS.md)
+- **Development Guide**: [AGENTS.md](../AGENTS.md)
+- **Architecture Reference**: [ARCHITECTURE.md](../ARCHITECTURE.md)
 
 ## Makefile Commands
 
