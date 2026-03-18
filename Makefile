@@ -28,7 +28,8 @@ typecheck:
 	uv run mypy app/
 
 security:
-	uv run bandit -r app/
+	uv run bandit -r app/ -c pyproject.toml
+	uv run pip-audit
 
 run:
 	uv run python main.py

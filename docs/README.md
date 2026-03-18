@@ -31,7 +31,7 @@ Welcome to the Cinelog Server documentation.
 | `make lint` | Run Ruff linter |
 | `make format` | Format code with Ruff and apply auto-fixes |
 | `make typecheck` | Run mypy type checking for `app/` |
-| `make security` | Run Bandit security scan for `app/` |
+| `make security` | Run Bandit security scan and pip-audit dependency scan |
 | `make run` | Run API locally via `python main.py` |
 | `make docker-up` | Start local Docker stack (`docker-compose.local.yml`) |
 | `make docker-down` | Stop local Docker stack (`docker-compose.local.yml`) |

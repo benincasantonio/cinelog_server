@@ -12,11 +12,9 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
 # Cookie Name Constants
 # __Host- prefix enforces: Secure=True, Path=/, no Domain attribute
 # This prevents subdomain cookie injection attacks
-ACCESS_TOKEN_COOKIE = "__Host-access_token"
-CSRF_TOKEN_COOKIE = "__Host-csrf_token"
-REFRESH_TOKEN_COOKIE = (
-    "refresh_token"  # No __Host- prefix: needs path="/v1/auth/refresh"
-)
+ACCESS_TOKEN_COOKIE = "__Host-access_token"  # nosec B105
+CSRF_TOKEN_COOKIE = "__Host-csrf_token"  # nosec B105
+REFRESH_TOKEN_COOKIE = "refresh_token"  # nosec B105 — No __Host- prefix: needs path="/v1/auth/refresh"
 
 
 def set_auth_cookies(response: Response, user_id: str):
