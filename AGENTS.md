@@ -64,6 +64,28 @@ Required environment variables (see `.env`):
 - `MONGODB_PORT`: MongoDB port (default: 27017) — only used if `MONGODB_URI` not set
 - `MONGODB_DB`: MongoDB database name (default: cinelog_db) — only used if `MONGODB_URI` not set
 
+## Development Flow
+
+All work must be tied to a GitHub issue. Follow this workflow:
+
+1. **A GitHub issue number must always be provided** before starting work. If none is given, ask for one.
+
+2. **Create a branch from the issue** using the GitHub CLI:
+   ```bash
+   gh issue develop <issue-number> --checkout
+   ```
+   If `gh` CLI is not installed, suggest installing it: https://cli.github.com/
+
+3. **Write unit tests for all new code.** Every new function, method, or behavior must have corresponding unit tests.
+
+4. **Do not commit changes autonomously.** Let the developer review changes step by step. Only commit when explicitly asked.
+
+5. **Create a pull request** when the developer asks for it:
+   ```bash
+   gh pr create
+   ```
+   See https://cli.github.com/manual/gh_pr_create for options.
+
 ## Architecture
 
 > For a deeper architectural overview, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -210,23 +232,3 @@ When working on a feature, bug fix, or any topic that introduces or changes beha
 - If documentation already exists for the topic, update it to reflect the changes
 
 See [`docs/README.md`](docs/README.md) for existing topic-specific guides.
-
-## Development Flow
-
-All work must be tied to a GitHub issue. Follow this workflow:
-
-1. **A GitHub issue number must always be provided** before starting work. If none is given, ask for one.
-
-2. **Create a branch from the issue** using the GitHub CLI:
-   ```bash
-   gh issue develop <issue-number> --checkout
-   ```
-   If `gh` CLI is not installed, suggest installing it: https://cli.github.com/
-
-3. **Do not commit changes autonomously.** Let the developer review changes step by step. Only commit when explicitly asked.
-
-4. **Create a pull request** when the developer asks for it:
-   ```bash
-   gh pr create
-   ```
-   See https://cli.github.com/manual/gh_pr_create for options.
