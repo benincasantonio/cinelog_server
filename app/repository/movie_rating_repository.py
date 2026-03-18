@@ -93,7 +93,7 @@ class MovieRatingRepository:
             )
         ).to_list()
 
-    async def get_user_movie_ratings_avarage(
+    async def get_user_movie_ratings_average(
         self,
         user_id: PydanticObjectId,
         movie_ids: set[PydanticObjectId],
