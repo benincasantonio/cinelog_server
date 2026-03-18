@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 
 from app.schemas.movie_rating_schemas import MovieRatingStats
@@ -48,14 +49,11 @@ class StatsService:
 
         movie_ids = set(log_stats.unique_movie_ids)
 
-        movie_rating_stats: MovieRatingStats = (
-            await self.movie_rating_repository.get_user_movie_ratings_avarage(
+        movie_rating_stats, movie_stats = await asyncio.gather(
+            self.movie_rating_repository.get_user_movie_ratings_average(
                 user_id, movie_ids
-            )
-        )
-
-        movie_stats: MovieStats = await self.movie_repository.get_movie_stats(
-            movie_ids
+            ),
+            self.movie_repository.get_movie_stats(movie_ids),
         )
 
         total_rewatches = max(
