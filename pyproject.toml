@@ -27,7 +27,11 @@ dev = [
     "pytest-cov==7.0.0",
     "ruff==0.15.4",
     "types-passlib==1.7.7.20260211",
+    "pip-audit>=2.10.0",
 ]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

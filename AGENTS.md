@@ -82,6 +82,14 @@ make hooks
 
 Both commands set `core.hooksPath` to `.githooks/`. The pre-commit hook runs `ruff check --fix`, `ruff format --check`, and `mypy` against the `app/` directory.
 
+### Security Scanning
+
+```bash
+make security
+```
+
+Runs both **Bandit** (static analysis for common security issues) and **pip-audit** (dependency vulnerability scanning) against the codebase. These checks also run automatically in CI via the security workflow.
+
 ## Development Flow
 
 All work must be tied to a GitHub issue. Follow this workflow:

@@ -1,0 +1,86 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9:00 UTC
+  workflow_dispatch:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: |
+          uv sync --frozen --group dev
+
+      - name: Run Bandit Security Scan
+        run: |
+          uv run bandit -r app/ -c pyproject.toml
+
+      - name: Run pip-audit Dependency Scan
+        id: pip-audit
+        run: |
+          uv run pip-audit --output pip-audit-output.txt 2>&1 || true
+          if uv run pip-audit 2>/dev/null; then
+            echo "vulnerable=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "vulnerable=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create issue for vulnerabilities
+        if: steps.pip-audit.outputs.vulnerable == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          AUDIT_OUTPUT=$(cat pip-audit-output.txt)
+          EXISTING=$(gh issue list --label "security" --state open --search "pip-audit: dependency vulnerabilities detected" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$(cat <<EOF
+          ## Updated scan — $(date -u +%Y-%m-%d)
+
+          \`\`\`
+          $AUDIT_OUTPUT
+          \`\`\`
+          EOF
+          )"
+          else
+            gh issue create \
+              --title "pip-audit: dependency vulnerabilities detected" \
+              --label "security" \
+              --body "$(cat <<EOF
+          ## Dependency vulnerabilities found
+
+          The weekly \`pip-audit\` scan detected known vulnerabilities:
+
+          \`\`\`
+          $AUDIT_OUTPUT
+          \`\`\`
+
+          Please review and update the affected packages.
+          EOF
+          )"
+          fi
+
+      - name: Fail if vulnerabilities found
+        if: steps.pip-audit.outputs.vulnerable == 'true'
+        run: |
+          echo "pip-audit found vulnerabilities:"
+          cat pip-audit-output.txt
+          exit 1
