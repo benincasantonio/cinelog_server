@@ -119,4 +119,6 @@ class MovieRatingRepository:
             pipeline, projection_model=MovieRatingStats
         ).to_list(length=1)
 
-        return stats[0] if stats else MovieRatingStats(average_rating=0.0, total_ratings=0)
+        return (
+            stats[0] if stats else MovieRatingStats(average_rating=0.0, total_ratings=0)
+        )

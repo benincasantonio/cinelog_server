@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running pre-commit checks..."
+
+echo "→ Ruff lint (with auto-fix)..."
+uv run ruff check --fix app/
+
+echo "→ Ruff format check..."
+uv run ruff format --check app/
+
+echo "→ Mypy type check..."
+uv run mypy app/
+
+echo "All pre-commit checks passed."

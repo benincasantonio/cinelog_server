@@ -1,10 +1,8 @@
 import asyncio
 from datetime import date
 
-from app.schemas.movie_rating_schemas import MovieRatingStats
 from beanie import PydanticObjectId
 
-from app.schemas.movie_schemas import MovieStats
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
@@ -16,6 +14,7 @@ from app.schemas.stats_schemas import (
     StatsResponse,
     StatsSummary,
 )
+
 
 class StatsService:
     def __init__(
@@ -56,9 +55,7 @@ class StatsService:
             self.movie_repository.get_movie_stats(movie_ids),
         )
 
-        total_rewatches = max(
-            0, log_stats.total_watches - log_stats.unique_titles
-        )
+        total_rewatches = max(0, log_stats.total_watches - log_stats.unique_titles)
 
         summary = StatsSummary(
             total_watches=log_stats.total_watches,
@@ -72,9 +69,7 @@ class StatsService:
 
         distribution = self._build_distribution(log_stats)
 
-        pace = StatsPace(
-            on_track_for=0, current_average=0.0, days_since_last_log=0
-        )
+        pace = StatsPace(on_track_for=0, current_average=0.0, days_since_last_log=0)
 
         return StatsResponse(summary=summary, distribution=distribution, pace=pace)
 

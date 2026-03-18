@@ -216,9 +216,7 @@ def _run_pending_migrations(
     applied_versions = _get_applied_versions(db)
     discovered = _discover_migrations()
 
-    pending = [
-        (v, n) for v, n in discovered if f"{v}_{n}" not in applied_versions
-    ]
+    pending = [(v, n) for v, n in discovered if f"{v}_{n}" not in applied_versions]
 
     if not pending:
         print("[migrate] No pending migrations")

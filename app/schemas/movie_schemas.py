@@ -42,6 +42,4 @@ class MovieResponse(BaseSchema):
 
 
 class MovieStats(BaseSchema):
-    total_runtime: int = Field(
-        0, description="Total runtime of the movie in minutes"
-    )
+    total_runtime: int = Field(0, description="Total runtime of the movie in minutes")

@@ -1,10 +1,14 @@
-.PHONY: install dev test-unit test-e2e lint format typecheck security run docker-up docker-down migrate migrate-dry-run
+.PHONY: install dev hooks test-unit test-e2e lint format typecheck security run docker-up docker-down migrate migrate-dry-run
 
 install:
 	uv sync
 
 dev:
 	uv sync --group dev
+	git config core.hooksPath .githooks
+
+hooks:
+	git config core.hooksPath .githooks
 
 test-unit:
 	uv run pytest tests/units/ --cov=app --cov-report=html
