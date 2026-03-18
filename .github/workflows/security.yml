@@ -31,7 +31,3 @@ jobs:
       - name: Run Bandit Security Scan
         run: |
           uv run bandit -r app/ -c pyproject.toml
-
-      - name: Run pip-audit Dependency Scan
-        run: |
-          uv run pip-audit

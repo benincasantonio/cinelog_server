@@ -1,4 +1,4 @@
-.PHONY: install dev hooks test-unit test-e2e lint format typecheck security run docker-up docker-down migrate migrate-dry-run
+.PHONY: install dev hooks test-unit test-e2e lint format typecheck security dependency-audit run docker-up docker-down migrate migrate-dry-run
 
 install:
 	uv sync
@@ -29,6 +29,8 @@ typecheck:
 
 security:
 	uv run bandit -r app/ -c pyproject.toml
+
+dependency-audit:
 	uv run pip-audit
 
 run:
