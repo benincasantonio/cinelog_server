@@ -8,7 +8,7 @@ from app.schemas.movie_rating_schemas import MovieRatingStats
 class MovieRatingRepository:
     @staticmethod
     async def find_movie_rating_by_user_and_movie(
-        user_id: str, movie_id: PydanticObjectId
+        user_id: PydanticObjectId, movie_id: PydanticObjectId
     ) -> MovieRating | None:
         """
         Find a movie rating by user ID and movie ID.
@@ -25,7 +25,7 @@ class MovieRatingRepository:
 
     @staticmethod
     async def find_movie_rating_by_user_and_tmdb(
-        user_id: str, tmdb_id: int
+        user_id: PydanticObjectId, tmdb_id: int
     ) -> MovieRating | None:
         """
         Find a movie rating by user ID and TMDB ID.
@@ -39,7 +39,7 @@ class MovieRatingRepository:
 
     @staticmethod
     async def create_update_movie_rating(
-        user_id: str,
+        user_id: PydanticObjectId,
         movie_id: PydanticObjectId,
         rating: int,
         comment: str | None,
