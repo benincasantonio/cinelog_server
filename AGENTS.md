@@ -63,6 +63,9 @@ Required environment variables (see `.env`):
 - `MONGODB_HOST`: MongoDB host (default: localhost) — only used if `MONGODB_URI` not set
 - `MONGODB_PORT`: MongoDB port (default: 27017) — only used if `MONGODB_URI` not set
 - `MONGODB_DB`: MongoDB database name (default: cinelog_db) — only used if `MONGODB_URI` not set
+- `REDIS_ENABLED`: Enable Redis caching (default: `false`)
+- `REDIS_URL`: Redis connection URL (default: `redis://localhost:6379/0`)
+- `REDIS_DEFAULT_TTL`: Default cache TTL in seconds (default: `300`)
 
 ### Git Hooks
 
