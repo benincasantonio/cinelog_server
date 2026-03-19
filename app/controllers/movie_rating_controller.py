@@ -1,4 +1,5 @@
 from typing import Annotated
+from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.dependencies.auth_dependency import auth_dependency
@@ -27,7 +28,7 @@ movie_rating_service = MovieRatingService(
 async def create_movie_rating(
     request_body: MovieRatingCreateUpdateRequest,
     request: Request,
-    user_id: Annotated[str, Depends(auth_dependency)],
+    user_id: Annotated[PydanticObjectId, Depends(auth_dependency)],
 ) -> MovieRatingResponse:
     """
     Create or update a new movie rating entry.
@@ -45,8 +46,8 @@ async def create_movie_rating(
 @router.get("/{tmdb_id}")
 async def get_movie_rating(
     tmdb_id: int,
-    current_user_id: Annotated[str, Depends(auth_dependency)],
-    user_id: str | None = None,
+    current_user_id: Annotated[PydanticObjectId, Depends(auth_dependency)],
+    user_id: PydanticObjectId | None = None,
 ) -> MovieRatingResponse:
     """
     Get a movie rating entry by TMDB ID.

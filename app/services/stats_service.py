@@ -14,6 +14,7 @@ from app.schemas.stats_schemas import (
     StatsResponse,
     StatsSummary,
 )
+from app.services.stats_cache_service import StatsCacheService
 
 
 class StatsService:
@@ -22,12 +23,14 @@ class StatsService:
         log_repository: LogRepository | None = None,
         movie_rating_repository: MovieRatingRepository | None = None,
         movie_repository: MovieRepository | None = None,
+        stats_cache_service: StatsCacheService | None = None,
     ):
         self.log_repository = log_repository or LogRepository()
         self.movie_rating_repository = (
             movie_rating_repository or MovieRatingRepository()
         )
         self.movie_repository = movie_repository or MovieRepository()
+        self.stats_cache_service = stats_cache_service or StatsCacheService()
 
     async def get_user_stats(
         self,
@@ -35,6 +38,10 @@ class StatsService:
         year_from: int | None = None,
         year_to: int | None = None,
     ) -> StatsResponse:
+        cached = await self.stats_cache_service.get_stats(user_id, year_from, year_to)
+        if cached is not None:
+            return cached
+
         date_from: date | None = (
             date(year_from, 1, 1) if year_from is not None else None
         )
@@ -71,7 +78,11 @@ class StatsService:
 
         pace = StatsPace(on_track_for=0, current_average=0.0, days_since_last_log=0)
 
-        return StatsResponse(summary=summary, distribution=distribution, pace=pace)
+        result = StatsResponse(summary=summary, distribution=distribution, pace=pace)
+
+        await self.stats_cache_service.set_stats(user_id, year_from, year_to, stats=result)
+
+        return result
 
     @staticmethod
     def _build_distribution(log_stats: LogStats) -> StatsDistribution:

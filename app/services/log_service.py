@@ -13,6 +13,7 @@ from app.schemas.log_schemas import (
     LogListResponse,
     LogListItem,
 )
+from app.services.stats_cache_service import StatsCacheService
 from app.utils.exceptions import AppException
 from app.utils.error_codes import ErrorCodes
 from app.models.movie import Movie
@@ -27,6 +28,7 @@ class LogService:
         movie_service: MovieService | None = None,
         movie_repository: MovieRepository | None = None,
         movie_rating_repository: MovieRatingRepository | None = None,
+        stats_cache_service: StatsCacheService | None = None,
     ):
         self.log_repository = log_repository
         # Initialize movie service if not provided
@@ -39,6 +41,7 @@ class LogService:
             movie_rating_repository or MovieRatingRepository()
         )
         self.movie_repository = movie_repository or MovieRepository()
+        self.stats_cache_service = stats_cache_service or StatsCacheService()
 
     def _map_movie_to_response(self, movie: Movie) -> MovieResponse:
         return MovieResponse(
@@ -80,6 +83,8 @@ class LogService:
             user_id=user_id, create_log_request=request
         )
 
+        await self.stats_cache_service.invalidate_user_stats(user_id)
+
         return LogCreateResponse(
             id=str(log.id),
             movie_id=str(log.movie_id),
@@ -108,6 +113,8 @@ class LogService:
         movie = await self.movie_service.get_movie_by_id(log.movie_id)
         if movie is None:
             raise AppException(ErrorCodes.MOVIE_NOT_FOUND)
+
+        await self.stats_cache_service.invalidate_user_stats(user_id)
 
         return LogCreateResponse(
             id=str(log.id),
