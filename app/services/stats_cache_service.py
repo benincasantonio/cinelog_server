@@ -54,13 +54,16 @@ class StatsCacheService:
         year_to: int | None = None,
         stats: StatsResponse | None = None,
     ) -> None:
+        print(f"StatsCacheService.set_stats called with user_id={user_id}, year_from={year_from}, year_to={year_to}, stats={stats}")
         if stats is None:
             return
         if self._cache is None:
             return
 
         key = self.build_key(user_id, year_from, year_to)
+        print(f"StatsCacheService.set_stats: setting cache for key={key} with stats={stats}")
         await self._cache.set(key, stats.model_dump(mode="json"), ttl=STATS_CACHE_TTL)
+        print(f"StatsCacheService.set_stats: cache set for key={key}")
         logger.debug("Cache set for key=%s", key)
 
     async def invalidate_user_stats(self, user_id: PydanticObjectId) -> None:
