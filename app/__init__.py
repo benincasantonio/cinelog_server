@@ -20,6 +20,8 @@ from app.models.log import Log
 from app.models.movie import Movie
 from app.models.movie_rating import MovieRating
 from app.models.user import User
+from app.config.redis import get_redis_config
+from app.services.cache_service import CacheService
 from app.services.tmdb_service import TMDBService
 
 
@@ -56,9 +58,11 @@ async def lifespan(_: FastAPI):
         database=mongo_client[mongodb_db],
         document_models=[User, Log, Movie, MovieRating],
     )
+    CacheService.initialize(get_redis_config())
     try:
         yield
     finally:
+        await CacheService.aclose_all()
         await TMDBService.aclose_all()
         await mongo_client.close()
 

@@ -15,6 +15,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: cinelog_redis_local
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
@@ -33,10 +46,16 @@ services:
       - MONGODB_DB=cinelog_db
       - SMTP_SERVER=mailpit
       - SMTP_PORT=1025
+      - REDIS_ENABLED=true
+      - REDIS_URL=redis://redis:6379/0
     command: uv run uvicorn app:app --host 0.0.0.0 --port 5009 --reload --reload-dir app
     depends_on:
-      - mongo-init-replica
-      - mailpit
+      mongo-init-replica:
+        condition: service_started
+      mailpit:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   mongo-init-replica:
     image: mongo:8
@@ -61,4 +80,5 @@ services:
 
 volumes:
   mongo_data:
+  redis_data:
   api_venv:

@@ -37,10 +37,12 @@ All routes are registered under the `/v1/` prefix:
 1. Parse MongoDB connection from `MONGODB_URI` or `MONGODB_HOST`/`MONGODB_PORT`/`MONGODB_DB`
 2. Initialize `AsyncMongoClient` with `uuidRepresentation="standard"`
 3. Initialize Beanie with `[User, Log, Movie, MovieRating]` models
+4. Initialize `CacheService` from Redis config
 
 **Shutdown:**
-1. Close TMDB service connections (`TMDBService.aclose_all()`)
-2. Close MongoDB client
+1. Close cache service connections (`CacheService.aclose_all()`)
+2. Close TMDB service connections (`TMDBService.aclose_all()`)
+3. Close MongoDB client
 
 **Middleware stack** (in order): CSRFMiddleware → CORSMiddleware
 
@@ -63,6 +65,7 @@ All routes are registered under the `/v1/` prefix:
 **Singleton Pattern:**
 
 - `TMDBService` uses a thread-safe singleton with `Lock()` — lazy initialization on first `get_instance()` call, single global `httpx.AsyncClient`
+- `CacheService` uses a thread-safe singleton with `Lock()` — explicit initialization via `initialize(config)` during app startup
 
 **Soft Delete:**
 
@@ -171,6 +174,7 @@ The `__Host-` prefix enforces: `Secure=true`, no `Domain`, `path=/` — prevents
 | `TokenService` | JWT creation/decoding (HS256, access + refresh tokens) |
 | `PasswordService` | Bcrypt hashing via `passlib.CryptContext` |
 | `EmailService` | SMTP password reset emails (falls back to console logging in dev) |
+| `CacheService` | Singleton — Redis caching layer with graceful degradation (toggleable via `REDIS_ENABLED`) |
 | `TMDBService` | Singleton — movie search and details via TMDB API (`httpx.AsyncClient`) |
 | `MovieService` | Movie lookup, lazy `find_or_create_movie()` from TMDB |
 | `LogService` | Viewing log CRUD with movie fetching and poster auto-population |
@@ -233,6 +237,18 @@ The `UserRepository` provides two deletion strategies:
 - Base URL: `https://api.themoviedb.org/3/`
 - Auth: Bearer token via `Authorization` header
 - Client: `httpx.AsyncClient` (singleton, closed during app shutdown)
+
+## Caching
+
+`CacheService` provides an optional Redis caching layer:
+
+- **Toggle:** `REDIS_ENABLED` env var (default `false`) — when disabled, all methods return None/False immediately
+- **Graceful degradation:** All Redis calls are wrapped in try/except — the app never fails due to Redis unavailability
+- **Serialization:** Callers pass `model.model_dump(mode="json")` to `set()` and call `Model.model_validate()` after `get()` — keeps CacheService model-agnostic
+- **Key naming:** `cinelog:{entity}:{identifier}` — key construction is the caller's responsibility
+- **Default TTL:** 300 seconds (5 minutes), configurable via `REDIS_DEFAULT_TTL`
+- **Pattern invalidation:** Uses `SCAN` (not `KEYS`) for production-safe pattern-based cache invalidation
+- **Lifecycle:** Initialized during app startup in `app/__init__.py`, closed during shutdown
 
 ## MongoDB Connection
 
