@@ -13,10 +13,18 @@ STATS_CACHE_TTL = int(os.getenv("STATS_CACHE_TTL", "864000"))
 
 class StatsCacheService:
     def __init__(self):
-        try:
-            self._cache = CacheService.get_instance()
-        except RuntimeError:
-            self._cache = None
+        self._cache_instance: CacheService | None = None
+        self._cache_resolved = False
+
+    @property
+    def _cache(self) -> CacheService | None:
+        if not self._cache_resolved:
+            try:
+                self._cache_instance = CacheService.get_instance()
+            except RuntimeError:
+                self._cache_instance = None
+            self._cache_resolved = True
+        return self._cache_instance
 
     @staticmethod
     def build_key(
@@ -54,16 +62,13 @@ class StatsCacheService:
         year_to: int | None = None,
         stats: StatsResponse | None = None,
     ) -> None:
-        print(f"StatsCacheService.set_stats called with user_id={user_id}, year_from={year_from}, year_to={year_to}, stats={stats}")
         if stats is None:
             return
         if self._cache is None:
             return
 
         key = self.build_key(user_id, year_from, year_to)
-        print(f"StatsCacheService.set_stats: setting cache for key={key} with stats={stats}")
         await self._cache.set(key, stats.model_dump(mode="json"), ttl=STATS_CACHE_TTL)
-        print(f"StatsCacheService.set_stats: cache set for key={key}")
         logger.debug("Cache set for key=%s", key)
 
     async def invalidate_user_stats(self, user_id: PydanticObjectId) -> None:
