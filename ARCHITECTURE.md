@@ -310,4 +310,4 @@ def down(db: Database) -> None:
     pass
 ```
 
-See `docs/migrations.md` for full documentation.
+See `docs/technical/migrations.md` for full documentation.
