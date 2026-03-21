@@ -143,8 +143,10 @@ For the full architecture reference, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 When working on a feature, bug fix, or any topic that introduces or changes behavior, always write documentation for it:
 
-- Place documentation in the `docs/` directory as a **single file per topic** (e.g., `docs/authentication.md`, `docs/cors-configuration.md`)
-- Each file must cover both **functional aspects** (what the feature does, how it behaves, user-facing details) and **technical aspects** (implementation details, architecture decisions, code patterns)
+- Place documentation in the `docs/` directory, organized into two subfolders:
+  - `docs/functional/` — user-facing docs (features, API usage, flows)
+  - `docs/technical/` — developer-facing docs (implementation details, infrastructure, configuration)
+- Topics that have both functional and technical aspects should have a doc in each folder, cross-linked via "See Also" sections
 - Add a link to the new document in [`docs/README.md`](docs/README.md)
 - If documentation already exists for the topic, update it to reflect the changes
 
