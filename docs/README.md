@@ -2,16 +2,26 @@
 
 Welcome to the Cinelog Server documentation.
 
-## Guides
+## Functional Docs
+
+User-facing documentation covering features, flows, and API usage from the consumer perspective.
 
 | Document | Description |
 |----------|-------------|
-| [Migrations](migrations.md) | Database migration system |
-| [E2E Testing](e2e-testing.md) | Setup and run end-to-end tests |
-| [CORS Configuration](cors-configuration.md) | CORS environment and behavior specification |
-| [Authentication](authentication.md) | Auth system (JWT, Cookies, CSRF) |
-| [Redis Caching](redis-caching.md) | Cache layer configuration, design, and usage |
-| [Stats Caching](stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
+| [Authentication](functional/authentication.md) | Auth flows, API usage, CSRF guide |
+
+## Technical Docs
+
+Developer-facing documentation covering infrastructure, implementation details, and internal systems.
+
+| Document | Description |
+|----------|-------------|
+| [Authentication](technical/authentication.md) | Auth implementation internals, middleware, cookie config |
+| [CORS Configuration](technical/cors-configuration.md) | CORS environment variables and behavior |
+| [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
+| [Migrations](technical/migrations.md) | Database migration system |
+| [Redis Caching](technical/redis-caching.md) | Cache layer configuration, design, and usage |
+| [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
 
 ## Quick Links
 

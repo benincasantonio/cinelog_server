@@ -308,6 +308,6 @@ Note: When using `MONGODB_URI` with a DB name in the path (e.g., `/cinelog_db`),
 
 ## See Also
 
-- [AGENTS.md](../AGENTS.md) — Development guide and operational reference
-- [ARCHITECTURE.md](../ARCHITECTURE.md) — Codebase architecture reference
-- [docs/README.md](README.md) — Overview of all documentation
+- [AGENTS.md](../../AGENTS.md) — Development guide and operational reference
+- [ARCHITECTURE.md](../../ARCHITECTURE.md) — Codebase architecture reference
+- [docs/README.md](../README.md) — Overview of all documentation
