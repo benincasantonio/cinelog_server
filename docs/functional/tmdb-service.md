@@ -122,7 +122,7 @@ GET /v1/movies/27205
     { "id": 878, "name": "Science Fiction" }
   ],
   "productionCompanies": [
-    { "id": 174, "name": "Warner Bros. Pictures", "logoPAth": null, "originCountry": "US" }
+    { "id": 174, "name": "Warner Bros. Pictures", "logoPath": null, "originCountry": "US" }
   ],
   "productionCountries": [
     { "iso31661": "US", "name": "United States of America" }
