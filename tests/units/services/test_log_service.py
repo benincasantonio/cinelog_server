@@ -20,9 +20,16 @@ def mock_movie_service():
 
 
 @pytest.fixture
-def log_service(mock_log_repository, mock_movie_service):
+def mock_stats_cache_service():
+    return AsyncMock()
+
+
+@pytest.fixture
+def log_service(mock_log_repository, mock_movie_service, mock_stats_cache_service):
     return LogService(
-        log_repository=mock_log_repository, movie_service=mock_movie_service
+        log_repository=mock_log_repository,
+        movie_service=mock_movie_service,
+        stats_cache_service=mock_stats_cache_service,
     )
 
 
@@ -76,6 +83,43 @@ class TestLogService:
         assert result.movie.title == "Test Movie"
         mock_movie_service.find_or_create_movie.assert_awaited_once_with(tmdb_id=550)
         mock_log_repository.create_log.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_create_log_invalidates_stats_cache(
+        self, log_service, mock_log_repository, mock_movie_service, mock_stats_cache_service
+    ):
+        """Test that creating a log invalidates the stats cache."""
+        user_id = PydanticObjectId()
+        mock_movie = Mock()
+        mock_movie.id = PydanticObjectId()
+        mock_movie.title = "Test Movie"
+        mock_movie.tmdb_id = 550
+        mock_movie.poster_path = "/poster.jpg"
+        mock_movie.release_date = None
+        mock_movie.overview = None
+        mock_movie.vote_average = None
+        mock_movie.runtime = None
+        mock_movie.original_language = "en"
+        mock_movie.created_at = None
+        mock_movie.updated_at = None
+        mock_movie_service.find_or_create_movie.return_value = mock_movie
+
+        mock_log = Mock()
+        mock_log.id = "log123"
+        mock_log.movie_id = "movie123"
+        mock_log.tmdb_id = 550
+        mock_log.date_watched = date(2024, 1, 15)
+        mock_log.viewing_notes = None
+        mock_log.poster_path = "/poster.jpg"
+        mock_log.watched_where = "cinema"
+        mock_log_repository.create_log.return_value = mock_log
+
+        request = LogCreateRequest(
+            tmdb_id=550, date_watched=date(2024, 1, 15), watched_where="cinema"
+        )
+        await log_service.create_log(user_id, request)
+
+        mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
     async def test_create_log_auto_populate_poster(
@@ -155,6 +199,41 @@ class TestLogService:
 
         assert result.viewing_notes == "Updated notes"
         mock_log_repository.update_log.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_update_log_invalidates_stats_cache(
+        self, log_service, mock_log_repository, mock_movie_service, mock_stats_cache_service
+    ):
+        """Test that updating a log invalidates the stats cache."""
+        user_id = PydanticObjectId()
+        mock_log = Mock()
+        mock_log.id = "log123"
+        mock_log.movie_id = "movie123"
+        mock_log.tmdb_id = 550
+        mock_log.date_watched = date(2024, 1, 15)
+        mock_log.viewing_notes = "Updated notes"
+        mock_log.poster_path = "/poster.jpg"
+        mock_log.watched_where = "streaming"
+        mock_log_repository.update_log.return_value = mock_log
+
+        mock_movie = Mock()
+        mock_movie.id = PydanticObjectId()
+        mock_movie.title = "Test Movie"
+        mock_movie.tmdb_id = 550
+        mock_movie.poster_path = "/poster.jpg"
+        mock_movie.release_date = None
+        mock_movie.overview = None
+        mock_movie.vote_average = None
+        mock_movie.runtime = None
+        mock_movie.original_language = "en"
+        mock_movie.created_at = None
+        mock_movie.updated_at = None
+        mock_movie_service.get_movie_by_id.return_value = mock_movie
+
+        request = LogUpdateRequest(viewing_notes="Updated notes")
+        await log_service.update_log(user_id, "log123", request)
+
+        mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
     async def test_update_log_not_found(self, log_service, mock_log_repository):

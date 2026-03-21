@@ -8,7 +8,7 @@ from app.services.cache_service import CacheService
 
 logger = logging.getLogger(__name__)
 
-STATS_CACHE_TTL = int(os.getenv("STATS_CACHE_TTL", "864000"))
+STATS_CACHE_TTL = int(os.getenv("STATS_CACHE_TTL", "259200"))
 
 
 class StatsCacheService:
@@ -34,8 +34,8 @@ class StatsCacheService:
     ) -> str:
         if year_from is None and year_to is None:
             return f"cinelog:stats:{user_id}:all"
-        from_part = str(year_from) if year_from is not None else "*"
-        to_part = str(year_to) if year_to is not None else "*"
+        from_part = str(year_from) if year_from is not None else "any"
+        to_part = str(year_to) if year_to is not None else "any"
         return f"cinelog:stats:{user_id}:{from_part}:{to_part}"
 
     async def get_stats(
@@ -52,7 +52,7 @@ class StatsCacheService:
         if data is None:
             logger.debug("Cache miss for key=%s", key)
             return None
-        logger.info("Cache hit for key=%s", key)
+        logger.debug("Cache hit for key=%s", key)
         return StatsResponse.model_validate(data)
 
     async def set_stats(
@@ -60,10 +60,9 @@ class StatsCacheService:
         user_id: PydanticObjectId,
         year_from: int | None = None,
         year_to: int | None = None,
-        stats: StatsResponse | None = None,
+        *,
+        stats: StatsResponse,
     ) -> None:
-        if stats is None:
-            return
         if self._cache is None:
             return
 
