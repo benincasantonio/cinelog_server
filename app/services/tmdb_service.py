@@ -1,8 +1,15 @@
-import httpx
+import logging
 import os
 from threading import Lock
 
-from app.schemas.tmdb_schemas import TMDBMovieSearchResult, TMDBMovieDetails
+import httpx
+
+from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult
+from app.services.tmdb_cache_service import TMDBCacheService
+
+logger = logging.getLogger(__name__)
+
+TMDB_TIMEOUT = int(os.getenv("TMDB_TIMEOUT", "10"))
 
 
 class TMDBService:
@@ -10,12 +17,16 @@ class TMDBService:
     _singleton_lock = Lock()
 
     def __init__(
-        self, api_key: str | None = None, client: httpx.AsyncClient | None = None
+        self,
+        api_key: str | None = None,
+        client: httpx.AsyncClient | None = None,
+        cache: TMDBCacheService | None = None,
     ):
         self.API_KEY = api_key if api_key is not None else os.getenv("TMDB_API_KEY")
-        self._client = client or httpx.AsyncClient()
+        self._client = client or httpx.AsyncClient(timeout=httpx.Timeout(TMDB_TIMEOUT))
         self._owns_client = client is None
         self._closed = False
+        self._cache = cache if cache is not None else TMDBCacheService()
 
     @classmethod
     def get_instance(cls) -> "TMDBService":
@@ -37,13 +48,20 @@ class TMDBService:
     async def search_movie(self, query: str) -> TMDBMovieSearchResult:
         """Search for a movie by title."""
         self._ensure_open()
-        url = "https://api.themoviedb.org/3/search/movie"
 
+        cached = await self._cache.get_search(query)
+        if cached is not None:
+            return cached
+
+        url = "https://api.themoviedb.org/3/search/movie"
         response = await self._client.get(
             url, headers=self._headers(), params={"query": query}
         )
+        response.raise_for_status()
 
-        return TMDBMovieSearchResult(**response.json())
+        result = TMDBMovieSearchResult(**response.json())
+        await self._cache.set_search(query, result)
+        return result
 
     async def get_movie_details(self, tmdb_id: int) -> TMDBMovieDetails:
         """
@@ -56,12 +74,18 @@ class TMDBService:
         - and more
         """
         self._ensure_open()
+
+        cached = await self._cache.get_details(tmdb_id)
+        if cached is not None:
+            return cached
+
         url = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
-
         response = await self._client.get(url, headers=self._headers())
-        response.raise_for_status()  # Raise exception for bad status codes
+        response.raise_for_status()
 
-        return TMDBMovieDetails(**response.json())
+        result = TMDBMovieDetails(**response.json())
+        await self._cache.set_details(tmdb_id, result)
+        return result
 
     async def aclose(self) -> None:
         if not self._owns_client or self._closed:
