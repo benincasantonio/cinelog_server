@@ -46,14 +46,14 @@ class TestBuildKey:
         uid = PydanticObjectId()
         assert (
             StatsCacheService.build_key(uid, year_from=2023)
-            == f"cinelog:stats:{uid}:2023:*"
+            == f"cinelog:stats:{uid}:2023:any"
         )
 
     def test_only_year_to(self):
         uid = PydanticObjectId()
         assert (
             StatsCacheService.build_key(uid, year_to=2024)
-            == f"cinelog:stats:{uid}:*:2024"
+            == f"cinelog:stats:{uid}:any:2024"
         )
 
 

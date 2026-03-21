@@ -18,10 +18,16 @@ def mock_movie_service():
 
 
 @pytest.fixture
-def movie_rating_service(mock_movie_rating_repository, mock_movie_service):
+def mock_stats_cache_service():
+    return AsyncMock()
+
+
+@pytest.fixture
+def movie_rating_service(mock_movie_rating_repository, mock_movie_service, mock_stats_cache_service):
     return MovieRatingService(
         movie_rating_repository=mock_movie_rating_repository,
         movie_service=mock_movie_service,
+        stats_cache_service=mock_stats_cache_service,
     )
 
 
@@ -54,14 +60,41 @@ class TestMovieRatingService:
 
         # Execute
         result = await movie_rating_service.create_update_movie_rating(
-            user_id="user123", tmdb_id="550", rating=8, comment="Great movie!"
+            user_id=PydanticObjectId(), tmdb_id=550, rating=8, comment="Great movie!"
         )
 
         # Verify
         assert result.id == "rating123"
         assert result.rating == 8
         assert result.comment == "Great movie!"
-        mock_movie_service.find_or_create_movie.assert_awaited_once_with(tmdb_id="550")
+        mock_movie_service.find_or_create_movie.assert_awaited_once_with(tmdb_id=550)
+
+    @pytest.mark.asyncio
+    async def test_create_update_movie_rating_invalidates_stats_cache(
+        self, movie_rating_service, mock_movie_rating_repository, mock_movie_service, mock_stats_cache_service
+    ):
+        """Test that creating/updating a rating invalidates the stats cache."""
+        user_id = PydanticObjectId()
+        mock_movie = Mock()
+        mock_movie.id = PydanticObjectId()
+        mock_movie_service.find_or_create_movie.return_value = mock_movie
+
+        mock_rating = Mock()
+        mock_rating.id = "rating123"
+        mock_rating.user_id = str(user_id)
+        mock_rating.movie_id = "movie123"
+        mock_rating.tmdb_id = 550
+        mock_rating.rating = 8
+        mock_rating.review = "Great!"
+        mock_rating.created_at = datetime.now()
+        mock_rating.updated_at = datetime.now()
+        mock_movie_rating_repository.create_update_movie_rating.return_value = mock_rating
+
+        await movie_rating_service.create_update_movie_rating(
+            user_id=user_id, tmdb_id=550, rating=8, comment="Great!"
+        )
+
+        mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
     async def test_get_movie_rating_found(

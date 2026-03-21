@@ -11,6 +11,7 @@ Welcome to the Cinelog Server documentation.
 | [CORS Configuration](cors-configuration.md) | CORS environment and behavior specification |
 | [Authentication](authentication.md) | Auth system (JWT, Cookies, CSRF) |
 | [Redis Caching](redis-caching.md) | Cache layer configuration, design, and usage |
+| [Stats Caching](stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
 
 ## Quick Links
 
