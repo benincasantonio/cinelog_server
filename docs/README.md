@@ -9,6 +9,7 @@ User-facing documentation covering features, flows, and API usage from the consu
 | Document | Description |
 |----------|-------------|
 | [Authentication](functional/authentication.md) | Auth flows, API usage, CSRF guide |
+| [TMDB Movie Service](functional/tmdb-service.md) | Movie search and details endpoints, data flow, response fields |
 
 ## Technical Docs
 
@@ -22,6 +23,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Migrations](technical/migrations.md) | Database migration system |
 | [Redis Caching](technical/redis-caching.md) | Cache layer configuration, design, and usage |
 | [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
+| [TMDB Service](technical/tmdb-service.md) | Singleton lifecycle, HTTP client, cache keys, MovieService integration |
 
 ## Quick Links
 

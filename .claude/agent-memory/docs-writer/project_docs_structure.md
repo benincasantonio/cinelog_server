@@ -11,11 +11,13 @@ docs/ is split into two subdirectories:
 
 Current files:
 - docs/functional/authentication.md — JWT auth flow, CSRF usage, password recovery (API consumer perspective)
+- docs/functional/tmdb-service.md — movie search and details endpoints, data flow, response field tables, error handling
 - docs/technical/cors-configuration.md — CORS env vars, Docker/Vercel setup
 - docs/technical/e2e-testing.md — test setup, Docker MongoDB, CI secrets
 - docs/technical/migrations.md — migration runner internals, writing migrations, CI/CD
 - docs/technical/redis-caching.md — CacheService design, Docker setup, TTL strategy
 - docs/technical/stats-caching.md — StatsCacheService, cache keys, invalidation triggers
+- docs/technical/tmdb-service.md — TMDBService singleton lifecycle, httpx client, TMDBCacheService cache keys/TTLs, MovieService.find_or_create_movie integration, env vars, ADRs
 
 docs/README.md is the top-level index with two sections: "Functional Docs" and "Technical Docs".
 
