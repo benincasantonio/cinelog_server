@@ -39,7 +39,6 @@ class StatsService:
         year_to: int | None = None,
     ) -> StatsResponse:
         cached = await self.stats_cache_service.get_stats(user_id, year_from, year_to)
-        print(f"StatsService.get_user_stats: cache result for user_id={user_id}, year_from={year_from}, year_to={year_to}: {cached}")
         if cached is not None:
             return cached
 
