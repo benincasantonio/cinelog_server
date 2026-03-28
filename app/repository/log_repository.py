@@ -124,8 +124,6 @@ class LogRepository:
 
         query_params: dict = Log.active_filter({"movieId": movie_object_id})
         if user_id:
-            if user_id is None:
-                return []
             query_params["userId"] = user_id
 
         return await Log.find(query_params).to_list()
