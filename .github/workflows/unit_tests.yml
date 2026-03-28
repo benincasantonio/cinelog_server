@@ -28,6 +28,10 @@ jobs:
         run: |
           uv sync --frozen --group dev
           
+      - name: Run Mypy Type Check
+        run: |
+          make typecheck
+
       - name: Run Unit Tests
         run: |
           uv run pytest tests/units --cov=app --cov-fail-under=80

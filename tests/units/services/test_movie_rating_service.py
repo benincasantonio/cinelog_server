@@ -23,7 +23,9 @@ def mock_stats_cache_service():
 
 
 @pytest.fixture
-def movie_rating_service(mock_movie_rating_repository, mock_movie_service, mock_stats_cache_service):
+def movie_rating_service(
+    mock_movie_rating_repository, mock_movie_service, mock_stats_cache_service
+):
     return MovieRatingService(
         movie_rating_repository=mock_movie_rating_repository,
         movie_service=mock_movie_service,
@@ -71,7 +73,11 @@ class TestMovieRatingService:
 
     @pytest.mark.asyncio
     async def test_create_update_movie_rating_invalidates_stats_cache(
-        self, movie_rating_service, mock_movie_rating_repository, mock_movie_service, mock_stats_cache_service
+        self,
+        movie_rating_service,
+        mock_movie_rating_repository,
+        mock_movie_service,
+        mock_stats_cache_service,
     ):
         """Test that creating/updating a rating invalidates the stats cache."""
         user_id = PydanticObjectId()
@@ -88,7 +94,9 @@ class TestMovieRatingService:
         mock_rating.review = "Great!"
         mock_rating.created_at = datetime.now()
         mock_rating.updated_at = datetime.now()
-        mock_movie_rating_repository.create_update_movie_rating.return_value = mock_rating
+        mock_movie_rating_repository.create_update_movie_rating.return_value = (
+            mock_rating
+        )
 
         await movie_rating_service.create_update_movie_rating(
             user_id=user_id, tmdb_id=550, rating=8, comment="Great!"

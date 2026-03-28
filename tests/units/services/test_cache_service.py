@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -12,7 +12,9 @@ class TestCacheServiceDisabled:
 
     @pytest_asyncio.fixture
     async def service(self):
-        svc = CacheService(enabled=False, url="redis://localhost:6379/0", default_ttl=300)
+        svc = CacheService(
+            enabled=False, url="redis://localhost:6379/0", default_ttl=300
+        )
         yield svc
 
     @pytest.mark.asyncio
@@ -211,7 +213,11 @@ class TestCacheServiceSingleton:
         CacheService._singleton = None
 
     def test_initialize_creates_singleton(self):
-        config = {"enabled": False, "url": "redis://localhost:6379/0", "default_ttl": 300}
+        config = {
+            "enabled": False,
+            "url": "redis://localhost:6379/0",
+            "default_ttl": 300,
+        }
         instance = CacheService.initialize(config)
         assert CacheService.get_instance() is instance
 
@@ -221,7 +227,11 @@ class TestCacheServiceSingleton:
 
     @pytest.mark.asyncio
     async def test_aclose_all_clears_singleton(self):
-        config = {"enabled": False, "url": "redis://localhost:6379/0", "default_ttl": 300}
+        config = {
+            "enabled": False,
+            "url": "redis://localhost:6379/0",
+            "default_ttl": 300,
+        }
         CacheService.initialize(config)
         await CacheService.aclose_all()
         with pytest.raises(RuntimeError):

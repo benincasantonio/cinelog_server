@@ -22,9 +22,7 @@ def _sample_stats_response() -> StatsResponse:
             vote_average=7.5,
         ),
         distribution=StatsDistribution(
-            by_method=StatsByMethod(
-                cinema=2, streaming=1, home_video=1, tv=1, other=0
-            )
+            by_method=StatsByMethod(cinema=2, streaming=1, home_video=1, tv=1, other=0)
         ),
         pace=StatsPace(on_track_for=0, current_average=0.0, days_since_last_log=0),
     )
@@ -128,9 +126,7 @@ class TestSetStats:
         ):
             # Should not raise
             service = StatsCacheService()
-            await service.set_stats(
-                PydanticObjectId(), stats=_sample_stats_response()
-            )
+            await service.set_stats(PydanticObjectId(), stats=_sample_stats_response())
 
 
 class TestInvalidateUserStats:

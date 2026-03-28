@@ -86,7 +86,11 @@ class TestLogService:
 
     @pytest.mark.asyncio
     async def test_create_log_invalidates_stats_cache(
-        self, log_service, mock_log_repository, mock_movie_service, mock_stats_cache_service
+        self,
+        log_service,
+        mock_log_repository,
+        mock_movie_service,
+        mock_stats_cache_service,
     ):
         """Test that creating a log invalidates the stats cache."""
         user_id = PydanticObjectId()
@@ -202,7 +206,11 @@ class TestLogService:
 
     @pytest.mark.asyncio
     async def test_update_log_invalidates_stats_cache(
-        self, log_service, mock_log_repository, mock_movie_service, mock_stats_cache_service
+        self,
+        log_service,
+        mock_log_repository,
+        mock_movie_service,
+        mock_stats_cache_service,
     ):
         """Test that updating a log invalidates the stats cache."""
         user_id = PydanticObjectId()

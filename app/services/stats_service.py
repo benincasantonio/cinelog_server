@@ -80,7 +80,9 @@ class StatsService:
 
         result = StatsResponse(summary=summary, distribution=distribution, pace=pace)
 
-        await self.stats_cache_service.set_stats(user_id, year_from, year_to, stats=result)
+        await self.stats_cache_service.set_stats(
+            user_id, year_from, year_to, stats=result
+        )
 
         return result
 
