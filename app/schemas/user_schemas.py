@@ -67,3 +67,42 @@ class UserResponse(BaseSchema):
     handle: str
     bio: Optional[str] = None
     date_of_birth: Optional[date] = None
+
+
+class UpdateProfileRequest(BaseSchema):
+    first_name: Optional[str] = Field(None, min_length=1, max_length=50)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=50)
+    bio: Optional[str] = Field(None, max_length=500, description="User biography")
+    date_of_birth: Optional[date] = Field(
+        None, description="Date of birth in YYYY-MM-DD format"
+    )
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not NAME_PATTERN.match(v):
+            raise ValueError("Name contains invalid characters")
+        return v
+
+    @field_validator("bio")
+    @classmethod
+    def sanitize_bio(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return strip_html_tags(v)
+
+
+class ChangePasswordRequest(BaseSchema):
+    current_password: str = Field(
+        ..., min_length=8, max_length=128, description="Current password"
+    )
+    new_password: str = Field(
+        ..., min_length=8, max_length=128, description="New password"
+    )
+
+
+class ChangePasswordResponse(BaseSchema):
+    message: str = Field(..., description="Password change confirmation message")

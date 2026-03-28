@@ -3,7 +3,12 @@ from datetime import datetime
 from beanie import PydanticObjectId
 
 from app.repository.user_repository import UserRepository
-from app.schemas.user_schemas import UserResponse
+from app.schemas.user_schemas import (
+    ChangePasswordResponse,
+    UpdateProfileRequest,
+    UserResponse,
+)
+from app.services.password_service import PasswordService
 from app.utils.error_codes import ErrorCodes
 from app.utils.exceptions import AppException
 
@@ -40,3 +45,57 @@ class UserService:
             bio=user.bio,
             date_of_birth=date_of_birth,
         )
+
+    async def update_profile(
+        self, user_id: PydanticObjectId, request: UpdateProfileRequest
+    ) -> UserResponse:
+        """
+        Update user profile fields.
+        """
+        update_data = request.model_dump(exclude_none=True)
+        if not update_data:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        user = await self.user_repository.update_user_profile(user_id, update_data)
+        if not user:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        date_of_birth = (
+            user.date_of_birth.date()
+            if isinstance(user.date_of_birth, datetime)
+            else user.date_of_birth
+        )
+
+        return UserResponse(
+            id=str(user.id),
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            handle=user.handle,
+            bio=user.bio,
+            date_of_birth=date_of_birth,
+        )
+
+    async def change_password(
+        self,
+        user_id: PydanticObjectId,
+        current_password: str,
+        new_password: str,
+    ) -> ChangePasswordResponse:
+        """
+        Change user password.
+        """
+        user = await self.user_repository.find_user_by_id(user_id)
+        if not user or not user.password_hash:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        if not PasswordService.verify_password(current_password, user.password_hash):
+            raise AppException(ErrorCodes.INVALID_CURRENT_PASSWORD)
+
+        if PasswordService.verify_password(new_password, user.password_hash):
+            raise AppException(ErrorCodes.SAME_PASSWORD)
+
+        hashed_password = PasswordService.get_password_hash(new_password)
+        await self.user_repository.update_password(user, hashed_password)
+
+        return ChangePasswordResponse(message="Password changed successfully")
