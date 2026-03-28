@@ -6,6 +6,7 @@ from datetime import date
 
 from app.schemas.base_schema import BaseSchema
 from app.schemas.movie_schemas import MovieResponse
+from app.types import OptionalWatchedWhereStr, WatchedWhereStr
 
 
 class LogCreateRequest(BaseSchema):
@@ -21,20 +22,10 @@ class LogCreateRequest(BaseSchema):
         None,
         description="Path to the movie poster image (auto-fetched from TMDB if not provided)",
     )
-    watched_where: str = Field(
+    watched_where: WatchedWhereStr = Field(
         "other",
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
-
-    @field_validator("watched_where")
-    @classmethod
-    def validate_watched_where(cls, value):
-        valid_choices = ["cinema", "streaming", "homeVideo", "tv", "other"]
-
-        if value not in valid_choices:
-            raise ValueError(f"watched_where must be one of {valid_choices}")
-
-        return value
 
 
 class LogCreateResponse(BaseSchema):
@@ -64,20 +55,10 @@ class LogUpdateRequest(BaseSchema):
     viewing_notes: Optional[str] = Field(
         None, description="Optional notes about this viewing"
     )
-    watched_where: Optional[str] = Field(
+    watched_where: OptionalWatchedWhereStr = Field(
         None,
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
-
-    @field_validator("watched_where")
-    @classmethod
-    def validate_watched_where(cls, value):
-        if value is None:
-            return value
-        valid_choices = ["cinema", "streaming", "homeVideo", "tv", "other"]
-        if value not in valid_choices:
-            raise ValueError(f"watched_where must be one of {valid_choices}")
-        return value
 
 
 class LogListItem(BaseSchema):
@@ -112,7 +93,7 @@ class LogListRequest(BaseSchema):
         "dateWatched", description="Field to sort by (e.g., dateWatched)"
     )
     sort_order: str = Field("desc", description="Sort order (asc or desc)")
-    watched_where: str | None = Field(
+    watched_where: OptionalWatchedWhereStr = Field(
         None,
         description="Filter logs by where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
@@ -149,15 +130,4 @@ class LogListRequest(BaseSchema):
     def validate_sort_order(cls, value):
         if value not in ["asc", "desc"]:
             raise ValueError("sort_order must be either 'asc' or 'desc'")
-        return value
-
-    @field_validator("watched_where")
-    @classmethod
-    def validate_watched_where(cls, value):
-        if value is None:
-            return value
-
-        valid_choices = ["cinema", "streaming", "homeVideo", "tv", "other"]
-        if value and value not in valid_choices:
-            raise ValueError(f"watched_where must be one of {valid_choices}")
         return value

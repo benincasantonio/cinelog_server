@@ -24,6 +24,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Redis Caching](technical/redis-caching.md) | Cache layer configuration, design, and usage |
 | [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
 | [TMDB Service](technical/tmdb-service.md) | Singleton lifecycle, HTTP client, cache keys, MovieService integration |
+| [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |
 
 ## Quick Links
 

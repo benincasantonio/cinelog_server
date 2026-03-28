@@ -1,58 +1,23 @@
-from pydantic import EmailStr, Field, field_validator
+from pydantic import EmailStr, Field
 from datetime import date
 from typing import Optional
 
 from app.schemas.base_schema import BaseSchema
-from app.utils.sanitize_utils import strip_html_tags, NAME_PATTERN, HANDLE_PATTERN
+from app.types import BioStr, HandleStr, NameStr
 
 
 class RegisterRequest(BaseSchema):
     """Schema for user registration request"""
 
-    first_name: str = Field(
-        ..., min_length=1, max_length=50, description="User's first name"
-    )
-    last_name: str = Field(
-        ..., min_length=1, max_length=50, description="User's last name"
-    )
+    first_name: NameStr = Field(description="User's first name")
+    last_name: NameStr = Field(description="User's last name")
     email: EmailStr = Field(..., description="User's email address")
     password: str = Field(
         ..., min_length=8, max_length=128, description="User's password"
     )
-    handle: str = Field(
-        ..., min_length=3, max_length=20, description="User's unique handle"
-    )
-    bio: Optional[str] = Field(None, max_length=500, description="User biography")
+    handle: HandleStr = Field(description="User's unique handle")
+    bio: BioStr = Field(None, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
-
-    @field_validator("first_name", "last_name")
-    @classmethod
-    def validate_name(cls, v: str) -> str:
-        v = v.strip()
-        if not NAME_PATTERN.match(v):
-            raise ValueError("Name contains invalid characters")
-        return v
-
-    @field_validator("handle")
-    @classmethod
-    def validate_handle(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("Handle must not be empty or whitespace")
-        if v[0].isdigit():
-            raise ValueError("Handle must not start with a number")
-        if not HANDLE_PATTERN.match(v):
-            raise ValueError(
-                "Handle must contain only alphanumeric characters or underscores"
-            )
-        return v
-
-    @field_validator("bio")
-    @classmethod
-    def sanitize_bio(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
-            return v
-        return strip_html_tags(v)
 
 
 class RegisterResponse(BaseSchema):

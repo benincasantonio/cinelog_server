@@ -144,6 +144,29 @@ All work must be tied to a GitHub issue. Follow this workflow:
    ```
    See https://cli.github.com/manual/gh_pr_create for options.
 
+## Naming Conventions
+
+- **Utility modules** in `app/utils/` must follow the `_utils.py` suffix naming convention (e.g., `validator_utils.py`, `sanitize_utils.py`). This ensures consistency and discoverability across the codebase.
+
+## Types and Validators
+
+Reusable validation logic lives in `app/types/`, organized by business domain. Each file contains both the validation functions and the resulting Annotated type aliases.
+
+**File structure:**
+
+| File | Purpose |
+|---|---|
+| `app/types/common_validation.py` | Cross-domain validators shared by multiple domains |
+| `app/types/<domain>_validation.py` | Domain-specific validators (e.g., `user_validation.py`, `log_validation.py`) |
+| `app/types/__init__.py` | Re-exports all public types for convenient imports |
+
+**Rules:**
+
+- Never define inline `@field_validator` methods in schemas when a reusable Annotated type already exists in `app/types/`.
+- When adding a new validator, place it in the appropriate domain file. If it spans multiple domains, put it in `common_validation.py`.
+- Schemas must import types from `app.types` (the package), not from individual sub-modules directly.
+- Each domain file must include module-level documentation listing the exported types and their purpose.
+
 ## Architecture
 
 For the full architecture reference, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -158,7 +181,8 @@ For the full architecture reference, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 6. **Dependencies** (`app/dependencies/`) → FastAPI dependency injection (e.g., JWT auth)
 7. **Middleware** (`app/middleware/`) → Request processing middleware (e.g., CSRF protection)
 8. **Config** (`app/config/`) → Application configuration (e.g., CORS)
-9. **Utils** (`app/utils/`) → Shared utilities
+9. **Types** (`app/types/`) → Reusable Annotated validation types, organized by domain
+10. **Utils** (`app/utils/`) → Shared utilities
 
 ## Documentation
 
