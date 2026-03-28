@@ -38,6 +38,20 @@ class ErrorCodes:
         error_description="The email or password provided is incorrect.",
     )
 
+    INVALID_CURRENT_PASSWORD = ErrorSchema(
+        error_code_name="INVALID_CURRENT_PASSWORD",
+        error_code=401,
+        error_message="Invalid current password",
+        error_description="The current password provided is incorrect.",
+    )
+
+    SAME_PASSWORD = ErrorSchema(
+        error_code_name="SAME_PASSWORD",
+        error_code=400,
+        error_message="New password must be different",
+        error_description="The new password must be different from the current password.",
+    )
+
     # Movie Errors
 
     MOVIE_NOT_FOUND = ErrorSchema(

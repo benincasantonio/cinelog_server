@@ -1,5 +1,6 @@
 from datetime import datetime, UTC
 import re
+from typing import Any
 
 from beanie import PydanticObjectId
 
@@ -107,5 +108,18 @@ class UserRepository:
         """Clear reset password code."""
         user.reset_password_code = None
         user.reset_password_expires = None
+        await user.save()
+        return user
+
+    @staticmethod
+    async def update_user_profile(
+        user_id: PydanticObjectId, update_data: dict[str, Any]
+    ) -> User | None:
+        """Update user profile fields."""
+        user = await UserRepository.find_user_by_id(user_id)
+        if not user:
+            return None
+        for field, value in update_data.items():
+            setattr(user, field, value)
         await user.save()
         return user

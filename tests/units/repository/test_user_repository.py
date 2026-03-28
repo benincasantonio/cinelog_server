@@ -271,3 +271,31 @@ async def test_set_and_clear_reset_password_code(beanie_test_db, user_create_req
     cleared = await repository.clear_reset_password_code(updated)
     assert cleared.reset_password_code is None
     assert cleared.reset_password_expires is None
+
+
+@pytest.mark.asyncio
+async def test_update_user_profile_success(beanie_test_db, user_create_request):
+    repository = UserRepository()
+    user = await repository.create_user(user_create_request)
+
+    updated = await repository.update_user_profile(
+        user.id, {"first_name": "Updated", "bio": "New bio"}
+    )
+
+    assert updated is not None
+    assert updated.first_name == "Updated"
+    assert updated.bio == "New bio"
+    assert updated.last_name == user_create_request.last_name
+
+
+@pytest.mark.asyncio
+async def test_update_user_profile_not_found(beanie_test_db):
+    from bson import ObjectId
+    from beanie import PydanticObjectId
+
+    repository = UserRepository()
+    result = await repository.update_user_profile(
+        PydanticObjectId(ObjectId()), {"first_name": "Ghost"}
+    )
+
+    assert result is None
