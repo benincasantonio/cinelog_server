@@ -1,4 +1,4 @@
-name: Unit Tests
+name: Type Check
 
 on:
   push:
@@ -8,12 +8,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  unit_tests:
+  typecheck:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -23,11 +23,11 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          
+
       - name: Install Dependencies
         run: |
           uv sync --frozen --group dev
-           
-      - name: Run Unit Tests
+
+      - name: Run Mypy Type Check
         run: |
-          uv run pytest tests/units --cov=app --cov-fail-under=80
+          make typecheck
