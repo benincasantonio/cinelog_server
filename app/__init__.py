@@ -13,7 +13,7 @@ import app.controllers.log_controller as log_controller
 import app.controllers.user_controller as user_controller
 import app.controllers.movie_rating_controller as movie_rating_controller
 import app.controllers.stats_controller as stats_controller
-from app.middlewares.csrf_middleware import CSRFMiddleware
+from app.middleware.csrf_middleware import CSRFMiddleware
 from app.utils.exceptions import AppException
 from app.config.cors import get_cors_config
 from app.models.log import Log

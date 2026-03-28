@@ -3,7 +3,7 @@ from starlette.middleware import Middleware
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
-from app.middlewares.csrf_middleware import CSRFMiddleware
+from app.middleware.csrf_middleware import CSRFMiddleware
 
 
 async def homepage(request):
