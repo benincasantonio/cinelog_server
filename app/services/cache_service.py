@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from threading import Lock
@@ -104,7 +105,10 @@ class CacheService:
         if not self._enabled or self._client is None:
             return False
         try:
-            return bool(await self._client.ping())
+            result = self._client.ping()
+            if asyncio.iscoroutine(result):
+                result = await result
+            return bool(result)
         except Exception:
             logger.exception("Cache health check failed")
             return False
