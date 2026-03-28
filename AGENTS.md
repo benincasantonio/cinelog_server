@@ -8,13 +8,35 @@ Cinelog is a FastAPI-based movie logging application that allows users to track 
 
 ## Development Commands
 
+**Important:** Always check the `Makefile` for available scripts before running raw commands. The `Makefile` wraps common operations and ensures consistent usage across local dev and CI.
+
+### Available Make Targets
+
+| Target | Description |
+|---|---|
+| `make install` | Install runtime dependencies |
+| `make dev` | Install dev dependencies + set up git hooks |
+| `make hooks` | Set up git hooks only |
+| `make test-unit` | Run unit tests with coverage |
+| `make test-e2e` | Run end-to-end tests (auto starts/stops Docker) |
+| `make lint` | Run Ruff linter |
+| `make format` | Run Ruff formatter + auto-fix |
+| `make typecheck` | Run mypy static type checking |
+| `make security` | Run Bandit security scan |
+| `make dependency-audit` | Run pip-audit dependency vulnerability scan |
+| `make run` | Start the application locally |
+| `make docker-up` | Start local Docker environment |
+| `make docker-down` | Stop local Docker environment |
+| `make migrate` | Run database migrations |
+| `make migrate-dry-run` | Dry-run database migrations |
+
 ### Running the Application
 
 **Local development (with auto-reload):**
 
 ```bash
-uv sync --group dev
-uv run python main.py
+make dev
+make run
 ```
 
 The API will be available at `http://127.0.0.1:5009`
@@ -22,29 +44,23 @@ The API will be available at `http://127.0.0.1:5009`
 **Docker Compose (recommended for development):**
 
 ```bash
-docker-compose -f docker-compose.local.yml up --build
+make docker-up
 ```
 
 This starts both MongoDB (as a single-node replica set for transaction support) and the API service with hot-reload enabled.
 
 ### Testing
 
-**Run all tests:**
+**Run unit tests:**
 
 ```bash
-uv run pytest
+make test-unit
 ```
 
-**Run tests with coverage:**
+**Run e2e tests:**
 
 ```bash
-uv run pytest --cov=app --cov-report=html
-```
-
-**Run specific test file:**
-
-```bash
-uv run pytest tests/services/test_auth_service.py
+make test-e2e
 ```
 
 **Run specific test:**
@@ -117,7 +133,12 @@ All work must be tied to a GitHub issue. Follow this workflow:
 
 5. **Do not commit changes autonomously.** Let the developer review changes step by step. Only commit when explicitly asked.
 
-6. **Create a pull request** when the developer asks for it:
+6. **Commit messages** must follow conventional commits format: `type(scope): description`
+   - Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`
+   - Scope: the module or area of change (e.g., `mypy`, `auth`, `rating`, `ci`)
+   - Example: `chore(mypy): add configuration and enforce type checking in CI`
+
+7. **Create a pull request** when the developer asks for it:
    ```bash
    gh pr create
    ```

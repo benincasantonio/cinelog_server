@@ -71,7 +71,7 @@ class CacheService:
         if not self._enabled or self._client is None:
             return False
         try:
-            result = await self._client.delete(key)
+            result = int(await self._client.delete(key))
             return result > 0
         except Exception:
             logger.exception("Cache delete failed for key=%s", key)
@@ -81,7 +81,7 @@ class CacheService:
         if not self._enabled or self._client is None or not keys:
             return 0
         try:
-            return await self._client.delete(*keys)
+            return int(await self._client.delete(*keys))
         except Exception:
             logger.exception("Cache delete_many failed")
             return 0
@@ -95,7 +95,7 @@ class CacheService:
                 keys.append(key)
             if not keys:
                 return 0
-            return await self._client.delete(*keys)
+            return int(await self._client.delete(*keys))
         except Exception:
             logger.exception("Cache invalidate_pattern failed for pattern=%s", pattern)
             return 0
@@ -104,7 +104,7 @@ class CacheService:
         if not self._enabled or self._client is None:
             return False
         try:
-            return await self._client.ping()
+            return bool(await self._client.ping())
         except Exception:
             logger.exception("Cache health check failed")
             return False
