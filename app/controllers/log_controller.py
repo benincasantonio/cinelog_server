@@ -11,7 +11,6 @@ from app.schemas.log_schemas import (
 from app.services.log_service import LogService
 from app.dependencies.auth_dependency import auth_dependency
 
-
 router = APIRouter()
 
 log_repository = LogRepository()
@@ -50,17 +49,20 @@ async def update_log(
     )
 
 
-@router.get("/", response_model=LogListResponse)
-async def get_logs(
+@router.get("/{handle}", response_model=LogListResponse)
+async def get_logs_by_handle(
+    handle: str,
     request: Request,
     list_request: LogListRequest = Depends(),
     user_id: PydanticObjectId = Depends(auth_dependency),
 ) -> LogListResponse:
     """
-    Get list of user's viewing logs.
+    Get list of a user's viewing logs by handle.
 
     Requires authentication via Cookie token.
-    Returns all logs filtered and sorted according to query parameters.
+    Returns logs if the profile is public or the requester is the owner.
+    Returns 403 if the profile is not public and the requester is not the owner.
     """
-
-    return await log_service.get_user_logs(user_id=user_id, request=list_request)
+    return await log_service.get_user_logs_by_handle(
+        handle=handle, requester_id=user_id, request=list_request
+    )

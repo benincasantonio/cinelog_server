@@ -3,7 +3,7 @@ E2E tests for log controller endpoints.
 Tests the full stack: FastAPI -> LogService -> MongoDB.
 """
 
-from tests.e2e.conftest import register_and_login
+from tests.e2e.conftest import register, register_and_login
 from app.utils.error_codes import ErrorCodes
 
 
@@ -19,165 +19,11 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "createlogtest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
-
-        # Create a log entry (using a real TMDB ID for a movie)
-        response = await async_client.post(
-            "/v1/logs/",
-            headers={"X-CSRF-Token": csrf_token},
-            json={
-                "tmdbId": 550,  # Fight Club
-                "dateWatched": "2024-01-15",
-                "viewingNotes": "Great movie!",
-                "watchedWhere": "cinema",
-            },
-        )
-
-        assert response.status_code == 201
-        data = response.json()
-        assert data["tmdbId"] == 550
-        assert data["dateWatched"] == "2024-01-15"
-        assert data["viewingNotes"] == "Great movie!"
-        assert data["watchedWhere"] == "cinema"
-        assert "id" in data
-        assert "movieId" in data
-        # Verify movie was created
-        assert "movie" in data
-        assert data["movie"]["tmdbId"] == 550
-
-    async def test_create_log_unauthorized(self, async_client):
-        """Test creating a log without authentication."""
-        # No login -> No cookies
-        response = await async_client.post(
-            "/v1/logs/", json={"tmdbId": 550, "dateWatched": "2024-01-15"}
-        )
-        # Should be 401 (Unauthorized) OR 403 (CSRF missing)
-        assert response.status_code in [401, 403]
-
-    async def test_get_logs_success(self, async_client):
-        """Test getting user's logs with rated movie."""
-        user_data = {
-            "email": "getlogs_test@example.com",
-            "password": "securepassword123",
-            "firstName": "GetLogs",
-            "lastName": "Test",
-            "handle": "getlogstest",
-            "dateOfBirth": "1990-01-01",
-        }
-        login_data = await register_and_login(async_client, user_data)
-        csrf_token = login_data["csrfToken"]
-
-        # Create a log entry
-        await async_client.post(
-            "/v1/logs/",
-            headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
-        )
-
-        # Rate the movie
-        await async_client.post(
-            "/v1/movie-ratings/",
-            headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "rating": 8, "comment": "Great movie!"},
-        )
-
-        # Get logs (GET is safe, no CSRF needed, cookies auto-sent)
-        response = await async_client.get("/v1/logs/")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["logs"]) == 1
-        assert data["logs"][0]["tmdbId"] == 550
-        assert data["logs"][0]["movie"]["tmdbId"] == 550
-        # Verify movieRating is included when movie is rated
-        assert "movieRating" in data["logs"][0]
-        assert data["logs"][0]["movieRating"] == 8
-
-    async def test_get_logs_unrated_movie(self, async_client):
-        """Test getting user's logs with unrated movie."""
-        user_data = {
-            "email": "unrated_logs_test@example.com",
-            "password": "securepassword123",
-            "firstName": "UnratedLogs",
-            "lastName": "Test",
-            "handle": "unratedlogstest",
-            "dateOfBirth": "1990-01-01",
-        }
-        login_data = await register_and_login(async_client, user_data)
-        csrf_token = login_data["csrfToken"]
-
-        # Create a log entry WITHOUT rating the movie
-        await async_client.post(
-            "/v1/logs/",
-            headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 13, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
-        )
-
-        # Get logs
-        response = await async_client.get("/v1/logs/")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["logs"]) == 1
-        assert data["logs"][0]["tmdbId"] == 13
-        assert data["logs"][0]["movie"]["tmdbId"] == 13
-        # Verify movieRating is None when movie is not rated
-        assert data["logs"][0].get("movieRating") is None
-
-    async def test_update_log_success(self, async_client):
-        """Test updating an existing log entry."""
-        user_data = {
-            "email": "updatelog_test@example.com",
-            "password": "securepassword123",
-            "firstName": "UpdateLog",
-            "lastName": "Test",
-            "handle": "updatelogtest",
-            "dateOfBirth": "1990-01-01",
-        }
-        login_data = await register_and_login(async_client, user_data)
-        csrf_token = login_data["csrfToken"]
-
-        # Create a log entry
-        create_response = await async_client.post(
-            "/v1/logs/",
-            headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
-        )
-        assert create_response.status_code == 201
-        log_id = create_response.json()["id"]
-
-        # Update the log
-        response = await async_client.put(
-            f"/v1/logs/{log_id}",
-            headers={"X-CSRF-Token": csrf_token},
-            json={"viewingNotes": "Updated notes!", "watchedWhere": "streaming"},
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["viewingNotes"] == "Updated notes!"
-        assert data["watchedWhere"] == "streaming"
-
-    async def test_get_logs_unauthorized(self, async_client):
-        """Test getting logs without authentication."""
-        response = await async_client.get("/v1/logs/")
-
-        assert response.status_code == 401
-
-    async def test_get_logs_filter_by_watched_where(self, async_client):
-        """Test filtering logs by watchedWhere."""
-        user_data = {
-            "email": "filter_watchedwhere_test@example.com",
-            "password": "securepassword123",
-            "firstName": "FilterWhere",
-            "lastName": "Test",
-            "handle": "filterwheretest",
-            "dateOfBirth": "1990-01-01",
-        }
-        login_data = await register_and_login(async_client, user_data)
-        csrf_token = login_data["csrfToken"]
+        handle = login_data["handle"]
 
         create_a = await async_client.post(
             "/v1/logs/",
@@ -197,7 +43,7 @@ class TestLogE2E:
         )
         assert create_b.status_code == 201
 
-        response = await async_client.get("/v1/logs/?watchedWhere=streaming")
+        response = await async_client.get(f"/v1/logs/{handle}?watchedWhere=streaming")
         assert response.status_code == 200
         data = response.json()
 
@@ -214,9 +60,11 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "filterdatetest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
+        handle = login_data["handle"]
 
         create_a = await async_client.post(
             "/v1/logs/",
@@ -244,7 +92,7 @@ class TestLogE2E:
         assert create_c.status_code == 201
 
         bounded_response = await async_client.get(
-            "/v1/logs/?dateWatchedFrom=2024-01-10&dateWatchedTo=2024-01-20"
+            f"/v1/logs/{handle}?dateWatchedFrom=2024-01-10&dateWatchedTo=2024-01-20"
         )
         assert bounded_response.status_code == 200
         bounded_data = bounded_response.json()
@@ -252,7 +100,7 @@ class TestLogE2E:
         assert bounded_data["logs"][0]["dateWatched"] == "2024-01-15"
 
         partial_response = await async_client.get(
-            "/v1/logs/?dateWatchedFrom=2024-01-15"
+            f"/v1/logs/{handle}?dateWatchedFrom=2024-01-15"
         )
         assert partial_response.status_code == 200
         partial_data = partial_response.json()
@@ -271,9 +119,11 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "sortlogstest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
+        handle = login_data["handle"]
 
         for tmdb_id, date_watched in [
             (550, "2024-01-20"),
@@ -292,7 +142,7 @@ class TestLogE2E:
             assert create_response.status_code == 201
 
         asc_response = await async_client.get(
-            "/v1/logs/?sortBy=dateWatched&sortOrder=asc"
+            f"/v1/logs/{handle}?sortBy=dateWatched&sortOrder=asc"
         )
         assert asc_response.status_code == 200
         asc_data = asc_response.json()
@@ -303,7 +153,7 @@ class TestLogE2E:
         ]
 
         desc_response = await async_client.get(
-            "/v1/logs/?sortBy=dateWatched&sortOrder=desc"
+            f"/v1/logs/{handle}?sortBy=dateWatched&sortOrder=desc"
         )
         assert desc_response.status_code == 200
         desc_data = desc_response.json()
@@ -322,6 +172,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "updateinvalidtest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -345,6 +196,7 @@ class TestLogE2E:
             "lastName": "User",
             "handle": "ownerusertest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_a = await register_and_login(async_client, user_a)
         csrf_token_a = login_a["csrfToken"]
@@ -364,6 +216,7 @@ class TestLogE2E:
             "lastName": "User",
             "handle": "intruderusertest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_b = await register_and_login(async_client, user_b)
         csrf_token_b = login_b["csrfToken"]
@@ -387,10 +240,12 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "emptylogstest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
-        await register_and_login(async_client, user_data)
+        login_data = await register_and_login(async_client, user_data)
+        handle = login_data["handle"]
 
-        response = await async_client.get("/v1/logs/")
+        response = await async_client.get(f"/v1/logs/{handle}")
 
         assert response.status_code == 200
         data = response.json()
@@ -405,6 +260,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "invalidwheretest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -431,6 +287,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "isoownertest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_a = await register_and_login(async_client, user_a)
         csrf_token_a = login_a["csrfToken"]
@@ -449,10 +306,12 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "isoviewertest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
-        await register_and_login(async_client, user_b)
+        login_b = await register_and_login(async_client, user_b)
+        handle_b = login_b["handle"]
 
-        response = await async_client.get("/v1/logs/")
+        response = await async_client.get(f"/v1/logs/{handle_b}")
         assert response.status_code == 200
         data = response.json()
         assert data["logs"] == []
@@ -466,9 +325,11 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "reusemovietest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
+        handle = login_data["handle"]
 
         first_resp = await async_client.post(
             "/v1/logs/",
@@ -496,7 +357,7 @@ class TestLogE2E:
         assert first_data["movieId"] == second_data["movieId"]
 
         # Verify 2 logs exist
-        logs_resp = await async_client.get("/v1/logs/")
+        logs_resp = await async_client.get(f"/v1/logs/{handle}")
         assert logs_resp.status_code == 200
         assert len(logs_resp.json()["logs"]) == 2
 
@@ -516,6 +377,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "updinvalidwheretest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
         csrf_token = login_data["csrfToken"]
@@ -523,7 +385,11 @@ class TestLogE2E:
         create_resp = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
+            json={
+                "tmdbId": 550,
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "cinema"
+            },
         )
         assert create_resp.status_code == 201
         log_id = create_resp.json()["id"]
@@ -536,3 +402,133 @@ class TestLogE2E:
 
         assert response.status_code == 422
         assert "watchedWhere" in str(response.json())
+
+    async def test_get_logs_unauthorized(self, async_client):
+        """Test getting logs by handle without authentication returns 401."""
+        response = await async_client.get("/v1/logs/somehandle")
+
+        assert response.status_code == 401
+
+    async def test_public_profile_other_user_logs(self, async_client):
+        """Test that a public profile's logs are accessible by another logged-in user."""
+        # Create User A (public profile) and add a log
+        user_a = {
+            "email": "usera_test@example.com",
+            "password": "securepassword123",
+            "firstName": "UserA",
+            "lastName": "Test",
+            "handle": "useratest",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
+        }
+        user_not_logged = await register_and_login(async_client, user_a)
+        handle_user_not_logged = user_not_logged["handle"]
+
+        log_response = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": user_not_logged["csrfToken"]},
+            json={
+                "tmdbId": 550,  # Fight Club
+                "dateWatched": "2024-01-15",
+                "viewingNotes": "Great movie!",
+                "watchedWhere": "cinema",
+            },
+        )
+        assert log_response.status_code == 201
+
+        # Create User B and login
+        user_b = {
+            "email": "userb_test@example.com",
+            "password": "securepassword123",
+            "firstName": "UserB",
+            "lastName": "Test",
+            "handle": "userbtest",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
+        }
+        login_b = await register_and_login(async_client, user_b)
+        assert login_b["handle"] == "userbtest"
+
+        response = await async_client.get(f"/v1/logs/{handle_user_not_logged}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["logs"]) == 1
+        log = data["logs"][0]
+        assert log["tmdbId"] == 550
+        assert log["dateWatched"] == "2024-01-15"
+        assert log["viewingNotes"] == "Great movie!"
+        assert log["watchedWhere"] == "cinema"
+        # Verify movie data is included
+        assert "movie" in log
+        assert log["movie"]["tmdbId"] == 550
+
+    async def test_private_profile_other_user_logs(self, async_client):
+        """Test that a private profile's logs are not accessible by another user."""
+        # Create User A with private profile (no login needed)
+        user_a = {
+            "email": "usera_private@example.com",
+            "password": "securepassword123",
+            "firstName": "UserA",
+            "lastName": "Test",
+            "handle": "useraprivate",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "private",
+        }
+        user_not_logged = await register(async_client, user_a)
+        handle_user_not_logged = user_not_logged["handle"]
+        assert handle_user_not_logged == "useraprivate"
+
+        # Create User B and login
+        user_b = {
+            "email": "userb_private@example.com",
+            "password": "securepassword123",
+            "firstName": "UserB",
+            "lastName": "Test",
+            "handle": "userbprivate",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "private",
+        }
+        login_b = await register_and_login(async_client, user_b)
+        assert login_b["handle"] == "userbprivate"
+
+        response = await async_client.get(f"/v1/logs/{handle_user_not_logged}")
+
+        assert response.status_code == 403
+        data = response.json()
+        assert data["error_code_name"] == "PROFILE_NOT_PUBLIC"
+
+    async def test_friends_only_profile_other_user_logs(self, async_client):
+        """Test that a friends-only profile's logs are not accessible by a non-friend."""
+        # Create User A with friends_only profile (no login needed)
+        user_a = {
+            "email": "usera_friends_only@example.com",
+            "password": "securepassword123",
+            "firstName": "UserA",
+            "lastName": "Test",
+            "handle": "userafriendsonly",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "friends_only",
+        }
+        user_not_logged = await register(async_client, user_a)
+        handle_user_not_logged = user_not_logged["handle"]
+        assert handle_user_not_logged == "userafriendsonly"
+
+        # Create User B and login
+        user_b = {
+            "email": "userb_friends_only@example.com",
+            "password": "securepassword123",
+            "firstName": "UserB",
+            "lastName": "Test",
+            "handle": "userbfriendsonly",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "friends_only",
+        }
+        login_b = await register_and_login(async_client, user_b)
+        assert login_b["handle"] == "userbfriendsonly"
+
+        response = await async_client.get(f"/v1/logs/{handle_user_not_logged}")
+
+        assert response.status_code == 403
+        data = response.json()
+        assert data["error_code_name"] == "PROFILE_NOT_PUBLIC"

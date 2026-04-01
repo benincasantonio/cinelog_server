@@ -31,10 +31,9 @@ User-related validators used by `auth_schemas` and `user_schemas`.
 | Type | Description |
 |------|-------------|
 | `NameStr` | Required name (1–50 chars, letters/accents/hyphens only) |
-| `OptionalNameStr` | Optional name (`None` or 1–50 chars) |
 | `HandleStr` | Required handle (3–20 chars, alphanumeric + underscore, no leading digit) |
-| `OptionalHandleStr` | Optional handle (`None` or 3–20 chars) |
 | `BioStr` | Optional bio (`None` or up to 500 chars, HTML tags stripped) |
+| `ProfileVisibilityStr` | Required profile visibility (`public`, `friends_only`, or `private`) |
 
 ### log_validation.py
 
@@ -43,7 +42,6 @@ Log-related validators used by `log_schemas`.
 | Type | Description |
 |------|-------------|
 | `WatchedWhereStr` | Required watched_where (must be one of the allowed choices) |
-| `OptionalWatchedWhereStr` | Optional watched_where (`None` or one of the allowed choices) |
 
 ### common_validation.py
 
@@ -65,6 +63,17 @@ class RegisterRequest(BaseSchema):
 
 No `@field_validator` methods needed — validation is handled by the Annotated type.
 
+For optional validated fields, use `Type | None` inline in the schema — do not create a separate `Optional{Type}` alias in `app/types/`:
+
+```python
+# correct
+watched_where: WatchedWhereStr | None = Field(None, ...)
+profile_visibility: ProfileVisibilityStr | None = Field(None, ...)
+
+# wrong — do not add OptionalWatchedWhereStr to app/types/
+watched_where: OptionalWatchedWhereStr = Field(None, ...)
+```
+
 ## Adding a New Validator
 
 1. Identify the domain (user, log, movie, etc.)
@@ -72,6 +81,7 @@ No `@field_validator` methods needed — validation is handled by the Annotated 
 3. Add the validation function and Annotated type alias
 4. Update `app/types/__init__.py` to re-export the new type
 5. Use the type in schema fields — never define inline `@field_validator`
+6. For optional fields, write `YourType | None` in the schema rather than creating an `OptionalYourType` alias
 
 If the validator applies to multiple domains, place it in `common_validation.py` instead.
 
