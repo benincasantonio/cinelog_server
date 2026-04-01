@@ -204,53 +204,80 @@ class TestUpdateLog:
         assert response.status_code == 401
 
 
-class TestGetLogs:
-    """Tests for GET /v1/logs endpoint."""
+class TestGetLogsByHandle:
+    """Tests for GET /v1/logs/{handle} endpoint."""
 
     @patch(
-        "app.controllers.log_controller.log_service.get_user_logs",
+        "app.controllers.log_controller.log_service.get_user_logs_by_handle",
         new_callable=AsyncMock,
     )
-    def test_get_logs_success(
-        self, mock_get_logs, client, sample_log_list_response, override_auth
+    def test_get_logs_by_handle_success(
+        self, mock_get_logs_by_handle, client, sample_log_list_response, override_auth
     ):
-        """Test successful log list retrieval."""
+        """Test successful log list retrieval by handle."""
         app.dependency_overrides[auth_dependency] = override_auth
-        mock_get_logs.return_value = sample_log_list_response
+        mock_get_logs_by_handle.return_value = sample_log_list_response
 
-        response = client.get("/v1/logs/", cookies={"__Host-access_token": "token"})
+        response = client.get(
+            "/v1/logs/johndoe", cookies={"__Host-access_token": "token"}
+        )
 
         app.dependency_overrides = {}
 
         assert response.status_code == 200
         data = response.json()
         assert len(data["logs"]) == 1
-        mock_get_logs.assert_called_once()
+        mock_get_logs_by_handle.assert_called_once()
+
+    def test_get_logs_by_handle_unauthorized(self, client):
+        """Test log list retrieval without authentication."""
+        app.dependency_overrides = {}
+        response = client.get("/v1/logs/johndoe")
+
+        assert response.status_code == 401
 
     @patch(
-        "app.controllers.log_controller.log_service.get_user_logs",
+        "app.controllers.log_controller.log_service.get_user_logs_by_handle",
         new_callable=AsyncMock,
     )
-    def test_get_logs_with_filters(
-        self, mock_get_logs, client, sample_log_list_response, override_auth
+    def test_get_logs_by_handle_profile_not_public(
+        self, mock_get_logs_by_handle, client, override_auth
     ):
-        """Test log list retrieval with filters."""
+        """Test log list retrieval for private profile."""
+        from app.utils.exceptions import AppException
+        from app.utils.error_codes import ErrorCodes
+
         app.dependency_overrides[auth_dependency] = override_auth
-        mock_get_logs.return_value = sample_log_list_response
+        mock_get_logs_by_handle.side_effect = AppException(
+            ErrorCodes.PROFILE_NOT_PUBLIC
+        )
 
         response = client.get(
-            "/v1/logs/?sort_by=dateWatched&sort_order=asc&watched_where=cinema",
-            cookies={"__Host-access_token": "token"},
+            "/v1/logs/johndoe", cookies={"__Host-access_token": "token"}
         )
 
         app.dependency_overrides = {}
 
-        assert response.status_code == 200
-        mock_get_logs.assert_called_once()
+        assert response.status_code == 403
 
-    def test_get_logs_unauthorized(self, client):
-        """Test log list retrieval without authentication."""
+    @patch(
+        "app.controllers.log_controller.log_service.get_user_logs_by_handle",
+        new_callable=AsyncMock,
+    )
+    def test_get_logs_by_handle_user_not_found(
+        self, mock_get_logs_by_handle, client, override_auth
+    ):
+        """Test log list retrieval for nonexistent user."""
+        from app.utils.exceptions import AppException
+        from app.utils.error_codes import ErrorCodes
+
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_get_logs_by_handle.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
+
+        response = client.get(
+            "/v1/logs/nonexistent", cookies={"__Host-access_token": "token"}
+        )
+
         app.dependency_overrides = {}
-        response = client.get("/v1/logs/")
 
-        assert response.status_code == 401
+        assert response.status_code == 404

@@ -5,13 +5,11 @@ Provides reusable validators for log-related fields such as the
 ``watched_where`` enum. Used by ``log_schemas``.
 
 Types:
-    WatchedWhereStr         — required watched_where field (must be one of
-                              the allowed choices)
-    OptionalWatchedWhereStr — optional watched_where field (None or one of
-                              the allowed choices)
+    WatchedWhereStr — required watched_where field (must be one of
+                      the allowed choices)
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 from pydantic import AfterValidator
 
@@ -25,7 +23,3 @@ def validate_watched_where(v: str) -> str:
 
 
 WatchedWhereStr = Annotated[str, AfterValidator(validate_watched_where)]
-
-OptionalWatchedWhereStr = Optional[
-    Annotated[str, AfterValidator(validate_watched_where)]
-]

@@ -14,6 +14,7 @@ class User(BaseEntity):
     email: str
     handle: str
     bio: str | None = None
+    profile_visibility: str = Field(default="private", alias="profileVisibility")
     date_of_birth: datetime | None = Field(default=None, alias="dateOfBirth")
     password_hash: str | None = Field(default=None, alias="passwordHash")
     reset_password_code: str | None = Field(default=None, alias="resetPasswordCode")

@@ -30,6 +30,7 @@ class TestAuthController:
             handle="johndoe",
             bio=None,
             user_id="user123",
+            profile_visibility="private",
         )
 
         response = client.post(
@@ -41,6 +42,7 @@ class TestAuthController:
                 "lastName": "Doe",
                 "handle": "johndoe",
                 "dateOfBirth": "1990-01-01",
+                "profileVisibility": "private",
             },
         )
 
@@ -70,6 +72,7 @@ class TestAuthController:
                 "lastName": "Doe",
                 "handle": "johndoe",
                 "dateOfBirth": "1990-01-01",
+                "profileVisibility": "private",
             },
         )
 

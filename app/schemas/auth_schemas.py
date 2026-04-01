@@ -3,7 +3,7 @@ from datetime import date
 from typing import Optional
 
 from app.schemas.base_schema import BaseSchema
-from app.types import BioStr, HandleStr, NameStr
+from app.types import BioStr, HandleStr, NameStr, ProfileVisibilityStr
 
 
 class RegisterRequest(BaseSchema):
@@ -18,6 +18,10 @@ class RegisterRequest(BaseSchema):
     handle: HandleStr = Field(description="User's unique handle")
     bio: BioStr = Field(None, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
+    profile_visibility: ProfileVisibilityStr = Field(
+        default="private",
+        description="Profile visibility setting (public, friends_only, private)"
+    )
 
 
 class RegisterResponse(BaseSchema):
@@ -29,6 +33,7 @@ class RegisterResponse(BaseSchema):
     email: EmailStr = Field(..., description="User's email address")
     handle: str = Field(..., description="User's unique handle")
     bio: Optional[str] = Field(None, description="User biography")
+    profile_visibility: ProfileVisibilityStr = Field(..., description="Profile visibility setting")
 
 
 class LoginRequest(BaseSchema):

@@ -18,6 +18,7 @@ class TestUserE2E:
             "lastName": "Test",
             "handle": "userinfotest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
         user_id = login_data["userId"]
@@ -57,22 +58,17 @@ class TestUserE2E:
             "lastName": "Test",
             "handle": "userlogstest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
-        user_id = login_data["userId"]
+        handle = login_data["handle"]
 
         # Get user logs (cookies auto-sent)
-        response = await async_client.get(f"/v1/users/{user_id}/logs")
+        response = await async_client.get(f"/v1/logs/{handle}")
 
         assert response.status_code == 200
         data = response.json()
         assert data["logs"] == []
-
-    async def test_get_user_logs_unauthorized(self, async_client):
-        """Test getting user logs without authentication."""
-        response = await async_client.get("/v1/users/some-user-id/logs")
-
-        assert response.status_code == 401
 
     async def test_get_user_logs_with_data(self, async_client):
         """Test getting user logs when user has logs with movie data."""
@@ -83,9 +79,10 @@ class TestUserE2E:
             "lastName": "Test",
             "handle": "userlogsdatatest",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
-        user_id = login_data["userId"]
+        handle = login_data["handle"]
         csrf_token = login_data["csrfToken"]
 
         # Create a log entry (this creates a movie too)
@@ -102,7 +99,7 @@ class TestUserE2E:
         assert log_response.status_code == 201
 
         # Get user logs via user controller endpoint
-        response = await async_client.get(f"/v1/users/{user_id}/logs")
+        response = await async_client.get(f"/v1/logs/{handle}")
 
         assert response.status_code == 200
         data = response.json()

@@ -6,6 +6,7 @@ from app.repository.user_repository import UserRepository
 from app.schemas.user_schemas import (
     ChangePasswordResponse,
     UpdateProfileRequest,
+    UserProfileResponse,
     UserResponse,
 )
 from app.services.password_service import PasswordService
@@ -44,6 +45,40 @@ class UserService:
             handle=user.handle,
             bio=user.bio,
             date_of_birth=date_of_birth,
+            profile_visibility=user.profile_visibility,
+        )
+
+    async def get_visible_profile(
+        self, handle: str, requester_id: PydanticObjectId
+    ) -> UserProfileResponse:
+        user = await self.user_repository.find_user_by_handle(handle.strip())
+        if not user:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        is_owner = str(user.id) == str(requester_id)
+
+        if is_owner or user.profile_visibility == "public":
+            date_of_birth = (
+                user.date_of_birth.date()
+                if isinstance(user.date_of_birth, datetime)
+                else user.date_of_birth
+            )
+            return UserProfileResponse(
+                first_name=user.first_name,
+                last_name=user.last_name,
+                handle=user.handle,
+                bio=user.bio,
+                profile_visibility=user.profile_visibility,
+                date_of_birth=date_of_birth,
+            )
+
+        return UserProfileResponse(
+            first_name=user.first_name,
+            last_name=user.last_name,
+            handle=user.handle,
+            bio=user.bio,
+            profile_visibility=user.profile_visibility,
+            date_of_birth=None,
         )
 
     async def update_profile(
@@ -74,6 +109,7 @@ class UserService:
             handle=user.handle,
             bio=user.bio,
             date_of_birth=date_of_birth,
+            profile_visibility=user.profile_visibility,
         )
 
     async def change_password(

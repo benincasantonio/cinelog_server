@@ -3,6 +3,7 @@ from beanie import PydanticObjectId
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
+from app.repository.user_repository import UserRepository
 from app.services.movie_service import MovieService
 from app.schemas.movie_schemas import MovieResponse
 from app.schemas.log_schemas import (
@@ -29,6 +30,7 @@ class LogService:
         movie_repository: MovieRepository | None = None,
         movie_rating_repository: MovieRatingRepository | None = None,
         stats_cache_service: StatsCacheService | None = None,
+        user_repository: UserRepository | None = None,
     ):
         self.log_repository = log_repository
         # Initialize movie service if not provided
@@ -42,6 +44,7 @@ class LogService:
         )
         self.movie_repository = movie_repository or MovieRepository()
         self.stats_cache_service = stats_cache_service or StatsCacheService()
+        self.user_repository = user_repository or UserRepository()
 
     def _map_movie_to_response(self, movie: Movie) -> MovieResponse:
         return MovieResponse(
@@ -177,3 +180,19 @@ class LogService:
                 )
             )
         return LogListResponse(logs=log_items)
+
+    async def get_user_logs_by_handle(
+        self,
+        handle: str,
+        requester_id: PydanticObjectId,
+        request: LogListRequest,
+    ) -> LogListResponse:
+        user = await self.user_repository.find_user_by_handle(handle.strip())
+        if not user:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        is_owner = str(user.id) == str(requester_id)
+        if not is_owner and user.profile_visibility != "public":
+            raise AppException(ErrorCodes.PROFILE_NOT_PUBLIC)
+
+        return await self.get_user_logs(user_id=user.id, request=request)

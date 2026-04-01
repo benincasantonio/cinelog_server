@@ -6,7 +6,7 @@ from datetime import date
 
 from app.schemas.base_schema import BaseSchema
 from app.schemas.movie_schemas import MovieResponse
-from app.types import OptionalWatchedWhereStr, WatchedWhereStr
+from app.types import WatchedWhereStr
 
 
 class LogCreateRequest(BaseSchema):
@@ -55,7 +55,7 @@ class LogUpdateRequest(BaseSchema):
     viewing_notes: Optional[str] = Field(
         None, description="Optional notes about this viewing"
     )
-    watched_where: OptionalWatchedWhereStr = Field(
+    watched_where: WatchedWhereStr | None = Field(
         None,
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
@@ -93,7 +93,7 @@ class LogListRequest(BaseSchema):
         "dateWatched", description="Field to sort by (e.g., dateWatched)"
     )
     sort_order: str = Field("desc", description="Sort order (asc or desc)")
-    watched_where: OptionalWatchedWhereStr = Field(
+    watched_where: WatchedWhereStr | None = Field(
         None,
         description="Filter logs by where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )

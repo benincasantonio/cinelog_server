@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from datetime import date
 
 from app.services.user_service import UserService
-from app.schemas.user_schemas import UpdateProfileRequest
+from app.schemas.user_schemas import UpdateProfileRequest, UserProfileResponse
 from app.utils.exceptions import AppException
 from app.utils.error_codes import ErrorCodes
 
@@ -15,7 +15,9 @@ def mock_user_repository():
 
 @pytest.fixture
 def user_service(mock_user_repository):
-    return UserService(user_repository=mock_user_repository)
+    return UserService(
+        user_repository=mock_user_repository,
+    )
 
 
 def create_mock_user(
@@ -27,8 +29,8 @@ def create_mock_user(
     bio=None,
     date_of_birth=None,
     password_hash="$2b$12$hashed_password",
+    profile_visibility="private",
 ):
-    """Helper to create a mock user with proper attributes."""
     mock_user = Mock()
     mock_user.id = user_id
     mock_user.first_name = first_name
@@ -38,15 +40,13 @@ def create_mock_user(
     mock_user.bio = bio
     mock_user.date_of_birth = date_of_birth or date(1990, 1, 1)
     mock_user.password_hash = password_hash
+    mock_user.profile_visibility = profile_visibility
     return mock_user
 
 
 class TestUserService:
-    """Tests for UserService."""
-
     @pytest.mark.asyncio
     async def test_get_user_info_success(self, user_service, mock_user_repository):
-        """Test successful user info retrieval."""
         mock_user = create_mock_user()
         mock_user_repository.find_user_by_id.return_value = mock_user
 
@@ -55,13 +55,13 @@ class TestUserService:
         assert result.id == "user123"
         assert result.first_name == "John"
         assert result.last_name == "Doe"
+        assert result.profile_visibility == "private"
         mock_user_repository.find_user_by_id.assert_awaited_once_with("user123")
 
     @pytest.mark.asyncio
     async def test_get_user_info_user_not_found(
         self, user_service, mock_user_repository
     ):
-        """Test get_user_info when user is not found."""
         mock_user_repository.find_user_by_id.return_value = None
 
         with pytest.raises(AppException) as exc_info:
@@ -70,12 +70,85 @@ class TestUserService:
         assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
 
 
-class TestUpdateProfile:
-    """Tests for UserService.update_profile."""
+class TestGetVisibleProfile:
+    @pytest.mark.asyncio
+    async def test_public_profile_returns_full_info(
+        self, user_service, mock_user_repository
+    ):
+        mock_user = create_mock_user(handle="johndoe", profile_visibility="public")
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        result = await user_service.get_visible_profile(
+            handle="johndoe", requester_id="other_user"
+        )
+
+        assert isinstance(result, UserProfileResponse)
+        assert result.first_name == "John"
+        assert result.handle == "johndoe"
+        assert result.profile_visibility == "public"
+        assert result.date_of_birth == date(1990, 1, 1)
 
     @pytest.mark.asyncio
+    async def test_private_profile_hides_date_of_birth(
+        self, user_service, mock_user_repository
+    ):
+        mock_user = create_mock_user(handle="johndoe", profile_visibility="private")
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        result = await user_service.get_visible_profile(
+            handle="johndoe", requester_id="other_user"
+        )
+
+        assert result.date_of_birth is None
+        assert result.first_name == "John"
+        assert result.handle == "johndoe"
+
+    @pytest.mark.asyncio
+    async def test_friends_only_profile_hides_date_of_birth(
+        self, user_service, mock_user_repository
+    ):
+        mock_user = create_mock_user(
+            handle="johndoe", profile_visibility="friends_only"
+        )
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        result = await user_service.get_visible_profile(
+            handle="johndoe", requester_id="other_user"
+        )
+
+        assert result.date_of_birth is None
+
+    @pytest.mark.asyncio
+    async def test_own_profile_returns_full_info(
+        self, user_service, mock_user_repository
+    ):
+        mock_user = create_mock_user(
+            user_id="user123", handle="johndoe", profile_visibility="private"
+        )
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        result = await user_service.get_visible_profile(
+            handle="johndoe", requester_id="user123"
+        )
+
+        assert result.date_of_birth == date(1990, 1, 1)
+        assert result.first_name == "John"
+
+    @pytest.mark.asyncio
+    async def test_user_not_found(self, user_service, mock_user_repository):
+        mock_user_repository.find_user_by_handle.return_value = None
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.get_visible_profile(
+                handle="nonexistent", requester_id="user123"
+            )
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+
+
+class TestUpdateProfile:
+    @pytest.mark.asyncio
     async def test_update_profile_success(self, user_service, mock_user_repository):
-        """Test successful profile update."""
         updated_user = create_mock_user(first_name="Jane", bio="New bio")
         mock_user_repository.update_user_profile.return_value = updated_user
 
@@ -89,10 +162,24 @@ class TestUpdateProfile:
         )
 
     @pytest.mark.asyncio
+    async def test_update_profile_with_visibility(
+        self, user_service, mock_user_repository
+    ):
+        updated_user = create_mock_user(profile_visibility="public")
+        mock_user_repository.update_user_profile.return_value = updated_user
+
+        request = UpdateProfileRequest(profile_visibility="public")
+        result = await user_service.update_profile("user123", request)
+
+        assert result.profile_visibility == "public"
+        mock_user_repository.update_user_profile.assert_awaited_once_with(
+            "user123", {"profile_visibility": "public"}
+        )
+
+    @pytest.mark.asyncio
     async def test_update_profile_partial_fields(
         self, user_service, mock_user_repository
     ):
-        """Test that only provided fields are sent to the repository."""
         updated_user = create_mock_user(last_name="Smith")
         mock_user_repository.update_user_profile.return_value = updated_user
 
@@ -107,7 +194,6 @@ class TestUpdateProfile:
     async def test_update_profile_user_not_found(
         self, user_service, mock_user_repository
     ):
-        """Test update_profile when user does not exist."""
         mock_user_repository.update_user_profile.return_value = None
 
         request = UpdateProfileRequest(first_name="Jane")
@@ -120,7 +206,6 @@ class TestUpdateProfile:
     async def test_update_profile_empty_request_raises(
         self, user_service, mock_user_repository
     ):
-        """Test that an empty update request raises USER_NOT_FOUND."""
         request = UpdateProfileRequest()
         with pytest.raises(AppException) as exc_info:
             await user_service.update_profile("user123", request)
@@ -130,11 +215,8 @@ class TestUpdateProfile:
 
 
 class TestChangePassword:
-    """Tests for UserService.change_password."""
-
     @pytest.mark.asyncio
     async def test_change_password_success(self, user_service, mock_user_repository):
-        """Test successful password change."""
         mock_user = create_mock_user(password_hash="$2b$12$hashed")
         mock_user_repository.find_user_by_id.return_value = mock_user
         mock_user_repository.update_password.return_value = mock_user
@@ -142,10 +224,7 @@ class TestChangePassword:
         with (
             patch(
                 "app.services.user_service.PasswordService.verify_password",
-                side_effect=[
-                    True,
-                    False,
-                ],  # current matches, new does not match current
+                side_effect=[True, False],
             ),
             patch(
                 "app.services.user_service.PasswordService.get_password_hash",
@@ -165,7 +244,6 @@ class TestChangePassword:
     async def test_change_password_user_not_found(
         self, user_service, mock_user_repository
     ):
-        """Test change_password when user does not exist."""
         mock_user_repository.find_user_by_id.return_value = None
 
         with pytest.raises(AppException) as exc_info:
@@ -177,7 +255,6 @@ class TestChangePassword:
     async def test_change_password_no_password_hash(
         self, user_service, mock_user_repository
     ):
-        """Test change_password when user has no password hash (legacy user)."""
         mock_user = create_mock_user(password_hash=None)
         mock_user_repository.find_user_by_id.return_value = mock_user
 
@@ -190,7 +267,6 @@ class TestChangePassword:
     async def test_change_password_wrong_current_password(
         self, user_service, mock_user_repository
     ):
-        """Test change_password with incorrect current password."""
         mock_user = create_mock_user(password_hash="$2b$12$hashed")
         mock_user_repository.find_user_by_id.return_value = mock_user
 
@@ -210,13 +286,12 @@ class TestChangePassword:
     async def test_change_password_same_as_current(
         self, user_service, mock_user_repository
     ):
-        """Test change_password when new password matches current."""
         mock_user = create_mock_user(password_hash="$2b$12$hashed")
         mock_user_repository.find_user_by_id.return_value = mock_user
 
         with patch(
             "app.services.user_service.PasswordService.verify_password",
-            return_value=True,  # both current and new match
+            return_value=True,
         ):
             with pytest.raises(AppException) as exc_info:
                 await user_service.change_password("user123", "same_pass", "same_pass")

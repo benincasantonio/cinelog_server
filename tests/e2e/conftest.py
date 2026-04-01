@@ -33,7 +33,7 @@ MONGO_DB = "cinelog_e2e_db"
 
 @pytest_asyncio.fixture
 async def mongo_client():
-    client = AsyncMongoClient(
+    client: AsyncMongoClient = AsyncMongoClient(
         f"mongodb://{os.environ['MONGODB_HOST']}:{os.environ['MONGODB_PORT']}",
         uuidRepresentation="standard",
     )
@@ -121,7 +121,13 @@ def mock_tmdb_requests():
         yield
 
 
-async def register_and_login(client, user_data: dict) -> dict:
+async def register(client, user_data: dict):
+    """Helper: Register a user."""
+    reg_resp = await client.post("/v1/auth/register", json=user_data)
+    assert reg_resp.status_code == 201
+    return reg_resp.json()
+
+async def register_and_login(client, user_data: dict):
     """
     Helper: Register a user, then login to get auth cookies + CSRF token.
     Returns the login response JSON (includes csrfToken).
