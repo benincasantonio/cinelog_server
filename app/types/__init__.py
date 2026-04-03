@@ -9,7 +9,6 @@ from app.types.user_validation import (
     sanitize_bio,
     validate_handle,
     validate_name,
-    validate_profile_visibility,
 )
 from app.types.log_validation import (
     OptionalWatchedWhereStr,

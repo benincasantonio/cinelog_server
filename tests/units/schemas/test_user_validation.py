@@ -1,6 +1,6 @@
 """
 Unit tests for user type validators.
-Tests ProfileVisibilityStr and validate_profile_visibility.
+Tests ProfileVisibilityStr and PROFILE_VISIBILITY_VALUES.
 """
 
 import pytest
@@ -9,34 +9,15 @@ from datetime import date
 
 from app.types.user_validation import (
     PROFILE_VISIBILITY_VALUES,
-    ProfileVisibilityStr,
-    validate_profile_visibility,
 )
 from app.schemas.auth_schemas import RegisterRequest
 from app.schemas.user_schemas import UpdateProfileRequest
 
 
-class TestValidateProfileVisibility:
-    """Tests for validate_profile_visibility validator function."""
+class TestProfileVisibilityValues:
+    """Tests for PROFILE_VISIBILITY_VALUES constant."""
 
-    def test_valid_public(self):
-        """Test that 'public' is accepted."""
-        assert validate_profile_visibility("public") == "public"
-
-    def test_valid_friends_only(self):
-        """Test that 'friends_only' is accepted."""
-        assert validate_profile_visibility("friends_only") == "friends_only"
-
-    def test_valid_private(self):
-        """Test that 'private' is accepted."""
-        assert validate_profile_visibility("private") == "private"
-
-    def test_invalid_value_raises(self):
-        """Test that an invalid value raises ValueError."""
-        with pytest.raises(ValueError, match="Profile visibility must be one of"):
-            validate_profile_visibility("everyone")
-
-    def test_profile_visibility_values_constant(self):
+    def test_profile_visibility_values_contains_expected(self):
         """Test that PROFILE_VISIBILITY_VALUES contains the expected values."""
         assert "public" in PROFILE_VISIBILITY_VALUES
         assert "friends_only" in PROFILE_VISIBILITY_VALUES

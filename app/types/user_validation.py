@@ -22,14 +22,6 @@ from app.utils.sanitize_utils import HANDLE_PATTERN, NAME_PATTERN, strip_html_ta
 PROFILE_VISIBILITY_VALUES = ("public", "friends_only", "private")
 
 
-def validate_profile_visibility(v: str) -> str:
-    if v not in PROFILE_VISIBILITY_VALUES:
-        raise ValueError(
-            f"Profile visibility must be one of: {', '.join(PROFILE_VISIBILITY_VALUES)}"
-        )
-    return v
-
-
 def validate_name(v: str) -> str:
     v = v.strip()
     if not NAME_PATTERN.match(v):

@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, patch
 from datetime import date
 
 from app import app
-from app.schemas.user_schemas import UserResponse, ChangePasswordResponse
+from app.schemas.log_schemas import LogListResponse
+from app.schemas.user_schemas import ChangePasswordResponse, PublicProfileResponse, UserResponse
 from app.dependencies.auth_dependency import auth_dependency
 from app.utils.exceptions import AppException
 from app.utils.error_codes import ErrorCodes
@@ -83,8 +84,6 @@ class TestUserController:
     )
     def test_get_user_logs_success(self, mock_get_user_logs, client, override_auth):
         """Test successful user logs retrieval."""
-        from app.schemas.log_schemas import LogListResponse
-
         app.dependency_overrides[auth_dependency] = override_auth
 
         mock_get_user_logs.return_value = LogListResponse(logs=[])
@@ -319,8 +318,6 @@ class TestGetPublicProfileController:
         self, mock_get_public_profile, client, override_auth
     ):
         """Test successful public profile retrieval."""
-        from app.schemas.user_schemas import PublicProfileResponse
-
         app.dependency_overrides[auth_dependency] = override_auth
 
         mock_get_public_profile.return_value = PublicProfileResponse(
@@ -384,8 +381,6 @@ class TestGetPublicUserLogsController:
         self, mock_get_public_user_logs, client, override_auth
     ):
         """Test successful public user logs retrieval."""
-        from app.schemas.log_schemas import LogListResponse
-
         app.dependency_overrides[auth_dependency] = override_auth
 
         mock_get_public_user_logs.return_value = LogListResponse(logs=[])

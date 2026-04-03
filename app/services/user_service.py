@@ -89,8 +89,7 @@ class UserService:
         - Public: logs accessible.
         - friends_only / private: raises PROFILE_NOT_PUBLIC (403).
         """
-        if self.log_repository is None:
-            raise AppException(ErrorCodes.USER_NOT_FOUND)
+        assert self.log_repository is not None, "log_repository must be provided"
 
         user = await self.user_repository.find_user_by_handle(handle)
         if not user:

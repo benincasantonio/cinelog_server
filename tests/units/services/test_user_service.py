@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from datetime import date
 
 from app.services.user_service import UserService
+from app.schemas.log_schemas import LogListRequest, LogListResponse
 from app.schemas.user_schemas import UpdateProfileRequest
 from app.utils.exceptions import AppException
 from app.utils.error_codes import ErrorCodes
@@ -314,8 +315,6 @@ class TestGetPublicUserLogs:
         self, user_service, mock_user_repository, mock_log_repository
     ):
         """Test that own profile logs are always accessible."""
-        from app.schemas.log_schemas import LogListRequest, LogListResponse
-
         mock_user = create_mock_user(profile_visibility="private")
         mock_user.id = "user123"
         mock_user_repository.find_user_by_handle.return_value = mock_user
@@ -336,8 +335,6 @@ class TestGetPublicUserLogs:
         self, user_service, mock_user_repository, mock_log_repository
     ):
         """Test that public profile logs are accessible."""
-        from app.schemas.log_schemas import LogListRequest, LogListResponse
-
         mock_user = create_mock_user(profile_visibility="public")
         mock_user.id = "other_user"
         mock_user_repository.find_user_by_handle.return_value = mock_user
@@ -358,8 +355,6 @@ class TestGetPublicUserLogs:
         self, user_service, mock_user_repository
     ):
         """Test that private profile raises PROFILE_NOT_PUBLIC."""
-        from app.schemas.log_schemas import LogListRequest
-
         mock_user = create_mock_user(profile_visibility="private")
         mock_user.id = "other_user"
         mock_user_repository.find_user_by_handle.return_value = mock_user
@@ -378,8 +373,6 @@ class TestGetPublicUserLogs:
         self, user_service, mock_user_repository
     ):
         """Test that friends_only profile raises PROFILE_NOT_PUBLIC (stubbed as private)."""
-        from app.schemas.log_schemas import LogListRequest
-
         mock_user = create_mock_user(profile_visibility="friends_only")
         mock_user.id = "other_user"
         mock_user_repository.find_user_by_handle.return_value = mock_user
@@ -398,8 +391,6 @@ class TestGetPublicUserLogs:
         self, user_service, mock_user_repository
     ):
         """Test that USER_NOT_FOUND is raised when handle does not exist."""
-        from app.schemas.log_schemas import LogListRequest
-
         mock_user_repository.find_user_by_handle.return_value = None
 
         with pytest.raises(AppException) as exc_info:
