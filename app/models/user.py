@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from beanie import PydanticObjectId
 from pydantic import Field
@@ -19,6 +20,9 @@ class User(BaseEntity):
     reset_password_code: str | None = Field(default=None, alias="resetPasswordCode")
     reset_password_expires: datetime | None = Field(
         default=None, alias="resetPasswordExpires"
+    )
+    profile_visibility: Literal["public", "friends_only", "private"] = Field(
+        default="private", alias="profileVisibility"
     )
 
     class Settings:

@@ -8,6 +8,7 @@ from app.dependencies.auth_dependency import auth_dependency
 from app.schemas.user_schemas import (
     ChangePasswordRequest,
     ChangePasswordResponse,
+    PublicProfileResponse,
     UpdateProfileRequest,
     UserResponse,
 )
@@ -16,9 +17,9 @@ from app.schemas.log_schemas import LogListResponse, LogListRequest
 router = APIRouter()
 
 user_repository = UserRepository()
-user_service = UserService(user_repository)
-
 log_repository = LogRepository()
+user_service = UserService(user_repository, log_repository)
+
 log_service = LogService(log_repository)
 
 
@@ -32,6 +33,43 @@ async def get_user_info(
     Requires authentication via Cookie token.
     """
     return await user_service.get_user_info(user_id)
+
+
+@router.get("/handle/{handle}", response_model=PublicProfileResponse)
+async def get_public_profile(
+    handle: str,
+    request: Request,
+    requesting_user_id: PydanticObjectId = Depends(auth_dependency),
+) -> PublicProfileResponse:
+    """
+    Get a user's public profile by handle.
+
+    Requires authentication via Cookie token.
+    Visibility rules:
+    - Own profile: always full access.
+    - Public: full profile accessible.
+    - friends_only / private: basic info only (name, handle, bio).
+    """
+    return await user_service.get_public_profile(handle, requesting_user_id)
+
+
+@router.get("/handle/{handle}/logs", response_model=LogListResponse)
+async def get_public_user_logs(
+    handle: str,
+    request: Request,
+    list_request: LogListRequest = Depends(),
+    requesting_user_id: PydanticObjectId = Depends(auth_dependency),
+) -> LogListResponse:
+    """
+    Get a user's viewing logs by handle, enforcing visibility rules.
+
+    Requires authentication via Cookie token.
+    Visibility rules:
+    - Own profile: always full access.
+    - Public: logs accessible.
+    - friends_only / private: 403 PROFILE_NOT_PUBLIC.
+    """
+    return await user_service.get_public_user_logs(handle, requesting_user_id, list_request)
 
 
 @router.put("/settings/profile", response_model=UserResponse)

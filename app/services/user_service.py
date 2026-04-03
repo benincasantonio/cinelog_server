@@ -2,12 +2,16 @@ from datetime import datetime
 
 from beanie import PydanticObjectId
 
+from app.repository.log_repository import LogRepository
 from app.repository.user_repository import UserRepository
+from app.schemas.log_schemas import LogListRequest, LogListResponse
 from app.schemas.user_schemas import (
     ChangePasswordResponse,
+    PublicProfileResponse,
     UpdateProfileRequest,
     UserResponse,
 )
+from app.services.log_service import LogService
 from app.services.password_service import PasswordService
 from app.utils.error_codes import ErrorCodes
 from app.utils.exceptions import AppException
@@ -19,8 +23,10 @@ class UserService:
     def __init__(
         self,
         user_repository: UserRepository,
+        log_repository: LogRepository | None = None,
     ):
         self.user_repository = user_repository
+        self.log_repository = log_repository
 
     async def get_user_info(self, user_id: PydanticObjectId) -> UserResponse:
         """
@@ -44,7 +50,59 @@ class UserService:
             handle=user.handle,
             bio=user.bio,
             date_of_birth=date_of_birth,
+            profile_visibility=user.profile_visibility,
         )
+
+    async def get_public_profile(
+        self, handle: str, requesting_user_id: PydanticObjectId
+    ) -> PublicProfileResponse:
+        """
+        Get a user's public profile by handle, enforcing visibility rules.
+
+        - Own profile: always full access (returns full PublicProfileResponse).
+        - Public: full profile accessible.
+        - friends_only / private: basic info only (name, handle, bio).
+        """
+        user = await self.user_repository.find_user_by_handle(handle)
+        if not user:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        return PublicProfileResponse(
+            id=str(user.id),
+            first_name=user.first_name,
+            last_name=user.last_name,
+            handle=user.handle,
+            bio=user.bio,
+            profile_visibility=user.profile_visibility,
+        )
+
+    async def get_public_user_logs(
+        self,
+        handle: str,
+        requesting_user_id: PydanticObjectId,
+        request: LogListRequest,
+    ) -> LogListResponse:
+        """
+        Get a user's logs by handle, enforcing visibility rules.
+
+        - Own profile: always full access.
+        - Public: logs accessible.
+        - friends_only / private: raises PROFILE_NOT_PUBLIC (403).
+        """
+        if self.log_repository is None:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        user = await self.user_repository.find_user_by_handle(handle)
+        if not user:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        is_own_profile = str(user.id) == str(requesting_user_id)
+
+        if not is_own_profile and user.profile_visibility != "public":
+            raise AppException(ErrorCodes.PROFILE_NOT_PUBLIC)
+
+        log_service = LogService(self.log_repository)
+        return await log_service.get_user_logs(user_id=user.id, request=request)
 
     async def update_profile(
         self, user_id: PydanticObjectId, request: UpdateProfileRequest
@@ -74,6 +132,7 @@ class UserService:
             handle=user.handle,
             bio=user.bio,
             date_of_birth=date_of_birth,
+            profile_visibility=user.profile_visibility,
         )
 
     async def change_password(

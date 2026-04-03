@@ -40,6 +40,7 @@ class TestUserController:
             handle="johndoe",
             bio="A bio",
             date_of_birth=date(1990, 1, 1),
+            profile_visibility="public",
         )
 
         response = client.get(
@@ -126,6 +127,7 @@ class TestUpdateProfileController:
             handle="johndoe",
             bio="New bio",
             date_of_birth=date(1990, 1, 1),
+            profile_visibility="public",
         )
 
         response = client.put(
@@ -304,3 +306,125 @@ class TestChangePasswordController:
         app.dependency_overrides = {}
 
         assert response.status_code == 400
+
+
+class TestGetPublicProfileController:
+    """Tests for GET /users/handle/{handle}."""
+
+    @patch(
+        "app.controllers.user_controller.user_service.get_public_profile",
+        new_callable=AsyncMock,
+    )
+    def test_get_public_profile_success(
+        self, mock_get_public_profile, client, override_auth
+    ):
+        """Test successful public profile retrieval."""
+        from app.schemas.user_schemas import PublicProfileResponse
+
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        mock_get_public_profile.return_value = PublicProfileResponse(
+            id="user456",
+            first_name="Jane",
+            last_name="Doe",
+            handle="janedoe",
+            bio="A public bio",
+            profile_visibility="public",
+        )
+
+        response = client.get(
+            "/v1/users/handle/janedoe",
+            cookies={"__Host-access_token": "token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["handle"] == "janedoe"
+        assert data["profileVisibility"] == "public"
+        assert "email" not in data
+        assert "password" not in data
+
+    def test_get_public_profile_unauthorized(self, client):
+        """Test public profile endpoint without authentication."""
+        app.dependency_overrides = {}
+        response = client.get("/v1/users/handle/janedoe")
+        assert response.status_code == 401
+
+    @patch(
+        "app.controllers.user_controller.user_service.get_public_profile",
+        new_callable=AsyncMock,
+    )
+    def test_get_public_profile_not_found(
+        self, mock_get_public_profile, client, override_auth
+    ):
+        """Test public profile retrieval when handle does not exist."""
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_get_public_profile.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
+
+        response = client.get(
+            "/v1/users/handle/nonexistent",
+            cookies={"__Host-access_token": "token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 404
+
+
+class TestGetPublicUserLogsController:
+    """Tests for GET /users/handle/{handle}/logs."""
+
+    @patch(
+        "app.controllers.user_controller.user_service.get_public_user_logs",
+        new_callable=AsyncMock,
+    )
+    def test_get_public_user_logs_success(
+        self, mock_get_public_user_logs, client, override_auth
+    ):
+        """Test successful public user logs retrieval."""
+        from app.schemas.log_schemas import LogListResponse
+
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        mock_get_public_user_logs.return_value = LogListResponse(logs=[])
+
+        response = client.get(
+            "/v1/users/handle/janedoe/logs",
+            cookies={"__Host-access_token": "token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["logs"] == []
+
+    def test_get_public_user_logs_unauthorized(self, client):
+        """Test public user logs endpoint without authentication."""
+        app.dependency_overrides = {}
+        response = client.get("/v1/users/handle/janedoe/logs")
+        assert response.status_code == 401
+
+    @patch(
+        "app.controllers.user_controller.user_service.get_public_user_logs",
+        new_callable=AsyncMock,
+    )
+    def test_get_public_user_logs_profile_not_public(
+        self, mock_get_public_user_logs, client, override_auth
+    ):
+        """Test public user logs when profile is not public."""
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_get_public_user_logs.side_effect = AppException(
+            ErrorCodes.PROFILE_NOT_PUBLIC
+        )
+
+        response = client.get(
+            "/v1/users/handle/janedoe/logs",
+            cookies={"__Host-access_token": "token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 403

@@ -3,7 +3,7 @@ from datetime import date
 from typing import Optional
 
 from app.schemas.base_schema import BaseSchema
-from app.types import BioStr, NameStr, OptionalHandleStr, OptionalNameStr
+from app.types import BioStr, NameStr, OptionalHandleStr, OptionalNameStr, ProfileVisibilityStr
 
 
 class UserCreateRequest(BaseSchema):
@@ -16,6 +16,9 @@ class UserCreateRequest(BaseSchema):
     password_hash: Optional[str] = Field(
         None, description="Hashed password for local auth"
     )
+    profile_visibility: ProfileVisibilityStr = Field(
+        "private", description="Profile visibility setting"
+    )
 
 
 class UserCreateResponse(BaseSchema):
@@ -26,6 +29,7 @@ class UserCreateResponse(BaseSchema):
     handle: str
     bio: Optional[str] = None
     date_of_birth: date
+    profile_visibility: ProfileVisibilityStr
 
 
 class UserResponse(BaseSchema):
@@ -36,6 +40,16 @@ class UserResponse(BaseSchema):
     handle: str
     bio: Optional[str] = None
     date_of_birth: Optional[date] = None
+    profile_visibility: ProfileVisibilityStr = "private"
+
+
+class PublicProfileResponse(BaseSchema):
+    id: str
+    first_name: str
+    last_name: str
+    handle: str
+    bio: Optional[str] = None
+    profile_visibility: ProfileVisibilityStr
 
 
 class UpdateProfileRequest(BaseSchema):
@@ -44,6 +58,9 @@ class UpdateProfileRequest(BaseSchema):
     bio: BioStr = Field(None, description="User biography")
     date_of_birth: Optional[date] = Field(
         None, description="Date of birth in YYYY-MM-DD format"
+    )
+    profile_visibility: Optional[ProfileVisibilityStr] = Field(
+        None, description="Profile visibility setting"
     )
 
 

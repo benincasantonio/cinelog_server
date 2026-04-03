@@ -83,3 +83,11 @@ class ErrorCodes:
         error_message="Log not found",
         error_description="The requested log entry was not found.",
     )
+
+    # Profile Visibility Errors
+    PROFILE_NOT_PUBLIC = ErrorSchema(
+        error_code_name="PROFILE_NOT_PUBLIC",
+        error_code=403,
+        error_message="Profile not public",
+        error_description="This profile is not publicly accessible.",
+    )

@@ -54,6 +54,7 @@ class TestAuthService:
             password="password123",
             handle="johndoe",
             date_of_birth=date(1990, 1, 1),
+            profile_visibility="public",
         )
 
         mock_user_repo.find_user_by_email.return_value = None
@@ -66,6 +67,7 @@ class TestAuthService:
             last_name="Doe",
             handle="johndoe",
             bio=None,
+            profile_visibility="public",
         )
         mock_user_repo.create_user.return_value = mock_created_user
 
@@ -136,6 +138,7 @@ class TestAuthService:
             password="password123",
             handle="janedoe",
             date_of_birth=date(1995, 1, 1),
+            profile_visibility="private",
         )
 
         mock_user_repo.find_user_by_email.return_value = None
@@ -148,6 +151,7 @@ class TestAuthService:
             last_name="Doe",
             handle="janedoe",
             bio=None,
+            profile_visibility="private",
         )
         mock_user_repo.create_user.return_value = mock_created_user
 

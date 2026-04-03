@@ -57,6 +57,7 @@ class AuthService:
                 bio=request.bio,
                 date_of_birth=request.date_of_birth,
                 password_hash=hashed_password,
+                profile_visibility=request.profile_visibility,
             )
             user = await self.user_repository.create_user(request=user_create_request)
         except Exception as e:
@@ -69,6 +70,7 @@ class AuthService:
             handle=user.handle,
             bio=user.bio,
             user_id=str(user.id),
+            profile_visibility=user.profile_visibility,
         )
 
         return response

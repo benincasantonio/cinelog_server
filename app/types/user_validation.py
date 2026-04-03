@@ -10,13 +10,24 @@ Types:
     HandleStr           — required handle field (3–20 chars, alphanumeric + underscore)
     OptionalHandleStr   — optional handle field (None or 3–20 chars)
     BioStr              — optional bio field (None or up to 500 chars, HTML stripped)
+    ProfileVisibilityStr — required profile visibility field (public, friends_only, private)
 """
 
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from pydantic import AfterValidator, StringConstraints
 
 from app.utils.sanitize_utils import HANDLE_PATTERN, NAME_PATTERN, strip_html_tags
+
+PROFILE_VISIBILITY_VALUES = ("public", "friends_only", "private")
+
+
+def validate_profile_visibility(v: str) -> str:
+    if v not in PROFILE_VISIBILITY_VALUES:
+        raise ValueError(
+            f"Profile visibility must be one of: {', '.join(PROFILE_VISIBILITY_VALUES)}"
+        )
+    return v
 
 
 def validate_name(v: str) -> str:
@@ -72,3 +83,5 @@ OptionalHandleStr = Optional[
 BioStr = Optional[
     Annotated[str, AfterValidator(sanitize_bio), StringConstraints(max_length=500)]
 ]
+
+ProfileVisibilityStr = Literal["public", "friends_only", "private"]

@@ -27,6 +27,7 @@ def create_mock_user(
     bio=None,
     date_of_birth=None,
     password_hash="$2b$12$hashed_password",
+    profile_visibility="public",
 ):
     """Helper to create a mock user with proper attributes."""
     mock_user = Mock()
@@ -38,6 +39,7 @@ def create_mock_user(
     mock_user.bio = bio
     mock_user.date_of_birth = date_of_birth or date(1990, 1, 1)
     mock_user.password_hash = password_hash
+    mock_user.profile_visibility = profile_visibility
     return mock_user
 
 
@@ -222,3 +224,187 @@ class TestChangePassword:
                 await user_service.change_password("user123", "same_pass", "same_pass")
 
         assert exc_info.value.error.error_code == ErrorCodes.SAME_PASSWORD.error_code
+
+
+class TestGetPublicProfile:
+    """Tests for UserService.get_public_profile."""
+
+    @pytest.fixture
+    def mock_user_repository(self):
+        return AsyncMock()
+
+    @pytest.fixture
+    def user_service(self, mock_user_repository):
+        return UserService(user_repository=mock_user_repository)
+
+    @pytest.mark.asyncio
+    async def test_get_public_profile_public_visibility(
+        self, user_service, mock_user_repository
+    ):
+        """Test that a public profile is returned for any authenticated user."""
+        mock_user = create_mock_user(profile_visibility="public")
+        mock_user.id = "other_user"
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        result = await user_service.get_public_profile("johndoe", "requesting_user")
+
+        assert result.handle == "johndoe"
+        assert result.profile_visibility == "public"
+
+    @pytest.mark.asyncio
+    async def test_get_public_profile_private_visibility(
+        self, user_service, mock_user_repository
+    ):
+        """Test that a private profile still returns basic info."""
+        mock_user = create_mock_user(profile_visibility="private")
+        mock_user.id = "other_user"
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        result = await user_service.get_public_profile("johndoe", "requesting_user")
+
+        assert result.handle == "johndoe"
+        assert result.profile_visibility == "private"
+
+    @pytest.mark.asyncio
+    async def test_get_public_profile_own_profile(
+        self, user_service, mock_user_repository
+    ):
+        """Test that own profile is always accessible."""
+        mock_user = create_mock_user(profile_visibility="private")
+        mock_user.id = "user123"
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        result = await user_service.get_public_profile("johndoe", "user123")
+
+        assert result.handle == "johndoe"
+
+    @pytest.mark.asyncio
+    async def test_get_public_profile_user_not_found(
+        self, user_service, mock_user_repository
+    ):
+        """Test that USER_NOT_FOUND is raised when handle does not exist."""
+        mock_user_repository.find_user_by_handle.return_value = None
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.get_public_profile("nonexistent", "user123")
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+
+
+class TestGetPublicUserLogs:
+    """Tests for UserService.get_public_user_logs."""
+
+    @pytest.fixture
+    def mock_user_repository(self):
+        return AsyncMock()
+
+    @pytest.fixture
+    def mock_log_repository(self):
+        return AsyncMock()
+
+    @pytest.fixture
+    def user_service(self, mock_user_repository, mock_log_repository):
+        return UserService(
+            user_repository=mock_user_repository,
+            log_repository=mock_log_repository,
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_public_user_logs_own_profile(
+        self, user_service, mock_user_repository, mock_log_repository
+    ):
+        """Test that own profile logs are always accessible."""
+        from app.schemas.log_schemas import LogListRequest, LogListResponse
+
+        mock_user = create_mock_user(profile_visibility="private")
+        mock_user.id = "user123"
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        with patch(
+            "app.services.log_service.LogService.get_user_logs",
+            new_callable=AsyncMock,
+            return_value=LogListResponse(logs=[]),
+        ):
+            result = await user_service.get_public_user_logs(
+                "johndoe", "user123", LogListRequest()
+            )
+
+        assert result.logs == []
+
+    @pytest.mark.asyncio
+    async def test_get_public_user_logs_public_profile(
+        self, user_service, mock_user_repository, mock_log_repository
+    ):
+        """Test that public profile logs are accessible."""
+        from app.schemas.log_schemas import LogListRequest, LogListResponse
+
+        mock_user = create_mock_user(profile_visibility="public")
+        mock_user.id = "other_user"
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        with patch(
+            "app.services.log_service.LogService.get_user_logs",
+            new_callable=AsyncMock,
+            return_value=LogListResponse(logs=[]),
+        ):
+            result = await user_service.get_public_user_logs(
+                "johndoe", "requesting_user", LogListRequest()
+            )
+
+        assert result.logs == []
+
+    @pytest.mark.asyncio
+    async def test_get_public_user_logs_private_profile_raises(
+        self, user_service, mock_user_repository
+    ):
+        """Test that private profile raises PROFILE_NOT_PUBLIC."""
+        from app.schemas.log_schemas import LogListRequest
+
+        mock_user = create_mock_user(profile_visibility="private")
+        mock_user.id = "other_user"
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.get_public_user_logs(
+                "johndoe", "requesting_user", LogListRequest()
+            )
+
+        assert (
+            exc_info.value.error.error_code == ErrorCodes.PROFILE_NOT_PUBLIC.error_code
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_public_user_logs_friends_only_raises(
+        self, user_service, mock_user_repository
+    ):
+        """Test that friends_only profile raises PROFILE_NOT_PUBLIC (stubbed as private)."""
+        from app.schemas.log_schemas import LogListRequest
+
+        mock_user = create_mock_user(profile_visibility="friends_only")
+        mock_user.id = "other_user"
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.get_public_user_logs(
+                "johndoe", "requesting_user", LogListRequest()
+            )
+
+        assert (
+            exc_info.value.error.error_code == ErrorCodes.PROFILE_NOT_PUBLIC.error_code
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_public_user_logs_user_not_found(
+        self, user_service, mock_user_repository
+    ):
+        """Test that USER_NOT_FOUND is raised when handle does not exist."""
+        from app.schemas.log_schemas import LogListRequest
+
+        mock_user_repository.find_user_by_handle.return_value = None
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.get_public_user_logs(
+                "nonexistent", "user123", LogListRequest()
+            )
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
