@@ -69,7 +69,9 @@ async def get_public_user_logs(
     - Public: logs accessible.
     - friends_only / private: 403 PROFILE_NOT_PUBLIC.
     """
-    return await user_service.get_public_user_logs(handle, requesting_user_id, list_request)
+    return await user_service.get_public_user_logs(
+        handle, requesting_user_id, list_request
+    )
 
 
 @router.put("/settings/profile", response_model=UserResponse)
