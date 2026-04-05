@@ -1,0 +1,30 @@
+name: cinelog-prod
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "5009:5009"
+    environment:
+      - REDIS_ENABLED=true
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redis_data:

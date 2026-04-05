@@ -1,4 +1,4 @@
-.PHONY: install dev hooks test-unit test-e2e lint format typecheck security dependency-audit run docker-up docker-down migrate migrate-dry-run
+.PHONY: install dev hooks test-unit test-e2e lint format typecheck security dependency-audit run docker-up docker-down docker-build-prod docker-prod-up docker-prod-down migrate migrate-dry-run
 
 install:
 	uv sync
@@ -41,6 +41,15 @@ docker-up:
 
 docker-down:
 	docker compose -f docker-compose.local.yml down
+
+docker-build-prod:
+	docker compose -f docker-compose.prod.yml build
+
+docker-prod-up:
+	docker compose -f docker-compose.prod.yml up --build -d
+
+docker-prod-down:
+	docker compose -f docker-compose.prod.yml down
 
 migrate:
 	uv run python -m migrations.runner
