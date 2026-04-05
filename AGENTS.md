@@ -166,6 +166,7 @@ Reusable validation logic lives in `app/types/`, organized by business domain. E
 - When adding a new validator, place it in the appropriate domain file. If it spans multiple domains, put it in `common_validation.py`.
 - Schemas must import types from `app.types` (the package), not from individual sub-modules directly.
 - Each domain file must include module-level documentation listing the exported types and their purpose.
+- Never create `Optional{TypeName}` aliases in `app/types/`. For optional validated fields, write `TypeName | None` inline in the schema instead (e.g. `ProfileVisibilityStr | None`, `WatchedWhereStr | None`).
 
 ## Architecture
 

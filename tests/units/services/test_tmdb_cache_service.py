@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -190,7 +190,9 @@ class TestSetSearch:
     """set_search serialises and stores the result with the configured TTL."""
 
     @pytest.mark.asyncio
-    async def test_set_search_stores_result_with_correct_ttl(self, cache_service, mock_cache):
+    async def test_set_search_stores_result_with_correct_ttl(
+        self, cache_service, mock_cache
+    ):
         # Arrange
         mock_cache.set = AsyncMock()
         search_result = TMDBMovieSearchResult(**SEARCH_RESULT_DATA)
@@ -260,7 +262,9 @@ class TestSetDetails:
     """set_details serialises and stores movie details with the configured TTL."""
 
     @pytest.mark.asyncio
-    async def test_set_details_stores_result_with_correct_ttl(self, cache_service, mock_cache):
+    async def test_set_details_stores_result_with_correct_ttl(
+        self, cache_service, mock_cache
+    ):
         # Arrange
         mock_cache.set = AsyncMock()
         details = TMDBMovieDetails(**DETAILS_DATA)

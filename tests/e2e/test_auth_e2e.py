@@ -22,6 +22,7 @@ class TestAuthE2E:
                 "lastName": "Test",
                 "handle": "e2etest",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
 
@@ -42,6 +43,7 @@ class TestAuthE2E:
             "lastName": "User",
             "handle": "firstuser",
             "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
         }
 
         # First registration
@@ -69,6 +71,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "samehandle",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
 
@@ -82,6 +85,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "samehandle",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
 
@@ -102,6 +106,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "testuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
 
@@ -130,6 +135,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "loginuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
 
@@ -154,6 +160,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "invuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
 
@@ -179,6 +186,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "logoutuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         login_resp = await async_client.post(
@@ -215,6 +223,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "refreshuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         await async_client.post(
@@ -281,6 +290,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "resetuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
 
@@ -293,7 +303,8 @@ class TestAuthE2E:
         # Fetch the reset code directly from DB since it was mocked via email
         from app.models.user import User
 
-        user = await User.find_one(User.email == "reset@example.com")
+        user: User | None = await User.find_one(User.email == "reset@example.com")
+        assert user is not None
         code = user.reset_password_code
 
         # 2. Reset password with valid code
@@ -332,6 +343,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "codeuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         await async_client.post(
@@ -359,6 +371,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "csrfuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         await async_client.post(
@@ -387,6 +400,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "xssfnuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -402,6 +416,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "xssfn2user",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -417,6 +432,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "xssfn3user",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -432,6 +448,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "numfnuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -447,6 +464,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "specfnuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -462,6 +480,7 @@ class TestAuthE2E:
                 "lastName": "Watson",
                 "handle": "maryjane",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -478,6 +497,7 @@ class TestAuthE2E:
                 "lastName": "Smith",
                 "handle": "obriensmith",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -494,6 +514,7 @@ class TestAuthE2E:
                 "lastName": "Dupont",
                 "handle": "renedupont",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -512,6 +533,7 @@ class TestAuthE2E:
                 "lastName": "<script>alert(1)</script>",
                 "handle": "xsslnuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -527,6 +549,7 @@ class TestAuthE2E:
                 "lastName": '<iframe src="http://evil.com">',
                 "handle": "xssln2user",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -542,6 +565,7 @@ class TestAuthE2E:
                 "lastName": '<body onload="alert(1)">',
                 "handle": "xssln3user",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -557,6 +581,7 @@ class TestAuthE2E:
                 "lastName": "Doe123",
                 "handle": "numlnuser",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -572,6 +597,7 @@ class TestAuthE2E:
                 "lastName": "Smith-Jones",
                 "handle": "smithjones",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -588,6 +614,7 @@ class TestAuthE2E:
                 "lastName": "García",
                 "handle": "carlosgarcia",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -606,6 +633,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "../../../etc/passwd",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -621,6 +649,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "<script>alert(1)</script>",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -636,6 +665,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "john doe",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -651,6 +681,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "john@doe!",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -666,6 +697,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "john-doe",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -681,6 +713,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "john_doe",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -697,6 +730,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "john123",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "private",
             },
         )
         assert response.status_code == 201
@@ -713,6 +747,7 @@ class TestAuthE2E:
                 "lastName": "User",
                 "handle": "123john",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -731,6 +766,7 @@ class TestAuthE2E:
                 "handle": "xssbiouser",
                 "bio": "<script>alert(1)</script>",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "private",
             },
         )
         assert response.status_code == 201
@@ -748,6 +784,7 @@ class TestAuthE2E:
                 "handle": "xssbio2user",
                 "bio": "<img src=x onerror=alert(1)>",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -765,6 +802,7 @@ class TestAuthE2E:
                 "handle": "xssbio3user",
                 "bio": '<iframe src="http://evil.com"></iframe>',
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -782,6 +820,7 @@ class TestAuthE2E:
                 "handle": "htmlbiouser",
                 "bio": "I love <b>movies</b> and <i>cinema</i>!",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -799,6 +838,7 @@ class TestAuthE2E:
                 "handle": "plainbiouser",
                 "bio": "I love watching movies!",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -816,6 +856,7 @@ class TestAuthE2E:
                 "handle": "nullbiouser",
                 "bio": None,
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -833,6 +874,7 @@ class TestAuthE2E:
                 "handle": "nestedbiouser",
                 "bio": "<div><script>document.cookie</script></div>",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -856,6 +898,7 @@ class TestAuthE2E:
                 "handle": "johndoecombo",
                 "bio": "Hello <script>alert(1)</script> World",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 201
@@ -880,6 +923,7 @@ class TestAuthE2E:
                 "handle": "combofnuser",
                 "bio": "Normal bio",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -898,6 +942,7 @@ class TestAuthE2E:
                 "handle": "combolnuser",
                 "bio": "Normal bio",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
@@ -914,6 +959,7 @@ class TestAuthE2E:
                 "handle": '"><script>alert(1)</script>',
                 "bio": "Normal bio",
                 "dateOfBirth": "1990-01-01",
+                "profile_visibility": "public",
             },
         )
         assert response.status_code == 422
