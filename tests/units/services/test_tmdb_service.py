@@ -69,7 +69,7 @@ class TestTMDBService:
 
     @pytest_asyncio.fixture
     async def tmdb_service(self):
-        service = TMDBService(api_key="test_api_key")
+        service = TMDBService(api_key="test_api_key", cache=_make_mock_cache())
         yield service
         await service.aclose()
 

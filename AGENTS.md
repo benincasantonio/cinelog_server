@@ -74,6 +74,7 @@ uv run pytest tests/services/test_auth_service.py::test_function_name
 Required environment variables (see `.env`):
 
 - `JWT_SECRET_KEY`: Secret key for JWT token generation
+- `RATE_LIMIT_HMAC_SECRET`: Secret key used to HMAC account-based rate-limit identifiers
 - `TMDB_API_KEY`: The Movie Database API key
 - `MONGODB_URI`: Full MongoDB connection string (e.g., `mongodb://localhost:27017` or `mongodb+srv://host/cinelog_db`)
 - `MONGODB_HOST`: MongoDB host (default: localhost) — only used if `MONGODB_URI` not set

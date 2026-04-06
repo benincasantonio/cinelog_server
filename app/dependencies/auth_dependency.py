@@ -23,6 +23,8 @@ def auth_dependency(request: Request) -> PydanticObjectId:
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token payload")
 
+        request.state.user_id = user_id
+
         return PydanticObjectId(user_id)
 
     except HTTPException:

@@ -247,24 +247,3 @@ class TestStatsServiceCache:
         mock_log_repository.get_log_stats.assert_awaited_once()
         mock_stats_cache_service.set_stats.assert_awaited_once()
         assert result.summary.total_watches == 0
-
-    @pytest.mark.asyncio
-    async def test_cache_unavailable_computes_normally(
-        self,
-        stats_service,
-        mock_stats_cache_service,
-        mock_log_repository,
-        mock_movie_rating_repository,
-        mock_movie_repository,
-    ):
-        """When cache raises RuntimeError, compute stats normally."""
-        mock_log_repository.get_log_stats.return_value = _empty_log_stats()
-        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
-            _empty_movie_rating_stats()
-        )
-        mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
-
-        result = await stats_service.get_user_stats(PydanticObjectId())
-
-        mock_log_repository.get_log_stats.assert_awaited_once()
-        assert result.summary.total_watches == 0

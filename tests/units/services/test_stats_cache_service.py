@@ -85,16 +85,6 @@ class TestGetStats:
             assert isinstance(result, StatsResponse)
             assert result.summary.total_watches == 5
 
-    @pytest.mark.asyncio
-    async def test_cache_not_initialized_returns_none(self):
-        with patch(
-            "app.services.stats_cache_service.CacheService.get_instance",
-            side_effect=RuntimeError("CacheService not initialized"),
-        ):
-            service = StatsCacheService()
-            result = await service.get_stats(PydanticObjectId())
-            assert result is None
-
 
 class TestSetStats:
     @pytest.mark.asyncio
@@ -118,16 +108,6 @@ class TestSetStats:
                 ttl=STATS_CACHE_TTL,
             )
 
-    @pytest.mark.asyncio
-    async def test_set_stats_cache_not_initialized(self):
-        with patch(
-            "app.services.stats_cache_service.CacheService.get_instance",
-            side_effect=RuntimeError("CacheService not initialized"),
-        ):
-            # Should not raise
-            service = StatsCacheService()
-            await service.set_stats(PydanticObjectId(), stats=_sample_stats_response())
-
 
 class TestInvalidateUserStats:
     @pytest.mark.asyncio
@@ -145,13 +125,3 @@ class TestInvalidateUserStats:
             mock_cache.invalidate_pattern.assert_awaited_once_with(
                 f"cinelog:stats:{uid}:*"
             )
-
-    @pytest.mark.asyncio
-    async def test_invalidate_cache_not_initialized(self):
-        with patch(
-            "app.services.stats_cache_service.CacheService.get_instance",
-            side_effect=RuntimeError("CacheService not initialized"),
-        ):
-            # Should not raise
-            service = StatsCacheService()
-            await service.invalidate_user_stats(PydanticObjectId())

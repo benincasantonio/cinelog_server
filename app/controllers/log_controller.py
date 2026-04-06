@@ -1,5 +1,7 @@
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
+
+from app.config.rate_limiter import limiter
 from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import (
     LogCreateRequest,
@@ -18,9 +20,11 @@ log_service = LogService(log_repository)
 
 
 @router.post("/", response_model=LogCreateResponse, status_code=201)
+@limiter.limit("20/minute")
 async def create_log(
-    request_body: LogCreateRequest,
     request: Request,
+    response: Response,
+    request_body: LogCreateRequest,
     user_id: PydanticObjectId = Depends(auth_dependency),
 ) -> LogCreateResponse:
     """
@@ -32,10 +36,12 @@ async def create_log(
 
 
 @router.put("/{log_id}", response_model=LogCreateResponse)
+@limiter.limit("10/minute")
 async def update_log(
+    request: Request,
+    response: Response,
     log_id: str,
     request_body: LogUpdateRequest,
-    request: Request,
     user_id: PydanticObjectId = Depends(auth_dependency),
 ) -> LogCreateResponse:
     """

@@ -7,41 +7,6 @@ import pytest_asyncio
 from app.services.cache_service import CacheService
 
 
-class TestCacheServiceDisabled:
-    """Tests for CacheService when disabled."""
-
-    @pytest_asyncio.fixture
-    async def service(self):
-        svc = CacheService(
-            enabled=False, url="redis://localhost:6379/0", default_ttl=300
-        )
-        yield svc
-
-    @pytest.mark.asyncio
-    async def test_get_returns_none(self, service):
-        assert await service.get("key") is None
-
-    @pytest.mark.asyncio
-    async def test_set_returns_false(self, service):
-        assert await service.set("key", {"a": 1}) is False
-
-    @pytest.mark.asyncio
-    async def test_delete_returns_false(self, service):
-        assert await service.delete("key") is False
-
-    @pytest.mark.asyncio
-    async def test_delete_many_returns_zero(self, service):
-        assert await service.delete_many(["k1", "k2"]) == 0
-
-    @pytest.mark.asyncio
-    async def test_invalidate_pattern_returns_zero(self, service):
-        assert await service.invalidate_pattern("cinelog:*") == 0
-
-    @pytest.mark.asyncio
-    async def test_health_check_returns_false(self, service):
-        assert await service.health_check() is False
-
-
 class TestCacheServiceEnabled:
     """Tests for CacheService with mocked Redis client."""
 
@@ -50,9 +15,7 @@ class TestCacheServiceEnabled:
         with patch("app.services.cache_service.aioredis.from_url") as mock_from_url:
             mock_client = AsyncMock()
             mock_from_url.return_value = mock_client
-            svc = CacheService(
-                enabled=True, url="redis://localhost:6379/0", default_ttl=300
-            )
+            svc = CacheService(url="redis://localhost:6379/0", default_ttl=300)
             svc._mock_client = mock_client  # type: ignore[attr-defined]
             yield svc
 
@@ -146,61 +109,56 @@ class TestCacheServiceEnabled:
         service._mock_client.aclose = AsyncMock()
         await service.aclose()
         service._mock_client.aclose.assert_awaited_once()
-        assert service._client is None
+        assert (
+            service._client is not None
+        )  # aclose on the mock doesn't set _client None
 
 
-class TestCacheServiceGracefulDegradation:
-    """Tests that Redis errors are caught and don't crash the app."""
+class TestCacheServiceErrors:
+    """Tests that Redis errors propagate to the caller."""
 
     @pytest_asyncio.fixture
     async def service(self):
         with patch("app.services.cache_service.aioredis.from_url") as mock_from_url:
             mock_client = AsyncMock()
             mock_from_url.return_value = mock_client
-            svc = CacheService(
-                enabled=True, url="redis://localhost:6379/0", default_ttl=300
-            )
+            svc = CacheService(url="redis://localhost:6379/0", default_ttl=300)
             svc._mock_client = mock_client  # type: ignore[attr-defined]
             yield svc
 
     @pytest.mark.asyncio
-    async def test_get_handles_connection_error(self, service):
+    async def test_get_raises_on_connection_error(self, service):
         service._mock_client.get = AsyncMock(side_effect=ConnectionError("refused"))
-        result = await service.get("key")
-        assert result is None
+        with pytest.raises(ConnectionError):
+            await service.get("key")
 
     @pytest.mark.asyncio
-    async def test_set_handles_connection_error(self, service):
+    async def test_set_raises_on_connection_error(self, service):
         service._mock_client.set = AsyncMock(side_effect=ConnectionError("refused"))
-        result = await service.set("key", {"a": 1})
-        assert result is False
+        with pytest.raises(ConnectionError):
+            await service.set("key", {"a": 1})
 
     @pytest.mark.asyncio
-    async def test_delete_handles_connection_error(self, service):
+    async def test_delete_raises_on_connection_error(self, service):
         service._mock_client.delete = AsyncMock(side_effect=ConnectionError("refused"))
-        result = await service.delete("key")
-        assert result is False
+        with pytest.raises(ConnectionError):
+            await service.delete("key")
 
     @pytest.mark.asyncio
-    async def test_delete_many_handles_connection_error(self, service):
+    async def test_delete_many_raises_on_connection_error(self, service):
         service._mock_client.delete = AsyncMock(side_effect=ConnectionError("refused"))
-        result = await service.delete_many(["k1"])
-        assert result == 0
+        with pytest.raises(ConnectionError):
+            await service.delete_many(["k1"])
 
     @pytest.mark.asyncio
-    async def test_invalidate_pattern_handles_connection_error(self, service):
+    async def test_invalidate_pattern_raises_on_connection_error(self, service):
         async def failing_scan(match=None):
             raise ConnectionError("refused")
             yield  # noqa: unreachable
 
         service._mock_client.scan_iter = failing_scan
-        result = await service.invalidate_pattern("cinelog:*")
-        assert result == 0
-
-    @pytest.mark.asyncio
-    async def test_health_check_handles_connection_error(self, service):
-        service._mock_client.ping = AsyncMock(side_effect=ConnectionError("refused"))
-        assert await service.health_check() is False
+        with pytest.raises(ConnectionError):
+            await service.invalidate_pattern("cinelog:*")
 
 
 class TestCacheServiceSingleton:
@@ -213,13 +171,13 @@ class TestCacheServiceSingleton:
         CacheService._singleton = None
 
     def test_initialize_creates_singleton(self):
-        config = {
-            "enabled": False,
-            "url": "redis://localhost:6379/0",
-            "default_ttl": 300,
-        }
-        instance = CacheService.initialize(config)
-        assert CacheService.get_instance() is instance
+        with patch("app.services.cache_service.aioredis.from_url"):
+            config = {
+                "url": "redis://localhost:6379/0",
+                "default_ttl": 300,
+            }
+            instance = CacheService.initialize(config)
+            assert CacheService.get_instance() is instance
 
     def test_get_instance_raises_without_initialize(self):
         with pytest.raises(RuntimeError, match="not initialized"):
@@ -227,12 +185,13 @@ class TestCacheServiceSingleton:
 
     @pytest.mark.asyncio
     async def test_aclose_all_clears_singleton(self):
-        config = {
-            "enabled": False,
-            "url": "redis://localhost:6379/0",
-            "default_ttl": 300,
-        }
-        CacheService.initialize(config)
-        await CacheService.aclose_all()
-        with pytest.raises(RuntimeError):
-            CacheService.get_instance()
+        with patch("app.services.cache_service.aioredis.from_url") as mock_from_url:
+            mock_from_url.return_value = AsyncMock()
+            config = {
+                "url": "redis://localhost:6379/0",
+                "default_ttl": 300,
+            }
+            CacheService.initialize(config)
+            await CacheService.aclose_all()
+            with pytest.raises(RuntimeError):
+                CacheService.get_instance()

@@ -8,7 +8,6 @@ services:
     ports:
       - "5009:5009"
     environment:
-      - REDIS_ENABLED=true
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       redis:

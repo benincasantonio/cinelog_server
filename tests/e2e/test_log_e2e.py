@@ -385,11 +385,7 @@ class TestLogE2E:
         create_resp = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={
-                "tmdbId": 550,
-                "dateWatched": "2024-01-15",
-                "watchedWhere": "cinema"
-            },
+            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
         )
         assert create_resp.status_code == 201
         log_id = create_resp.json()["id"]

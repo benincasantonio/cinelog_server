@@ -10,6 +10,7 @@ User-facing documentation covering features, flows, and API usage from the consu
 |----------|-------------|
 | [Authentication](functional/authentication.md) | Auth flows, API usage, CSRF guide |
 | [Profile Visibility](functional/profile-visibility.md) | User profile visibility settings and public profile lookup |
+| [Rate Limiting](functional/rate-limiting.md) | Rate limits per endpoint, response headers, and 429 behavior |
 | [TMDB Movie Service](functional/tmdb-service.md) | Movie search and details endpoints, data flow, response fields |
 
 ## Technical Docs
@@ -23,10 +24,11 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Migrations](technical/migrations.md) | Database migration system |
 | [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and friends-only stub |
+| [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |
+| [Rate Limiting](technical/rate-limiting.md) | slowapi setup, Redis backend, endpoint decoration, test strategy |
 | [Redis Caching](technical/redis-caching.md) | Cache layer configuration, design, and usage |
 | [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
 | [TMDB Service](technical/tmdb-service.md) | Singleton lifecycle, HTTP client, cache keys, MovieService integration |
-| [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |
 
 ## Quick Links
 

@@ -1,11 +1,12 @@
 from datetime import date
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.schemas.auth_schemas import RegisterRequest
 from app.services.auth_service import AuthService
+from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.utils.exceptions import AppException
 
 
@@ -185,3 +186,33 @@ class TestAuthService:
             user = await auth_service.login(email_input, password)
             assert user == mock_user
             mock_user_repo.find_user_by_email.assert_awaited_with(email_stored)
+
+
+class TestAuthRateLimitService:
+    @pytest.fixture
+    def rate_limit_service(self):
+        return AuthRateLimitService()
+
+    def test_build_account_key_hashes_normalized_email(self):
+        key = AuthRateLimitService.build_account_key("User@Example.com ")
+
+        assert key.startswith("identifier:")
+        assert "User@Example.com" not in key
+        assert "user@example.com" not in key
+
+    def test_build_account_key_uses_dedicated_rate_limit_secret(self, monkeypatch):
+        monkeypatch.setenv("RATE_LIMIT_HMAC_SECRET", "secret-one")
+        with patch(
+            "app.services.auth_rate_limit_service._RATE_LIMIT_HMAC_SECRET",
+            "secret-one",
+        ):
+            first_key = AuthRateLimitService.build_account_key("user@example.com")
+
+        monkeypatch.setenv("RATE_LIMIT_HMAC_SECRET", "secret-two")
+        with patch(
+            "app.services.auth_rate_limit_service._RATE_LIMIT_HMAC_SECRET",
+            "secret-two",
+        ):
+            second_key = AuthRateLimitService.build_account_key("user@example.com")
+
+        assert first_key != second_key

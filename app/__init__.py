@@ -7,6 +7,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pymongo import AsyncMongoClient
+from slowapi.errors import RateLimitExceeded
+from app.config.rate_limiter import limiter
+from app.utils.rate_limit_utils import rate_limit_exceeded_handler
 import app.controllers.auth_controller as auth_controller
 import app.controllers.movie_controller as movie_controller
 import app.controllers.log_controller as log_controller
@@ -14,8 +17,10 @@ import app.controllers.user_controller as user_controller
 import app.controllers.movie_rating_controller as movie_rating_controller
 import app.controllers.stats_controller as stats_controller
 from app.middleware.csrf_middleware import CSRFMiddleware
+from app.middleware.rate_limit_session_middleware import RateLimitSessionMiddleware
 from app.utils.exceptions import AppException
 from app.config.cors import get_cors_config
+from app.config.public_routes import CSRF_EXEMPT_PATHS
 from app.models.log import Log
 from app.models.movie import Movie
 from app.models.movie_rating import MovieRating
@@ -59,6 +64,9 @@ async def lifespan(_: FastAPI):
         document_models=[User, Log, Movie, MovieRating],
     )
     CacheService.initialize(get_redis_config())
+    cache = CacheService.get_instance()
+    if not await cache.health_check():
+        raise RuntimeError("Redis is not reachable — cannot start the application")
     try:
         yield
     finally:
@@ -69,18 +77,14 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Cinelog API", lifespan=lifespan)
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+app.add_middleware(RateLimitSessionMiddleware)
+
 app.add_middleware(
     CSRFMiddleware,
-    exempt_paths=[
-        "/v1/auth/login",
-        "/v1/auth/register",
-        "/v1/auth/forgot-password",
-        "/v1/auth/reset-password",
-        "/v1/auth/csrf",
-        "/v1/auth/refresh",
-        "/docs",
-        "/openapi.json",
-    ],
+    exempt_paths=list(CSRF_EXEMPT_PATHS),
 )
 
 app.add_middleware(CORSMiddleware, **get_cors_config())

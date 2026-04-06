@@ -1,7 +1,6 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 
 from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult
 from app.services.tmdb_cache_service import (
@@ -60,36 +59,6 @@ DETAILS_DATA = {
     "production_countries": [],
     "spoken_languages": [],
 }
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest_asyncio.fixture
-async def mock_cache():
-    """A fully-functional AsyncMock standing in for CacheService."""
-    return AsyncMock()
-
-
-@pytest_asyncio.fixture
-async def cache_service(mock_cache):
-    """TMDBCacheService with a pre-resolved mock CacheService injected."""
-    svc = TMDBCacheService()
-    # Bypass the lazy-resolved property so no real CacheService.get_instance() call happens.
-    svc._cache_instance = mock_cache
-    svc._cache_resolved = True
-    return svc
-
-
-@pytest_asyncio.fixture
-async def unavailable_cache_service():
-    """TMDBCacheService where the underlying CacheService could not be initialised."""
-    svc = TMDBCacheService()
-    svc._cache_instance = None
-    svc._cache_resolved = True
-    return svc
 
 
 # ---------------------------------------------------------------------------
@@ -160,66 +129,92 @@ class TestGetSearch:
     """get_search returns a deserialised TMDBMovieSearchResult on a hit, None on a miss."""
 
     @pytest.mark.asyncio
-    async def test_get_search_cache_hit(self, cache_service, mock_cache):
+    async def test_get_search_cache_hit(self):
         # Arrange — the backing cache holds the serialised result
+        mock_cache = MagicMock()
         mock_cache.get = AsyncMock(return_value=SEARCH_RESULT_DATA)
 
-        # Act
-        result = await cache_service.get_search("Fight Club")
+        with patch(
+            "app.services.tmdb_cache_service.CacheService.get_instance",
+            return_value=mock_cache,
+        ):
+            service = TMDBCacheService()
 
-        # Assert
-        assert isinstance(result, TMDBMovieSearchResult)
-        assert result.total_results == 1
-        assert result.results[0].title == "Fight Club"
-        mock_cache.get.assert_awaited_once_with("cinelog:tmdb:search:fight club")
+            # Act
+            result = await service.get_search("Fight Club")
+
+            # Assert
+            assert isinstance(result, TMDBMovieSearchResult)
+            assert result.total_results == 1
+            assert result.results[0].title == "Fight Club"
+            mock_cache.get.assert_awaited_once_with("cinelog:tmdb:search:fight club")
 
     @pytest.mark.asyncio
-    async def test_get_search_cache_miss(self, cache_service, mock_cache):
+    async def test_get_search_cache_miss(self):
         # Arrange — cache returns nothing for this key
+        mock_cache = MagicMock()
         mock_cache.get = AsyncMock(return_value=None)
 
-        # Act
-        result = await cache_service.get_search("unknown movie")
+        with patch(
+            "app.services.tmdb_cache_service.CacheService.get_instance",
+            return_value=mock_cache,
+        ):
+            service = TMDBCacheService()
 
-        # Assert
-        assert result is None
-        mock_cache.get.assert_awaited_once_with("cinelog:tmdb:search:unknown movie")
+            # Act
+            result = await service.get_search("unknown movie")
+
+            # Assert
+            assert result is None
+            mock_cache.get.assert_awaited_once_with("cinelog:tmdb:search:unknown movie")
 
 
 class TestSetSearch:
     """set_search serialises and stores the result with the configured TTL."""
 
     @pytest.mark.asyncio
-    async def test_set_search_stores_result_with_correct_ttl(
-        self, cache_service, mock_cache
-    ):
+    async def test_set_search_stores_result_with_correct_ttl(self):
         # Arrange
+        mock_cache = MagicMock()
         mock_cache.set = AsyncMock()
         search_result = TMDBMovieSearchResult(**SEARCH_RESULT_DATA)
         expected_key = "cinelog:tmdb:search:fight club"
 
-        # Act
-        await cache_service.set_search("Fight Club", search_result)
+        with patch(
+            "app.services.tmdb_cache_service.CacheService.get_instance",
+            return_value=mock_cache,
+        ):
+            service = TMDBCacheService()
 
-        # Assert
-        mock_cache.set.assert_awaited_once_with(
-            expected_key,
-            search_result.model_dump(mode="json"),
-            ttl=TMDB_SEARCH_CACHE_TTL,
-        )
+            # Act
+            await service.set_search("Fight Club", search_result)
+
+            # Assert
+            mock_cache.set.assert_awaited_once_with(
+                expected_key,
+                search_result.model_dump(mode="json"),
+                ttl=TMDB_SEARCH_CACHE_TTL,
+            )
 
     @pytest.mark.asyncio
-    async def test_set_search_normalizes_query_key(self, cache_service, mock_cache):
+    async def test_set_search_normalizes_query_key(self):
         # Arrange — whitespace and case in the query must not leak into the cache key
+        mock_cache = MagicMock()
         mock_cache.set = AsyncMock()
         search_result = TMDBMovieSearchResult(**SEARCH_RESULT_DATA)
 
-        # Act
-        await cache_service.set_search("  Fight Club  ", search_result)
+        with patch(
+            "app.services.tmdb_cache_service.CacheService.get_instance",
+            return_value=mock_cache,
+        ):
+            service = TMDBCacheService()
 
-        # Assert — key is normalised regardless of raw query
-        call_args = mock_cache.set.call_args
-        assert call_args[0][0] == "cinelog:tmdb:search:fight club"
+            # Act
+            await service.set_search("  Fight Club  ", search_result)
+
+            # Assert — key is normalised regardless of raw query
+            call_args = mock_cache.set.call_args
+            assert call_args[0][0] == "cinelog:tmdb:search:fight club"
 
 
 # ---------------------------------------------------------------------------
@@ -231,114 +226,70 @@ class TestGetDetails:
     """get_details returns a deserialised TMDBMovieDetails on a hit, None on a miss."""
 
     @pytest.mark.asyncio
-    async def test_get_details_cache_hit(self, cache_service, mock_cache):
+    async def test_get_details_cache_hit(self):
         # Arrange
+        mock_cache = MagicMock()
         mock_cache.get = AsyncMock(return_value=DETAILS_DATA)
 
-        # Act
-        result = await cache_service.get_details(550)
+        with patch(
+            "app.services.tmdb_cache_service.CacheService.get_instance",
+            return_value=mock_cache,
+        ):
+            service = TMDBCacheService()
 
-        # Assert
-        assert isinstance(result, TMDBMovieDetails)
-        assert result.id == 550
-        assert result.title == "Fight Club"
-        assert result.runtime == 139
-        mock_cache.get.assert_awaited_once_with("cinelog:tmdb:details:550")
+            # Act
+            result = await service.get_details(550)
+
+            # Assert
+            assert isinstance(result, TMDBMovieDetails)
+            assert result.id == 550
+            assert result.title == "Fight Club"
+            assert result.runtime == 139
+            mock_cache.get.assert_awaited_once_with("cinelog:tmdb:details:550")
 
     @pytest.mark.asyncio
-    async def test_get_details_cache_miss(self, cache_service, mock_cache):
+    async def test_get_details_cache_miss(self):
         # Arrange
+        mock_cache = MagicMock()
         mock_cache.get = AsyncMock(return_value=None)
 
-        # Act
-        result = await cache_service.get_details(999999)
+        with patch(
+            "app.services.tmdb_cache_service.CacheService.get_instance",
+            return_value=mock_cache,
+        ):
+            service = TMDBCacheService()
 
-        # Assert
-        assert result is None
-        mock_cache.get.assert_awaited_once_with("cinelog:tmdb:details:999999")
+            # Act
+            result = await service.get_details(999999)
+
+            # Assert
+            assert result is None
+            mock_cache.get.assert_awaited_once_with("cinelog:tmdb:details:999999")
 
 
 class TestSetDetails:
     """set_details serialises and stores movie details with the configured TTL."""
 
     @pytest.mark.asyncio
-    async def test_set_details_stores_result_with_correct_ttl(
-        self, cache_service, mock_cache
-    ):
+    async def test_set_details_stores_result_with_correct_ttl(self):
         # Arrange
+        mock_cache = MagicMock()
         mock_cache.set = AsyncMock()
         details = TMDBMovieDetails(**DETAILS_DATA)
         expected_key = "cinelog:tmdb:details:550"
 
-        # Act
-        await cache_service.set_details(550, details)
+        with patch(
+            "app.services.tmdb_cache_service.CacheService.get_instance",
+            return_value=mock_cache,
+        ):
+            service = TMDBCacheService()
 
-        # Assert
-        mock_cache.set.assert_awaited_once_with(
-            expected_key,
-            details.model_dump(mode="json"),
-            ttl=TMDB_DETAILS_CACHE_TTL,
-        )
+            # Act
+            await service.set_details(550, details)
 
-
-# ---------------------------------------------------------------------------
-# Cache unavailable — all methods degrade gracefully
-# ---------------------------------------------------------------------------
-
-
-class TestCacheUnavailable:
-    """When CacheService was never initialised, all methods are safe no-ops."""
-
-    @pytest.mark.asyncio
-    async def test_get_search_returns_none(self, unavailable_cache_service):
-        # Act
-        result = await unavailable_cache_service.get_search("Fight Club")
-
-        # Assert
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_set_search_is_noop(self, unavailable_cache_service):
-        # Arrange
-        search_result = TMDBMovieSearchResult(**SEARCH_RESULT_DATA)
-
-        # Act — must not raise
-        await unavailable_cache_service.set_search("Fight Club", search_result)
-
-    @pytest.mark.asyncio
-    async def test_get_details_returns_none(self, unavailable_cache_service):
-        # Act
-        result = await unavailable_cache_service.get_details(550)
-
-        # Assert
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_set_details_is_noop(self, unavailable_cache_service):
-        # Arrange
-        details = TMDBMovieDetails(**DETAILS_DATA)
-
-        # Act — must not raise
-        await unavailable_cache_service.set_details(550, details)
-
-    @pytest.mark.asyncio
-    async def test_cache_resolved_lazily_when_not_initialized(self):
-        """
-        TMDBCacheService resolves the CacheService singleton lazily.
-        When the singleton is absent a RuntimeError is caught internally and
-        _cache_instance is set to None — the service stays usable.
-        """
-        # Arrange — ensure no singleton is registered
-        from app.services.cache_service import CacheService
-
-        CacheService._singleton = None
-
-        svc = TMDBCacheService()  # _cache_resolved starts False
-
-        # Act
-        result = await svc.get_search("Fight Club")
-
-        # Assert
-        assert result is None
-        assert svc._cache_instance is None
-        assert svc._cache_resolved is True
+            # Assert
+            mock_cache.set.assert_awaited_once_with(
+                expected_key,
+                details.model_dump(mode="json"),
+                ttl=TMDB_DETAILS_CACHE_TTL,
+            )

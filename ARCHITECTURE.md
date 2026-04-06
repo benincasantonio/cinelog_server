@@ -44,7 +44,7 @@ All routes are registered under the `/v1/` prefix:
 2. Close TMDB service connections (`TMDBService.aclose_all()`)
 3. Close MongoDB client
 
-**Middleware stack** (in order): CSRFMiddleware → CORSMiddleware
+**Middleware stack** (in order): RateLimitSessionMiddleware → CSRFMiddleware → CORSMiddleware
 
 **Global exception handler** catches `AppException` and returns structured JSON via `ErrorSchema`.
 
@@ -184,6 +184,12 @@ The `__Host-` prefix enforces: `Secure=true`, no `Domain`, `path=/` — prevents
 
 ## Middleware
 
+### Rate Limit Session Middleware (`app/middleware/rate_limit_session_middleware.py`)
+
+- Manages `__Host-session_id` cookies only for the public auth routes that use session-scoped rate limits
+- Reuses an existing session only when that session ID is known to Redis
+- Cookie is used by `get_rate_limit_key` as a fallback identifier for rate limiting
+
 ### CSRF Middleware (`app/middleware/csrf_middleware.py`)
 
 - Protects `POST`, `PUT`, `DELETE`, `PATCH` requests
@@ -214,7 +220,8 @@ All schemas inherit from `BaseSchema` which enables camelCase alias generation (
 
 | Utility | Purpose |
 |---|---|
-| `auth_utils.py` | Cookie management: `set_auth_cookies()`, `set_csrf_cookie()`, `clear_auth_cookies()` |
+| `auth_utils.py` | Cookie management: `set_auth_cookies()`, `set_csrf_cookie()`, `clear_auth_cookies()`, `set_rate_limit_session_id()` |
+| `rate_limit_utils.py` | Rate limit key function (`get_rate_limit_key`) and custom 429 exception handler |
 | `exceptions.py` | `AppException` — custom exception wrapping `ErrorSchema` |
 | `error_codes.py` | `ErrorCodes` class with predefined error schemas |
 | `sanitize_utils.py` | HTML tag stripping, name/handle pattern validation |

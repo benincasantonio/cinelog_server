@@ -14,6 +14,7 @@ dependencies = [
     "python-multipart==0.0.22",
     "redis[hiredis]==7.4.0",
     "uvicorn==0.42.0",
+    "slowapi~=0.1.9",
 ]
 
 [dependency-groups]
