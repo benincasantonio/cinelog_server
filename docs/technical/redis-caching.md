@@ -4,15 +4,16 @@ This document covers the Redis caching layer in the Cinelog API.
 
 ## Configuration
 
-Redis caching is controlled via environment variables:
+Redis is **required** — the application will not start without a reachable Redis instance.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `REDIS_ENABLED` | `false` | Enable/disable the cache layer |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL |
 | `REDIS_DEFAULT_TTL` | `300` | Default TTL in seconds (5 minutes) |
 
 Configuration is read by `app/config/redis.py` and passed to `CacheService.initialize()` during app startup.
+
+Rate-limited auth routes also require `RATE_LIMIT_HMAC_SECRET` so account-based limiter keys can be derived independently from JWT signing.
 
 ## CacheService Design
 
@@ -34,11 +35,11 @@ Configuration is read by `app/config/redis.py` and passed to `CacheService.initi
 | `delete_many(keys)` | `int` | Bulk delete multiple keys |
 | `invalidate_pattern(pattern)` | `int` | Delete all keys matching a glob pattern (uses `SCAN`) |
 | `health_check()` | `bool` | Ping Redis to verify connectivity |
-| `aclose()` | `None` | Close the Redis client |
+| `aclose()` | `None` | Close the Redis client and clear singleton |
 
-### Disabled Mode
+### Error Behavior
 
-When `REDIS_ENABLED=false`, `CacheService` is still initialized but all methods return immediately (`None`, `False`, or `0`) without making any Redis calls. This means callers don't need conditional logic.
+Redis errors propagate directly to the caller — there is no graceful degradation. If Redis is unavailable, the operation will raise an exception. This makes failures visible and prevents silent cache misses from masking infrastructure issues.
 
 ## Key Naming Convention
 
@@ -58,17 +59,6 @@ Key construction is the caller's responsibility — `CacheService` is key-agnost
 - Frequently changing data (e.g., user stats) may use shorter TTLs
 - Rarely changing data (e.g., movie details from TMDB) may use longer TTLs
 
-## Graceful Degradation
-
-Every `CacheService` method wraps Redis calls in try/except:
-
-- On failure, errors are logged via `logger.exception()`
-- Methods return safe defaults (`None`, `False`, `0`)
-- The application continues to function without caching
-- No exceptions propagate to callers
-
-This design ensures Redis unavailability never causes API errors.
-
 ## Serialization
 
 `CacheService` is model-agnostic — it stores and retrieves raw JSON:
@@ -85,7 +75,9 @@ The local Docker Compose stack (`docker-compose.local.yml`) includes a Redis ser
 - Port: `6379`
 - Health check: `redis-cli ping`
 - Data persisted in `redis_data` volume
-- API service has `REDIS_ENABLED=true` and `REDIS_URL=redis://redis:6379/0` set automatically
+- API service connects via `REDIS_URL=redis://redis:6379/0`
+
+Redis is also used as the backend for rate limiting via `slowapi`. See [Rate Limiting](rate-limiting.md).
 
 ## Pattern Invalidation
 

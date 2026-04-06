@@ -4,31 +4,55 @@ Uses httpx ASGITransport for direct FastAPI testing.
 """
 
 import os
-import asyncio
-import httpx
-import pytest
-import pytest_asyncio
-from beanie import init_beanie
-from dotenv import load_dotenv
-from pymongo import AsyncMongoClient
-from unittest.mock import patch
 
-from app.models.log import Log
-from app.models.movie import Movie
-from app.models.movie_rating import MovieRating
-from app.models.user import User
-from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult
-from app.services.tmdb_service import TMDBService
-
-# Load .env file to get TMDB_API_KEY for log tests
-load_dotenv()
-
-# Set e2e environment variables BEFORE importing app
+# Set e2e environment variables BEFORE load_dotenv and any app imports.
+# app.config.rate_limiter reads REDIS_URL at import time, so the override
+# must be in place before any app module is imported.
 os.environ["MONGODB_HOST"] = "localhost"
 os.environ["MONGODB_PORT"] = "27018"
 os.environ["MONGODB_DB"] = "cinelog_e2e_db"
+os.environ.setdefault("REDIS_URL", "redis://localhost:6380/0")
+os.environ.setdefault("RATE_LIMIT_HMAC_SECRET", "test-rate-limit-hmac-secret")
+
+import asyncio  # noqa: E402
+
+import httpx  # noqa: E402
+import pytest  # noqa: E402
+import pytest_asyncio  # noqa: E402
+import redis.asyncio as aioredis  # noqa: E402
+from beanie import init_beanie  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
+from pymongo import AsyncMongoClient  # noqa: E402
+from unittest.mock import patch  # noqa: E402
+
+from app.models.log import Log  # noqa: E402
+from app.models.movie import Movie  # noqa: E402
+from app.models.movie_rating import MovieRating  # noqa: E402
+from app.models.user import User  # noqa: E402
+from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult  # noqa: E402
+from app.services.cache_service import CacheService  # noqa: E402
+from app.services.tmdb_service import TMDBService  # noqa: E402
+
+# Load .env file for remaining env vars (e.g. TMDB_API_KEY, JWT_SECRET_KEY).
+# RATE_LIMIT_HMAC_SECRET is set above so auth rate-limit keys stay deterministic.
+# os.environ takes precedence over .env values because load_dotenv does NOT
+# overwrite existing variables by default.
+load_dotenv()
 
 MONGO_DB = "cinelog_e2e_db"
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def flush_redis():
+    """Flush Redis before each test to reset rate limit and cache state.
+
+    Flushing before (not after) guarantees a clean slate even if a
+    previous test run was interrupted before teardown completed.
+    """
+    client = aioredis.from_url(os.environ["REDIS_URL"])
+    await client.flushdb()
+    await client.aclose()
+    yield
 
 
 @pytest_asyncio.fixture
@@ -53,19 +77,27 @@ async def mongo_client():
 
 @pytest_asyncio.fixture
 async def async_client(mongo_client):
-    """Async HTTP client using ASGITransport for direct app testing."""
+    """Async HTTP client using ASGITransport for direct app testing.
+
+    ASGITransport does not send lifespan events, so the app's startup
+    handler (app/__init__.py) never runs. We initialize Beanie and
+    CacheService explicitly here instead.
+    """
     from app import app
+    from app.config.redis import get_redis_config
 
     await init_beanie(
         database=mongo_client[MONGO_DB],
         document_models=[User, Log, Movie, MovieRating],
     )
+    CacheService.initialize(get_redis_config())
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
         transport=transport, base_url="https://test"
     ) as client:
         yield client
+    await CacheService.aclose_all()
     await TMDBService.aclose_all()
 
 
@@ -126,6 +158,7 @@ async def register(client, user_data: dict):
     reg_resp = await client.post("/v1/auth/register", json=user_data)
     assert reg_resp.status_code == 201
     return reg_resp.json()
+
 
 async def register_and_login(client, user_data: dict):
     """

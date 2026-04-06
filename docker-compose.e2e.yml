@@ -11,3 +11,11 @@ services:
     tmpfs:
       - /data/db
 
+  redis_e2e:
+    image: redis:7-alpine
+    container_name: cinelog_redis_e2e
+    ports:
+      - "6380:6379"
+    tmpfs:
+      - /data
+

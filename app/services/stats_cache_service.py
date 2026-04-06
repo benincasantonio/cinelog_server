@@ -12,19 +12,9 @@ STATS_CACHE_TTL = int(os.getenv("STATS_CACHE_TTL", "259200"))
 
 
 class StatsCacheService:
-    def __init__(self):
-        self._cache_instance: CacheService | None = None
-        self._cache_resolved = False
-
     @property
-    def _cache(self) -> CacheService | None:
-        if not self._cache_resolved:
-            try:
-                self._cache_instance = CacheService.get_instance()
-            except RuntimeError:
-                self._cache_instance = None
-            self._cache_resolved = True
-        return self._cache_instance
+    def _cache(self) -> CacheService:
+        return CacheService.get_instance()
 
     @staticmethod
     def build_key(
@@ -44,9 +34,6 @@ class StatsCacheService:
         year_from: int | None = None,
         year_to: int | None = None,
     ) -> StatsResponse | None:
-        if self._cache is None:
-            return None
-
         key = self.build_key(user_id, year_from, year_to)
         data = await self._cache.get(key)
         if data is None:
@@ -63,16 +50,10 @@ class StatsCacheService:
         *,
         stats: StatsResponse,
     ) -> None:
-        if self._cache is None:
-            return
-
         key = self.build_key(user_id, year_from, year_to)
         await self._cache.set(key, stats.model_dump(mode="json"), ttl=STATS_CACHE_TTL)
         logger.debug("Cache set for key=%s", key)
 
     async def invalidate_user_stats(self, user_id: PydanticObjectId) -> None:
-        if self._cache is None:
-            return
-
         await self._cache.invalidate_pattern(f"cinelog:stats:{user_id}:*")
         logger.info("Cache invalidated for user_id=%s", user_id)

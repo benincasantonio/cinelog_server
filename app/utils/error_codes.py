@@ -91,3 +91,11 @@ class ErrorCodes:
         error_message="Profile is not public",
         error_description="The requested user's profile is not publicly visible.",
     )
+
+    # Rate Limiting Errors
+    RATE_LIMIT_EXCEEDED = ErrorSchema(
+        error_code_name="RATE_LIMIT_EXCEEDED",
+        error_code=429,
+        error_message="Too many requests",
+        error_description="You have exceeded the request limit. Please wait before trying again.",
+    )

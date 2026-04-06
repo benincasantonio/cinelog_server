@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Response, status, Request
+import logging
+
+from beanie import PydanticObjectId
+from fastapi import APIRouter, Response, status, Request, Depends
 from fastapi.responses import JSONResponse
 import jwt
 
+from app.config.rate_limiter import limiter
+from app.dependencies.auth_dependency import auth_dependency
 from app.repository.user_repository import UserRepository
 from app.schemas.auth_schemas import (
     RegisterRequest,
@@ -17,7 +22,16 @@ from app.schemas.auth_schemas import (
     CsrfTokenResponse,
 )
 from app.services.auth_service import AuthService
+from app.services.auth_rate_limit_service import (
+    AuthRateLimitService,
+)
 from app.services.token_service import TokenService
+from app.utils.error_codes import ErrorCodes
+from app.utils.exceptions import AppException
+from app.utils.rate_limit_utils import (
+    get_ip_rate_limit_key,
+    get_session_rate_limit_key,
+)
 from app.utils.auth_utils import (
     set_auth_cookies,
     set_csrf_cookie,
@@ -25,31 +39,59 @@ from app.utils.auth_utils import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 user_repository = UserRepository()
 auth_service = AuthService(user_repository)
+auth_rate_limit_service = AuthRateLimitService()
 
 
 @router.post(
     "/register", status_code=status.HTTP_201_CREATED, response_model=RegisterResponse
 )
-async def register(request: RegisterRequest) -> RegisterResponse:
+@limiter.limit("10/hour", key_func=get_ip_rate_limit_key)
+@limiter.limit("5/hour", key_func=get_session_rate_limit_key)
+async def register(
+    request: Request, response: Response, request_body: RegisterRequest
+) -> RegisterResponse:
     """
     Handle user registration.
     User must login separately after registration.
     """
-    return await auth_service.register(request=request)
+    return await auth_service.register(request=request_body)
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest, response: Response) -> LoginResponse:
+@limiter.limit("30/15minute", key_func=get_ip_rate_limit_key)
+@limiter.limit("10/15minute", key_func=get_session_rate_limit_key)
+async def login(
+    request: Request,
+    response: Response,
+    request_body: LoginRequest,
+) -> LoginResponse:
     """
     Handle user login with email and password.
     """
-    user = await auth_service.login(email=request.email, password=request.password)
+    auth_rate_limit_service.enforce_login_failure_limit(request_body.email)
+
+    try:
+        user = await auth_service.login(
+            email=request_body.email, password=request_body.password
+        )
+    except AppException as exc:
+        if exc.error == ErrorCodes.INVALID_CREDENTIALS:
+            auth_rate_limit_service.register_login_failure(request_body.email)
+        raise
 
     # Set Cookies
     set_auth_cookies(response, str(user.id))
+    try:
+        auth_rate_limit_service.clear_login_failures(request_body.email)
+    except Exception:
+        logger.warning(
+            "Failed to clear login failure bucket after successful auth",
+            exc_info=True,
+        )
     csrf_token = set_csrf_cookie(response)
 
     return LoginResponse(
@@ -117,27 +159,62 @@ async def refresh_token(
 
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
-async def forgot_password(request: ForgotPasswordRequest) -> ForgotPasswordResponse:
+@limiter.limit("6/hour", key_func=get_ip_rate_limit_key)
+@limiter.limit("3/hour", key_func=get_session_rate_limit_key)
+async def forgot_password(
+    request: Request,
+    response: Response,
+    request_body: ForgotPasswordRequest,
+) -> ForgotPasswordResponse:
     """
     Initiate password recovery. Sends reset code via email.
     """
-    await auth_service.forgot_password(request.email)
+    auth_rate_limit_service.enforce_forgot_password_limit(request_body.email)
+    # This bucket is intentionally charged before the service call so repeated
+    # requests for a known email cannot bypass the per-account forgot-password
+    # cap. The trade-off is a small denial-of-service window for that address
+    # (5/30minute) if an attacker spends the bucket first.
+    auth_rate_limit_service.register_forgot_password_attempt(request_body.email)
+
+    await auth_service.forgot_password(request_body.email)
     return ForgotPasswordResponse(
         message="If the email exists, a reset code has been sent."
     )
 
 
 @router.post("/reset-password", response_model=ResetPasswordResponse)
-async def reset_password(request: ResetPasswordRequest) -> ResetPasswordResponse:
+@limiter.limit("10/hour", key_func=get_ip_rate_limit_key)
+@limiter.limit("10/hour", key_func=get_session_rate_limit_key)
+async def reset_password(
+    request: Request,
+    response: Response,
+    request_body: ResetPasswordRequest,
+) -> ResetPasswordResponse:
     """
     Complete password recovery with reset code.
     """
-    await auth_service.reset_password(request.email, request.code, request.new_password)
+    auth_rate_limit_service.enforce_reset_password_limit(request_body.email)
+
+    try:
+        await auth_service.reset_password(
+            request_body.email,
+            request_body.code,
+            request_body.new_password,
+        )
+    except AppException as exc:
+        if exc.error == ErrorCodes.INVALID_CREDENTIALS:
+            auth_rate_limit_service.register_reset_password_attempt(request_body.email)
+        raise
     return ResetPasswordResponse(message="Password reset successfully")
 
 
 @router.get("/csrf", response_model=CsrfTokenResponse)
-async def get_csrf_token(response: Response) -> CsrfTokenResponse:
+@limiter.limit("300/30minute")
+async def get_csrf_token(
+    request: Request,
+    response: Response,
+    _: PydanticObjectId = Depends(auth_dependency),
+) -> CsrfTokenResponse:
     """
     Get CSRF token (sets HttpOnly cookie and returns token in body).
     """

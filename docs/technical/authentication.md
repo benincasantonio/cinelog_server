@@ -30,7 +30,19 @@ The auth dependency extracts the `__Host-access_token` cookie, verifies the JWT 
 
 - **Safe methods** (`GET`, `HEAD`, `OPTIONS`): Exempt from CSRF checks.
 - **Unsafe methods** (`POST`, `PUT`, `DELETE`, `PATCH`): The middleware verifies that the `__Host-csrf_token` HttpOnly cookie value strictly matches the `X-CSRF-Token` header value.
-- **Token provisioning**: Tokens are set on `login` and `register`. Clients can also call `GET /v1/auth/csrf` to obtain a fresh token.
+- **Token provisioning**: Tokens are set on `login` and `POST /v1/auth/refresh`. Clients can also call the authenticated `GET /v1/auth/csrf` endpoint to obtain a fresh token.
+
+## Auth Endpoint Rate Limits
+
+| Endpoint | Limit |
+|----------|-------|
+| `POST /v1/auth/register` | 5 requests per hour per client |
+| `POST /v1/auth/login` | 30 requests per 15 minutes per IP, plus session/email-hash limits |
+| `POST /v1/auth/forgot-password` | 6 requests per hour per IP, plus 3/hour session and 5/30minute email-hash limits |
+| `POST /v1/auth/reset-password` | 10 requests per hour per IP, plus session/email-hash limits |
+| `GET /v1/auth/csrf` | 300 requests per 30 minutes per authenticated user |
+
+The coarse IP and session limits are enforced via `slowapi` decorators in `app/controllers/auth_controller.py`. `AuthRateLimitService` handles the login and recovery email-hash buckets so they can be checked before authentication work and incremented only when the request should count.
 
 ## Password Recovery Implementation
 

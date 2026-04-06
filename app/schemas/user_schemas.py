@@ -34,7 +34,9 @@ class UserCreateResponse(BaseSchema):
     handle: str
     bio: Optional[str] = None
     date_of_birth: date
-    profile_visibility: ProfileVisibilityStr = Field(..., description="Profile visibility setting")
+    profile_visibility: ProfileVisibilityStr = Field(
+        ..., description="Profile visibility setting"
+    )
 
 
 class UserResponse(BaseSchema):
@@ -45,7 +47,9 @@ class UserResponse(BaseSchema):
     handle: str
     bio: Optional[str] = None
     date_of_birth: Optional[date] = None
-    profile_visibility: ProfileVisibilityStr = Field(..., description="Profile visibility setting")
+    profile_visibility: ProfileVisibilityStr = Field(
+        ..., description="Profile visibility setting"
+    )
 
 
 class UpdateProfileRequest(BaseSchema):
@@ -65,7 +69,9 @@ class UserProfileResponse(BaseSchema):
     last_name: str = Field(..., description="User's last name")
     handle: str = Field(..., description="User's unique handle")
     bio: Optional[str] = Field(None, description="User biography")
-    profile_visibility: ProfileVisibilityStr = Field(..., description="Profile visibility setting")
+    profile_visibility: ProfileVisibilityStr = Field(
+        ..., description="Profile visibility setting"
+    )
     date_of_birth: Optional[date] = Field(
         None,
         description="Date of birth (visible on public profiles or to the profile owner)",
