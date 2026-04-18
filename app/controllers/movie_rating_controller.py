@@ -1,6 +1,6 @@
 from typing import Annotated
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.dependencies.auth_dependency import auth_dependency
 from app.repository.movie_rating_repository import MovieRatingRepository
@@ -43,26 +43,22 @@ async def create_movie_rating(
     )
 
 
-@router.get("/{tmdb_id}")
+@router.get("/{tmdb_id}", response_model=None)
 async def get_movie_rating(
     tmdb_id: int,
     current_user_id: Annotated[PydanticObjectId, Depends(auth_dependency)],
-    user_id: PydanticObjectId | None = None,
-) -> MovieRatingResponse:
+) -> MovieRatingResponse | Response:
     """
     Get a movie rating entry by TMDB ID.
 
-    If user_id is not provided, it will use the current authenticated user's ID.
-
     Requires authentication via Cookie token.
     """
-    target_user_id = user_id if user_id else current_user_id
-
     movie_rating = await movie_rating_service.get_movie_ratings_by_tmdb_id(
-        user_id=target_user_id, tmdb_id=tmdb_id
+        user_id=current_user_id,
+        tmdb_id=tmdb_id,
     )
 
     if not movie_rating:
-        raise HTTPException(status_code=404, detail="Movie rating not found")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     return movie_rating

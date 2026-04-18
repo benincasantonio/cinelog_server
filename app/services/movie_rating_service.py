@@ -76,15 +76,15 @@ class MovieRatingService:
         )
 
     async def get_movie_ratings_by_tmdb_id(
-        self, user_id: PydanticObjectId, tmdb_id: int
+        self, tmdb_id: int, user_id: PydanticObjectId
     ) -> MovieRatingResponse | None:
         """
-        Get all movie ratings for a specific TMDB ID.
+        Get the caller's rating for a specific TMDB ID. Returns None if no rating exists.
         """
 
         movie_rating = (
             await self.movie_rating_repository.find_movie_rating_by_user_and_tmdb(
-                user_id, tmdb_id=tmdb_id
+                user_id=user_id, tmdb_id=tmdb_id
             )
         )
 
