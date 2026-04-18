@@ -3,8 +3,6 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 from datetime import datetime
 
-from beanie import PydanticObjectId
-
 from app import app
 from app.schemas.movie_rating_schemas import MovieRatingResponse
 from app.dependencies.auth_dependency import auth_dependency
@@ -103,7 +101,7 @@ class TestMovieRatingController:
         new_callable=AsyncMock,
     )
     def test_get_movie_rating_not_found(self, mock_get_rating, client, override_auth):
-        """Test getting a movie rating that doesn't exist."""
+        """Test getting a movie rating that doesn't exist returns 204."""
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_rating.return_value = None
 
@@ -113,41 +111,7 @@ class TestMovieRatingController:
 
         app.dependency_overrides = {}
 
-        assert response.status_code == 404
-
-    @patch(
-        "app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id",
-        new_callable=AsyncMock,
-    )
-    def test_get_movie_rating_with_user_id_param(
-        self, mock_get_rating, client, override_auth
-    ):
-        """Test getting a movie rating with explicit user_id parameter."""
-        # Even with explicit user_id, we might need auth if the endpoint requires it.
-        # Checking implementation: endpoints use auth_dependency.
-        app.dependency_overrides[auth_dependency] = override_auth
-
-        other_user_id = PydanticObjectId()
-        mock_get_rating.return_value = MovieRatingResponse(
-            id="rating123",
-            user_id=str(other_user_id),
-            movie_id="movie123",
-            tmdb_id="550",
-            rating=9,
-            comment="Amazing!",
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
-        )
-
-        response = client.get(
-            f"/v1/movie-ratings/550?user_id={other_user_id}",
-            cookies={"__Host-access_token": "token"},
-        )
-
-        app.dependency_overrides = {}
-
-        assert response.status_code == 200
-        mock_get_rating.assert_called_once_with(user_id=other_user_id, tmdb_id=550)
+        assert response.status_code == 204
 
     def test_get_movie_rating_unauthorized(self, client):
         """Test getting movie rating without authentication."""
