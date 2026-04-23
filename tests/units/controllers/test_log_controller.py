@@ -3,7 +3,8 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 from datetime import date, datetime
 from beanie import PydanticObjectId
-
+from app.utils.exceptions_utils import AppException
+from app.utils.error_codes_utils import ErrorCodes
 from app import app
 from app.schemas.log_schemas import (
     LogCreateResponse,
@@ -197,6 +198,67 @@ class TestUpdateLog:
         response = client.put(
             "/v1/logs/log123",
             json=update_request,
+            cookies={"__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        assert response.status_code == 401
+
+
+class TestDeleteLog:
+    """Tests for DELETE /v1/logs/{log_id} endpoint."""
+
+    @patch(
+        "app.controllers.log_controller.log_service.delete_log", new_callable=AsyncMock
+    )
+    def test_delete_log_success_returns_204(
+        self, mock_delete_log, client, override_auth
+    ):
+        """Successful deletion returns 204 No Content with empty body."""
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_delete_log.return_value = None
+
+        response = client.delete(
+            "/v1/logs/log123",
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 204
+        assert response.content == b""
+        mock_delete_log.assert_called_once()
+
+    @patch(
+        "app.controllers.log_controller.log_service.delete_log", new_callable=AsyncMock
+    )
+    def test_delete_log_not_found_returns_404(
+        self, mock_delete_log, client, override_auth
+    ):
+        """Deleting a missing or non-owned log returns 404."""
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_delete_log.side_effect = AppException(ErrorCodes.LOG_NOT_FOUND)
+
+        response = client.delete(
+            "/v1/logs/log123",
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 404
+        assert (
+            response.json()["error_code_name"]
+            == ErrorCodes.LOG_NOT_FOUND.error_code_name
+        )
+
+    def test_delete_log_unauthorized(self, client):
+        """Delete without access token returns 401."""
+        app.dependency_overrides = {}
+        response = client.delete(
+            "/v1/logs/log123",
             cookies={"__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )

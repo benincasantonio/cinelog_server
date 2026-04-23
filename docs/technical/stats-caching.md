@@ -45,11 +45,8 @@ When data that affects stats is modified, all cached stats for that user are inv
 |---------|--------|---------|
 | `LogService` | `create_log` | New viewing log created |
 | `LogService` | `update_log` | Existing viewing log updated |
+| `LogService` | `delete_log` | Existing viewing log deleted |
 | `MovieRatingService` | `create_update_movie_rating` | Rating created or updated |
-
-### Gap to be aware of
-
-`LogRepository` has a `delete_log` method that is not currently exposed via any API endpoint. If a delete log endpoint is added in the future, it must also call `invalidate_user_stats`.
 
 ## Graceful Degradation
 

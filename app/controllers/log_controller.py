@@ -1,5 +1,5 @@
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.config.rate_limiter import limiter
 from app.repository.log_repository import LogRepository
@@ -53,6 +53,27 @@ async def update_log(
     return await log_service.update_log(
         user_id=user_id, log_id=log_id, request=request_body
     )
+
+
+@router.delete(
+    "/{log_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+@limiter.limit("20/minute")
+async def delete_log(
+    request: Request,
+    response: Response,
+    log_id: str,
+    user_id: PydanticObjectId = Depends(auth_dependency),
+) -> None:
+    """
+    Delete a viewing log entry.
+
+    Requires authentication via Cookie token.
+    Only the owner of the log can delete it.
+    """
+    await log_service.delete_log(user_id=user_id, log_id=log_id)
 
 
 @router.get("/{handle}", response_model=LogListResponse)

@@ -266,6 +266,35 @@ class TestLogService:
             await log_service.update_log("user123", "nonexistent_log", request)
 
     @pytest.mark.asyncio
+    async def test_delete_log_success(
+        self, log_service, mock_log_repository, mock_stats_cache_service
+    ):
+        """Test successful log deletion invalidates the stats cache."""
+        user_id = PydanticObjectId()
+        mock_log_repository.delete_log.return_value = True
+
+        await log_service.delete_log(user_id=user_id, log_id="log123")
+
+        mock_log_repository.delete_log.assert_awaited_once_with(
+            log_id="log123", user_id=user_id
+        )
+        mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
+
+    @pytest.mark.asyncio
+    async def test_delete_log_not_found_raises(
+        self, log_service, mock_log_repository, mock_stats_cache_service
+    ):
+        """Test deleting a missing log raises LOG_NOT_FOUND and does not invalidate cache."""
+        user_id = PydanticObjectId()
+        mock_log_repository.delete_log.return_value = False
+
+        with pytest.raises(AppException) as exc_info:
+            await log_service.delete_log(user_id=user_id, log_id="nonexistent")
+
+        assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
+        mock_stats_cache_service.invalidate_user_stats.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_get_user_logs(
         self, log_service, mock_log_repository, mock_movie_service
     ):

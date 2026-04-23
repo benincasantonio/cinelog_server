@@ -131,14 +131,13 @@ class LogRepository:
     @staticmethod
     async def delete_log(log_id: str, user_id: PydanticObjectId) -> bool:
         """
-        Delete a log entry (soft delete).
+        Delete a log entry (hard delete).
         """
         log = await LogRepository.find_log_by_id(log_id, user_id)
         if not log:
             return False
 
-        log.deleted = True
-        await log.save()
+        await log.delete()
         return True
 
     @staticmethod

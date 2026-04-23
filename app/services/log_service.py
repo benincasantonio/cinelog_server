@@ -130,6 +130,16 @@ class LogService:
             watched_where=log.watched_where,
         )
 
+    async def delete_log(self, user_id: PydanticObjectId, log_id: str) -> None:
+        """
+        Delete a viewing log entry owned by the given user.
+        """
+        deleted = await self.log_repository.delete_log(log_id=log_id, user_id=user_id)
+        if not deleted:
+            raise AppException(ErrorCodes.LOG_NOT_FOUND)
+
+        await self.stats_cache_service.invalidate_user_stats(user_id)
+
     async def get_user_logs(
         self, user_id: PydanticObjectId, request: LogListRequest
     ) -> LogListResponse:
