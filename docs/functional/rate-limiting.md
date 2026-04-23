@@ -14,6 +14,7 @@ The Cinelog API enforces rate limits on authentication and key data endpoints to
 | `GET /v1/movies/search` | 20 requests per minute |
 | `POST /v1/logs/` | 20 requests per minute |
 | `PUT /v1/logs/{log_id}` | 10 requests per minute |
+| `DELETE /v1/logs/{log_id}` | 20 requests per minute |
 
 Some authentication endpoints apply multiple rate-limit layers. `POST /v1/auth/login`, `POST /v1/auth/forgot-password`, and `POST /v1/auth/reset-password` can also be blocked by anonymous-session or email-hash account buckets before the outer IP window is exhausted.
 

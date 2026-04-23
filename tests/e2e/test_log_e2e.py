@@ -494,6 +494,129 @@ class TestLogE2E:
         data = response.json()
         assert data["error_code_name"] == "PROFILE_NOT_PUBLIC"
 
+    async def test_delete_log_success(self, async_client):
+        """Test successful deletion removes the log (hard delete)."""
+        user_data = {
+            "email": "delete_log_success_test@example.com",
+            "password": "securepassword123",
+            "firstName": "DeleteLog",
+            "lastName": "Test",
+            "handle": "deletelogtest",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+        handle = login_data["handle"]
+
+        create_resp = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
+        )
+        assert create_resp.status_code == 201
+        log_id = create_resp.json()["id"]
+
+        delete_resp = await async_client.delete(
+            f"/v1/logs/{log_id}",
+            headers={"X-CSRF-Token": csrf_token},
+        )
+        assert delete_resp.status_code == 204
+        assert delete_resp.content == b""
+
+        # Hard delete: the log is gone, not just hidden
+        list_resp = await async_client.get(f"/v1/logs/{handle}")
+        assert list_resp.status_code == 200
+        assert list_resp.json()["logs"] == []
+
+        # Second delete on the same id returns 404
+        second_delete = await async_client.delete(
+            f"/v1/logs/{log_id}",
+            headers={"X-CSRF-Token": csrf_token},
+        )
+        assert second_delete.status_code == 404
+        assert (
+            second_delete.json()["error_code_name"]
+            == ErrorCodes.LOG_NOT_FOUND.error_code_name
+        )
+
+    async def test_delete_log_invalid_id_returns_not_found(self, async_client):
+        """Test deleting a non-existent log ID returns LOG_NOT_FOUND."""
+        user_data = {
+            "email": "delete_invalidid_test@example.com",
+            "password": "securepassword123",
+            "firstName": "DeleteInvalid",
+            "lastName": "Test",
+            "handle": "deleteinvalidtest",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
+        }
+        login_data = await register_and_login(async_client, user_data)
+        csrf_token = login_data["csrfToken"]
+
+        response = await async_client.delete(
+            "/v1/logs/507f1f77bcf86cd799439011",
+            headers={"X-CSRF-Token": csrf_token},
+        )
+
+        assert response.status_code == 404
+        data = response.json()
+        assert data["error_code_name"] == ErrorCodes.LOG_NOT_FOUND.error_code_name
+
+    async def test_delete_log_of_other_user_returns_not_found(self, async_client):
+        """Test that a user cannot delete another user's log."""
+        user_a = {
+            "email": "delete_owner_test@example.com",
+            "password": "securepassword123",
+            "firstName": "DeleteOwner",
+            "lastName": "User",
+            "handle": "deleteownertest",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
+        }
+        login_a = await register_and_login(async_client, user_a)
+        csrf_token_a = login_a["csrfToken"]
+        handle_a = login_a["handle"]
+
+        create_response = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token_a},
+            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
+        )
+        assert create_response.status_code == 201
+        log_id = create_response.json()["id"]
+
+        user_b = {
+            "email": "delete_intruder_test@example.com",
+            "password": "securepassword123",
+            "firstName": "DeleteIntruder",
+            "lastName": "User",
+            "handle": "deleteintrudertest",
+            "dateOfBirth": "1990-01-01",
+            "profile_visibility": "public",
+        }
+        login_b = await register_and_login(async_client, user_b)
+        csrf_token_b = login_b["csrfToken"]
+
+        response = await async_client.delete(
+            f"/v1/logs/{log_id}",
+            headers={"X-CSRF-Token": csrf_token_b},
+        )
+
+        assert response.status_code == 404
+        data = response.json()
+        assert data["error_code_name"] == ErrorCodes.LOG_NOT_FOUND.error_code_name
+
+        # The log still exists for the real owner
+        list_resp = await async_client.get(f"/v1/logs/{handle_a}")
+        assert list_resp.status_code == 200
+        assert len(list_resp.json()["logs"]) == 1
+
+    async def test_delete_log_unauthorized(self, async_client):
+        """Test deleting a log without authentication."""
+        response = await async_client.delete("/v1/logs/507f1f77bcf86cd799439011")
+        assert response.status_code in [401, 403]
+
     async def test_friends_only_profile_other_user_logs(self, async_client):
         """Test that a friends-only profile's logs are not accessible by a non-friend."""
         # Create User A with friends_only profile (no login needed)

@@ -373,9 +373,8 @@ async def test_delete_log_success(
     log = await log_repository.create_log(user_id, movie_create_request)
     result = await log_repository.delete_log(str(log.id), user_id)
     assert result is True
-    updated_log = await Log.get(log.id)
-    assert updated_log is not None
-    assert updated_log.deleted is True
+    deleted_log = await Log.get(log.id)
+    assert deleted_log is None
 
 
 @pytest.mark.asyncio
