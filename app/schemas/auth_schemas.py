@@ -2,7 +2,7 @@ from pydantic import EmailStr, Field
 from datetime import date
 from typing import Optional
 
-from app.schemas.base_schema import BaseSchema
+from app.schemas.base_schemas import BaseSchema
 from app.types import BioStr, HandleStr, NameStr, ProfileVisibilityStr
 
 

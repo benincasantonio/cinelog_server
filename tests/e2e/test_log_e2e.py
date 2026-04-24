@@ -4,7 +4,7 @@ Tests the full stack: FastAPI -> LogService -> MongoDB.
 """
 
 from tests.e2e.conftest import register, register_and_login
-from app.utils.error_codes import ErrorCodes
+from app.utils.error_codes_utils import ErrorCodes
 
 
 class TestLogE2E:

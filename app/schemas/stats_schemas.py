@@ -2,7 +2,7 @@ from typing import Literal
 
 from beanie import PydanticObjectId
 
-from app.schemas.base_schema import BaseSchema
+from app.schemas.base_schemas import BaseSchema
 
 
 class StatsSummary(BaseSchema):

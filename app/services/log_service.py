@@ -15,8 +15,8 @@ from app.schemas.log_schemas import (
     LogListItem,
 )
 from app.services.stats_cache_service import StatsCacheService
-from app.utils.exceptions import AppException
-from app.utils.error_codes import ErrorCodes
+from app.utils.exceptions_utils import AppException
+from app.utils.error_codes_utils import ErrorCodes
 from app.models.movie import Movie
 
 

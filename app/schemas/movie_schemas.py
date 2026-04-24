@@ -3,7 +3,7 @@ from pydantic import Field
 from datetime import date, datetime
 from typing import Optional
 
-from app.schemas.base_schema import BaseSchema
+from app.schemas.base_schemas import BaseSchema
 
 
 class MovieCreateRequest(BaseSchema):

@@ -5,8 +5,8 @@ from app.repository.movie_rating_repository import MovieRatingRepository
 from app.schemas.movie_rating_schemas import MovieRatingResponse
 from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
-from app.utils.error_codes import ErrorCodes
-from app.utils.exceptions import AppException
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 
 
 class MovieRatingService:

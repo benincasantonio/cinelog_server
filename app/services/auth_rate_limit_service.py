@@ -15,8 +15,8 @@ from app.config.auth_rate_limit_config import (
     RESET_PASSWORD_ACCOUNT_RATE_LIMIT_SCOPE,
 )
 from app.config.rate_limiter import limiter
-from app.utils.error_codes import ErrorCodes
-from app.utils.exceptions import AppException
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 
 _RATE_LIMIT_HMAC_SECRET = os.getenv("RATE_LIMIT_HMAC_SECRET")
 if not _RATE_LIMIT_HMAC_SECRET:

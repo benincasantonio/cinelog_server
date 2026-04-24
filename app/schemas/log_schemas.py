@@ -4,7 +4,7 @@ from beanie import PydanticObjectId
 from pydantic import Field, field_validator, model_validator
 from datetime import date
 
-from app.schemas.base_schema import BaseSchema
+from app.schemas.base_schemas import BaseSchema
 from app.schemas.movie_schemas import MovieResponse
 from app.types import WatchedWhereStr
 

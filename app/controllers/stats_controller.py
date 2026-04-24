@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from app.dependencies.auth_dependency import auth_dependency
 from app.services.stats_service import StatsService
 from app.schemas.stats_schemas import StatsResponse, StatsRequest
-from app.utils.exceptions import AppException
+from app.utils.exceptions_utils import AppException
 
 router = APIRouter()
 

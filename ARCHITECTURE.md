@@ -59,7 +59,7 @@ All routes are registered under the `/v1/` prefix:
 **Error Handling:**
 
 - Custom `AppException` class with structured `ErrorSchema` objects
-- Centralized error codes in `app/utils/error_codes.py`
+- Centralized error codes in `app/utils/error_codes_utils.py`
 - Global exception handler in `app/__init__.py` converts `AppException` to JSON responses
 
 **Singleton Pattern:**
@@ -214,7 +214,7 @@ All schemas inherit from `BaseSchema` which enables camelCase alias generation (
 | `movie_rating_schemas.py` | `MovieRatingCreateUpdateRequest`, `MovieRatingResponse`, `MovieRatingStats` |
 | `stats_schemas.py` | `StatsSummary`, `StatsDistribution`, `StatsPace`, `StatsResponse` |
 | `tmdb_schemas.py` | `TMDBMovieSearchResult`, `TMDBMovieDetails` |
-| `error_schema.py` | `ErrorSchema` (error_code_name, error_code, error_message, error_description) |
+| `error_schemas.py` | `ErrorSchema` (error_code_name, error_code, error_message, error_description) |
 
 ## Utils
 
@@ -222,8 +222,8 @@ All schemas inherit from `BaseSchema` which enables camelCase alias generation (
 |---|---|
 | `auth_utils.py` | Cookie management: `set_auth_cookies()`, `set_csrf_cookie()`, `clear_auth_cookies()`, `set_rate_limit_session_id()` |
 | `rate_limit_utils.py` | Rate limit key function (`get_rate_limit_key`) and custom 429 exception handler |
-| `exceptions.py` | `AppException` — custom exception wrapping `ErrorSchema` |
-| `error_codes.py` | `ErrorCodes` class with predefined error schemas |
+| `exceptions_utils.py` | `AppException` — custom exception wrapping `ErrorSchema` |
+| `error_codes_utils.py` | `ErrorCodes` class with predefined error schemas |
 | `sanitize_utils.py` | HTML tag stripping, name/handle pattern validation |
 | `datetime_utils.py` | UTC date/datetime conversion helpers |
 | `object_id_utils.py` | Safe `to_object_id()` conversion with error handling |

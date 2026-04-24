@@ -7,7 +7,7 @@ import pytest
 from app.schemas.auth_schemas import RegisterRequest
 from app.services.auth_service import AuthService
 from app.services.auth_rate_limit_service import AuthRateLimitService
-from app.utils.exceptions import AppException
+from app.utils.exceptions_utils import AppException
 
 
 class TestAuthService:

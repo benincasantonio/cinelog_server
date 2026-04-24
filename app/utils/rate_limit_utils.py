@@ -12,7 +12,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from slowapi.util import get_remote_address
 
-from app.utils.error_codes import ErrorCodes
+from app.utils.error_codes_utils import ErrorCodes
 
 RATE_LIMIT_SESSION_STATE = "rate_limit_session_id"
 

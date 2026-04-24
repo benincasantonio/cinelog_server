@@ -13,8 +13,8 @@ from app.schemas.tmdb_schemas import (
     TMDBSpokenLanguage,
 )
 from app.dependencies.auth_dependency import auth_dependency
-from app.utils.exceptions import AppException
-from app.utils.error_codes import ErrorCodes
+from app.utils.exceptions_utils import AppException
+from app.utils.error_codes_utils import ErrorCodes
 
 
 @pytest.fixture

@@ -26,8 +26,8 @@ from app.services.auth_rate_limit_service import (
     AuthRateLimitService,
 )
 from app.services.token_service import TokenService
-from app.utils.error_codes import ErrorCodes
-from app.utils.exceptions import AppException
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 from app.utils.rate_limit_utils import (
     get_ip_rate_limit_key,
     get_session_rate_limit_key,
