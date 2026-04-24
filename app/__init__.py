@@ -18,7 +18,7 @@ import app.controllers.movie_rating_controller as movie_rating_controller
 import app.controllers.stats_controller as stats_controller
 from app.middleware.csrf_middleware import CSRFMiddleware
 from app.middleware.rate_limit_session_middleware import RateLimitSessionMiddleware
-from app.utils.exceptions import AppException
+from app.utils.exceptions_utils import AppException
 from app.config.cors import get_cors_config
 from app.config.public_routes import CSRF_EXEMPT_PATHS
 from app.models.log import Log

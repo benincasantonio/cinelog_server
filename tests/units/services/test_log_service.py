@@ -6,8 +6,8 @@ from beanie import PydanticObjectId
 
 from app.services.log_service import LogService
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest, LogListRequest
-from app.utils.exceptions import AppException
-from app.utils.error_codes import ErrorCodes
+from app.utils.exceptions_utils import AppException
+from app.utils.error_codes_utils import ErrorCodes
 
 
 @pytest.fixture

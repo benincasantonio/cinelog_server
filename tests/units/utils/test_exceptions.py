@@ -3,8 +3,8 @@ Unit tests for AppException class.
 """
 
 import pytest
-from app.utils.exceptions import AppException
-from app.utils.error_codes import ErrorCodes
+from app.utils.exceptions_utils import AppException
+from app.utils.error_codes_utils import ErrorCodes
 
 
 class TestAppException:

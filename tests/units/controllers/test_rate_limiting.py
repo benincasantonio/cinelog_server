@@ -436,8 +436,8 @@ class TestLoginRateLimit:
         self, mock_login, client
     ):
         """The email-based account bucket should block the 6th login attempt."""
-        from app.utils.error_codes import ErrorCodes
-        from app.utils.exceptions import AppException
+        from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         mock_login.side_effect = AppException(ErrorCodes.INVALID_CREDENTIALS)
 
@@ -456,8 +456,8 @@ class TestLoginRateLimit:
         self, mock_login, client
     ):
         """Once exhausted, the account limiter should block before auth_service.login runs."""
-        from app.utils.error_codes import ErrorCodes
-        from app.utils.exceptions import AppException
+        from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         mock_login.side_effect = AppException(ErrorCodes.INVALID_CREDENTIALS)
 
@@ -528,8 +528,8 @@ class TestLoginRateLimit:
     )
     def test_login_failure_bucket_hashes_unknown_email(self, mock_login, client):
         """Failed login attempts should use the same hashed email identifier."""
-        from app.utils.error_codes import ErrorCodes
-        from app.utils.exceptions import AppException
+        from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         original_hit_limit = AuthRateLimitService._hit_limit
         mock_login.side_effect = AppException(ErrorCodes.INVALID_CREDENTIALS)
@@ -757,8 +757,8 @@ class TestResetPasswordRateLimit:
         self, mock_reset_password, client
     ):
         """The 11th invalid reset attempt should hit the reset account bucket."""
-        from app.utils.error_codes import ErrorCodes
-        from app.utils.exceptions import AppException
+        from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         mock_reset_password.side_effect = AppException(ErrorCodes.INVALID_CREDENTIALS)
 
@@ -783,8 +783,8 @@ class TestResetPasswordRateLimit:
         self, mock_reset_password
     ):
         """The reset-password account bucket should block the 11th invalid attempt across clients."""
-        from app.utils.error_codes import ErrorCodes
-        from app.utils.exceptions import AppException
+        from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         mock_reset_password.side_effect = AppException(ErrorCodes.INVALID_CREDENTIALS)
 
@@ -820,8 +820,8 @@ class TestResetPasswordRateLimit:
         self, mock_reset_password
     ):
         """Once the reset-password account bucket is exhausted, reset logic should not run."""
-        from app.utils.error_codes import ErrorCodes
-        from app.utils.exceptions import AppException
+        from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         mock_reset_password.side_effect = AppException(ErrorCodes.INVALID_CREDENTIALS)
 
@@ -883,8 +883,8 @@ class TestResetPasswordRateLimit:
         self, mock_reset_password, client
     ):
         """Once exhausted, the reset account bucket should block before reset logic runs."""
-        from app.utils.error_codes import ErrorCodes
-        from app.utils.exceptions import AppException
+        from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         mock_reset_password.side_effect = AppException(ErrorCodes.INVALID_CREDENTIALS)
 

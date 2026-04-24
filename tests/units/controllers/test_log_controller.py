@@ -244,8 +244,8 @@ class TestGetLogsByHandle:
         self, mock_get_logs_by_handle, client, override_auth
     ):
         """Test log list retrieval for private profile."""
-        from app.utils.exceptions import AppException
-        from app.utils.error_codes import ErrorCodes
+        from app.utils.exceptions_utils import AppException
+        from app.utils.error_codes_utils import ErrorCodes
 
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_logs_by_handle.side_effect = AppException(
@@ -268,8 +268,8 @@ class TestGetLogsByHandle:
         self, mock_get_logs_by_handle, client, override_auth
     ):
         """Test log list retrieval for nonexistent user."""
-        from app.utils.exceptions import AppException
-        from app.utils.error_codes import ErrorCodes
+        from app.utils.exceptions_utils import AppException
+        from app.utils.error_codes_utils import ErrorCodes
 
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_logs_by_handle.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)

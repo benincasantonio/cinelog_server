@@ -1,4 +1,4 @@
-from app.schemas.error_schema import ErrorSchema
+from app.schemas.error_schemas import ErrorSchema
 
 
 class AppException(Exception):

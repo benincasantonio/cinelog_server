@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from app.schemas.base_schema import BaseSchema
+from app.schemas.base_schemas import BaseSchema
 
 
 class TMDBMovieSearchResultItem(BaseSchema):

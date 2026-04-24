@@ -3,7 +3,7 @@ E2E tests for authentication endpoints.
 Tests the full stack: FastAPI -> AuthService -> Firebase + MongoDB.
 """
 
-from app.utils.error_codes import ErrorCodes
+from app.utils.error_codes_utils import ErrorCodes
 from app.services.token_service import TokenService
 from datetime import timedelta
 

@@ -10,8 +10,8 @@ from app.schemas.user_schemas import (
     UserResponse,
 )
 from app.services.password_service import PasswordService
-from app.utils.error_codes import ErrorCodes
-from app.utils.exceptions import AppException
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 
 
 class UserService:

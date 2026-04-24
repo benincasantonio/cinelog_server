@@ -2,7 +2,7 @@ from typing import Optional
 from pydantic import Field
 from datetime import datetime
 
-from app.schemas.base_schema import BaseSchema
+from app.schemas.base_schemas import BaseSchema
 
 
 class MovieRatingCreateUpdateRequest(BaseSchema):

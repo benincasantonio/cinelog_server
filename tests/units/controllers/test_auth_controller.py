@@ -60,8 +60,8 @@ class TestAuthController:
     )
     def test_register_with_exception(self, mock_register, client):
         """Test registration that raises AppException."""
-        from app.utils.exceptions import AppException
-        from app.utils.error_codes import ErrorCodes
+        from app.utils.exceptions_utils import AppException
+        from app.utils.error_codes_utils import ErrorCodes
 
         mock_register.side_effect = AppException(ErrorCodes.EMAIL_ALREADY_EXISTS)
 

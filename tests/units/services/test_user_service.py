@@ -4,8 +4,8 @@ from datetime import date
 
 from app.services.user_service import UserService
 from app.schemas.user_schemas import UpdateProfileRequest, UserProfileResponse
-from app.utils.exceptions import AppException
-from app.utils.error_codes import ErrorCodes
+from app.utils.exceptions_utils import AppException
+from app.utils.error_codes_utils import ErrorCodes
 
 
 @pytest.fixture

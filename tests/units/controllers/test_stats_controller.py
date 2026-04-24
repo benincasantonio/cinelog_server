@@ -147,8 +147,8 @@ class TestStatsController:
     )
     def test_get_my_stats_app_exception(self, mock_get_stats, client, override_auth):
         """Test stats re-raises AppException."""
-        from app.utils.exceptions import AppException
-        from app.utils.error_codes import ErrorCodes
+        from app.utils.exceptions_utils import AppException
+        from app.utils.error_codes_utils import ErrorCodes
 
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_stats.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
