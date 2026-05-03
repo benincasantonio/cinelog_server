@@ -55,9 +55,9 @@ CORS_ALLOW_CREDENTIALS=true
 
 Restart the API container after updating the file.
 
-## Configure For Vercel
+## Configure For Hosted Environments
 
-Set the environment variables in the Vercel dashboard:
+Set the environment variables in the hosting provider's environment settings:
 
 - `ENVIRONMENT=production`
 - `CORS_ORIGINS=https://cinelog.app,https://www.cinelog.app`

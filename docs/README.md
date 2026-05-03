@@ -23,6 +23,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Authentication](technical/authentication.md) | Auth implementation internals, middleware, cookie config |
 | [Code Quality CI](technical/code-quality-ci.md) | GitHub Actions quality gates for lint, format, type checking, and security |
 | [CORS Configuration](technical/cors-configuration.md) | CORS environment variables and behavior |
+| [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Migrations](technical/migrations.md) | Database migration system |
 | [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup, deterministic IDs, and cutover guardrails |
