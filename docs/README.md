@@ -21,6 +21,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | Document | Description |
 |----------|-------------|
 | [Authentication](technical/authentication.md) | Auth implementation internals, middleware, cookie config |
+| [Code Quality CI](technical/code-quality-ci.md) | GitHub Actions quality gates for lint, format, type checking, and security |
 | [CORS Configuration](technical/cors-configuration.md) | CORS environment variables and behavior |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Migrations](technical/migrations.md) | Database migration system |
@@ -50,6 +51,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | `make migrate-dry-run` | Preview pending migrations without applying changes |
 | `make lint` | Run Ruff linter |
 | `make format` | Format code with Ruff and apply auto-fixes |
+| `make format-check` | Check Ruff formatting without modifying files |
 | `make typecheck` | Run mypy type checking for `app/` |
 | `make security` | Run Bandit security scan and pip-audit dependency scan |
 | `make run` | Run API locally via `python main.py` |

@@ -1,4 +1,4 @@
-.PHONY: install dev hooks test-unit test-e2e lint format typecheck security dependency-audit run docker-up docker-down docker-build-prod docker-prod-up docker-prod-down migrate migrate-dry-run
+.PHONY: install dev hooks test-unit test-e2e lint format format-check typecheck security dependency-audit run docker-up docker-down docker-build-prod docker-prod-up docker-prod-down migrate migrate-dry-run
 
 install:
 	uv sync
@@ -23,6 +23,9 @@ lint:
 format:
 	uv run ruff format .
 	uv run ruff check --fix .
+
+format-check:
+	uv run ruff format --check .
 
 typecheck:
 	uv run mypy app/
