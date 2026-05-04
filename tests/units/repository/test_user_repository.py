@@ -1,5 +1,4 @@
-from datetime import date
-from datetime import datetime, UTC
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -215,9 +214,7 @@ async def test_find_user_by_email_or_handle(beanie_test_db):
         date_of_birth=date(1990, 1, 1),
     )
     created_user = await repository.create_user(user_request)
-    found_user_by_email = await repository.find_user_by_email_or_handle(
-        "example@example.com"
-    )
+    found_user_by_email = await repository.find_user_by_email_or_handle("example@example.com")
     found_user_by_handle = await repository.find_user_by_email_or_handle("david_smith")
     assert found_user_by_email is not None
     assert found_user_by_email.id == created_user.id
@@ -264,9 +261,7 @@ async def test_set_and_clear_reset_password_code(beanie_test_db, user_create_req
     updated = await repository.set_reset_password_code(user, "ABC123", expires_at)
     assert updated.reset_password_code == "ABC123"
     assert updated.reset_password_expires is not None
-    assert updated.reset_password_expires.replace(tzinfo=UTC) <= expires_at.replace(
-        tzinfo=UTC
-    )
+    assert updated.reset_password_expires.replace(tzinfo=UTC) <= expires_at.replace(tzinfo=UTC)
 
     cleared = await repository.clear_reset_password_code(updated)
     assert cleared.reset_password_code is None
@@ -278,9 +273,7 @@ async def test_update_user_profile_success(beanie_test_db, user_create_request):
     repository = UserRepository()
     user = await repository.create_user(user_create_request)
 
-    updated = await repository.update_user_profile(
-        user.id, {"first_name": "Updated", "bio": "New bio"}
-    )
+    updated = await repository.update_user_profile(user.id, {"first_name": "Updated", "bio": "New bio"})
 
     assert updated is not None
     assert updated.first_name == "Updated"
@@ -290,12 +283,10 @@ async def test_update_user_profile_success(beanie_test_db, user_create_request):
 
 @pytest.mark.asyncio
 async def test_update_user_profile_not_found(beanie_test_db):
-    from bson import ObjectId
     from beanie import PydanticObjectId
+    from bson import ObjectId
 
     repository = UserRepository()
-    result = await repository.update_user_profile(
-        PydanticObjectId(ObjectId()), {"first_name": "Ghost"}
-    )
+    result = await repository.update_user_profile(PydanticObjectId(ObjectId()), {"first_name": "Ghost"})
 
     assert result is None

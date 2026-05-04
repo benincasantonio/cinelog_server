@@ -1,8 +1,9 @@
-from starlette.testclient import TestClient
-from starlette.middleware import Middleware
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.responses import JSONResponse
 from starlette.routing import Route
+from starlette.testclient import TestClient
+
 from app.middleware.csrf_middleware import CSRFMiddleware
 
 

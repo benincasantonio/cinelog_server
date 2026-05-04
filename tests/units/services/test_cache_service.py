@@ -39,17 +39,13 @@ class TestCacheServiceEnabled:
         data = {"title": "Fight Club"}
         result = await service.set("cinelog:movie:550", data, ttl=60)
         assert result is True
-        service._mock_client.set.assert_awaited_once_with(
-            "cinelog:movie:550", json.dumps(data), ex=60
-        )
+        service._mock_client.set.assert_awaited_once_with("cinelog:movie:550", json.dumps(data), ex=60)
 
     @pytest.mark.asyncio
     async def test_set_uses_default_ttl(self, service):
         service._mock_client.set = AsyncMock()
         await service.set("key", {"a": 1})
-        service._mock_client.set.assert_awaited_once_with(
-            "key", json.dumps({"a": 1}), ex=300
-        )
+        service._mock_client.set.assert_awaited_once_with("key", json.dumps({"a": 1}), ex=300)
 
     @pytest.mark.asyncio
     async def test_delete_existing_key(self, service):
@@ -85,15 +81,13 @@ class TestCacheServiceEnabled:
         service._mock_client.delete = AsyncMock(return_value=2)
         result = await service.invalidate_pattern("cinelog:movie:*")
         assert result == 2
-        service._mock_client.delete.assert_awaited_once_with(
-            "cinelog:movie:1", "cinelog:movie:2"
-        )
+        service._mock_client.delete.assert_awaited_once_with("cinelog:movie:1", "cinelog:movie:2")
 
     @pytest.mark.asyncio
     async def test_invalidate_pattern_no_matches(self, service):
         async def mock_scan_iter(match=None):
-            return
-            yield  # noqa: unreachable
+            if False:
+                yield None
 
         service._mock_client.scan_iter = mock_scan_iter
         result = await service.invalidate_pattern("cinelog:nothing:*")
@@ -109,9 +103,7 @@ class TestCacheServiceEnabled:
         service._mock_client.aclose = AsyncMock()
         await service.aclose()
         service._mock_client.aclose.assert_awaited_once()
-        assert (
-            service._client is not None
-        )  # aclose on the mock doesn't set _client None
+        assert service._client is not None  # aclose on the mock doesn't set _client None
 
 
 class TestCacheServiceErrors:
@@ -153,8 +145,9 @@ class TestCacheServiceErrors:
     @pytest.mark.asyncio
     async def test_invalidate_pattern_raises_on_connection_error(self, service):
         async def failing_scan(match=None):
+            if False:
+                yield None
             raise ConnectionError("refused")
-            yield  # noqa: unreachable
 
         service._mock_client.scan_iter = failing_scan
         with pytest.raises(ConnectionError):

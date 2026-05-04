@@ -15,6 +15,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6380/0")
 os.environ.setdefault("RATE_LIMIT_HMAC_SECRET", "test-rate-limit-hmac-secret")
 
 import asyncio  # noqa: E402
+from unittest.mock import patch  # noqa: E402
 
 import httpx  # noqa: E402
 import pytest  # noqa: E402
@@ -23,7 +24,6 @@ import redis.asyncio as aioredis  # noqa: E402
 from beanie import init_beanie  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 from pymongo import AsyncMongoClient  # noqa: E402
-from unittest.mock import patch  # noqa: E402
 
 from app.models.log import Log  # noqa: E402
 from app.models.movie import Movie  # noqa: E402
@@ -93,9 +93,7 @@ async def async_client(mongo_client):
     CacheService.initialize(get_redis_config())
 
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(
-        transport=transport, base_url="https://test"
-    ) as client:
+    async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
         yield client
     await CacheService.aclose_all()
     await TMDBService.aclose_all()

@@ -1,6 +1,5 @@
 import re
 
-
 HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 
 NAME_PATTERN = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ '\-]+$")

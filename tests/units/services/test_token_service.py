@@ -1,7 +1,9 @@
-import pytest
 from datetime import timedelta
-from app.services.token_service import TokenService
+
 import jwt
+import pytest
+
+from app.services.token_service import TokenService
 
 
 class TestTokenService:
@@ -26,9 +28,7 @@ class TestTokenService:
     def test_token_expiration(self):
         data = {"sub": "user_123"}
         # Create token that expires immediately
-        token = TokenService.create_access_token(
-            data, expires_delta=timedelta(seconds=-1)
-        )
+        token = TokenService.create_access_token(data, expires_delta=timedelta(seconds=-1))
 
         with pytest.raises(jwt.ExpiredSignatureError):
             TokenService.decode_token(token)

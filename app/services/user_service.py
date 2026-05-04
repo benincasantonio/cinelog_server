@@ -31,11 +31,7 @@ class UserService:
         if not user:
             raise AppException(ErrorCodes.USER_NOT_FOUND)
 
-        date_of_birth = (
-            user.date_of_birth.date()
-            if isinstance(user.date_of_birth, datetime)
-            else user.date_of_birth
-        )
+        date_of_birth = user.date_of_birth.date() if isinstance(user.date_of_birth, datetime) else user.date_of_birth
 
         return UserResponse(
             id=str(user.id),
@@ -48,9 +44,7 @@ class UserService:
             profile_visibility=user.profile_visibility,
         )
 
-    async def get_visible_profile(
-        self, handle: str, requester_id: PydanticObjectId
-    ) -> UserProfileResponse:
+    async def get_visible_profile(self, handle: str, requester_id: PydanticObjectId) -> UserProfileResponse:
         user = await self.user_repository.find_user_by_handle(handle.strip())
         if not user:
             raise AppException(ErrorCodes.USER_NOT_FOUND)
@@ -59,9 +53,7 @@ class UserService:
 
         if is_owner or user.profile_visibility == "public":
             date_of_birth = (
-                user.date_of_birth.date()
-                if isinstance(user.date_of_birth, datetime)
-                else user.date_of_birth
+                user.date_of_birth.date() if isinstance(user.date_of_birth, datetime) else user.date_of_birth
             )
             return UserProfileResponse(
                 first_name=user.first_name,
@@ -81,9 +73,7 @@ class UserService:
             date_of_birth=None,
         )
 
-    async def update_profile(
-        self, user_id: PydanticObjectId, request: UpdateProfileRequest
-    ) -> UserResponse:
+    async def update_profile(self, user_id: PydanticObjectId, request: UpdateProfileRequest) -> UserResponse:
         """
         Update user profile fields.
         """
@@ -95,11 +85,7 @@ class UserService:
         if not user:
             raise AppException(ErrorCodes.USER_NOT_FOUND)
 
-        date_of_birth = (
-            user.date_of_birth.date()
-            if isinstance(user.date_of_birth, datetime)
-            else user.date_of_birth
-        )
+        date_of_birth = user.date_of_birth.date() if isinstance(user.date_of_birth, datetime) else user.date_of_birth
 
         return UserResponse(
             id=str(user.id),

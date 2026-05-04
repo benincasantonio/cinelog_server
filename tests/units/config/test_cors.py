@@ -1,20 +1,17 @@
 import os
 from unittest.mock import patch
-from app.config.cors import get_cors_origins, get_cors_config
+
+from app.config.cors import get_cors_config, get_cors_origins
 
 
 def test_get_cors_origins_from_env():
-    with patch.dict(
-        os.environ, {"CORS_ORIGINS": "https://example.com , https://test.com"}
-    ):
+    with patch.dict(os.environ, {"CORS_ORIGINS": "https://example.com , https://test.com"}):
         origins = get_cors_origins()
         assert origins == ["https://example.com", "https://test.com"]
 
 
 def test_get_cors_origins_from_env_filters_empty_values():
-    with patch.dict(
-        os.environ, {"CORS_ORIGINS": "https://example.com,, https://test.com, ,"}
-    ):
+    with patch.dict(os.environ, {"CORS_ORIGINS": "https://example.com,, https://test.com, ,"}):
         origins = get_cors_origins()
         assert origins == ["https://example.com", "https://test.com"]
 

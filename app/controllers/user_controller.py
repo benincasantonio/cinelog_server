@@ -1,8 +1,8 @@
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request
-from app.services.user_service import UserService
-from app.repository.user_repository import UserRepository
+
 from app.dependencies.auth_dependency import auth_dependency
+from app.repository.user_repository import UserRepository
 from app.schemas.user_schemas import (
     ChangePasswordRequest,
     ChangePasswordResponse,
@@ -10,6 +10,7 @@ from app.schemas.user_schemas import (
     UserProfileResponse,
     UserResponse,
 )
+from app.services.user_service import UserService
 
 router = APIRouter()
 
@@ -18,9 +19,7 @@ user_service = UserService(user_repository=user_repository)
 
 
 @router.get("/info", response_model=UserResponse)
-async def get_user_info(
-    request: Request, user_id: PydanticObjectId = Depends(auth_dependency)
-) -> UserResponse:
+async def get_user_info(request: Request, user_id: PydanticObjectId = Depends(auth_dependency)) -> UserResponse:
     return await user_service.get_user_info(user_id)
 
 

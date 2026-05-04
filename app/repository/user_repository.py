@@ -1,5 +1,5 @@
-from datetime import datetime, UTC
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 from beanie import PydanticObjectId
@@ -26,11 +26,7 @@ class UserRepository:
     @staticmethod
     async def find_user_by_email(email: str) -> User | None:
         """Find a user by email (case-insensitive)."""
-        return await User.find_one(
-            User.active_filter(
-                {"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}}
-            )
-        )
+        return await User.find_one(User.active_filter({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}}))
 
     @staticmethod
     async def find_user_by_handle(handle: str) -> User | None:
@@ -40,9 +36,9 @@ class UserRepository:
     @staticmethod
     async def find_user_by_email_or_handle(email_or_handle: str) -> User | None:
         """Find a user by email or handle."""
-        return await UserRepository.find_user_by_email(
+        return await UserRepository.find_user_by_email(email_or_handle) or await UserRepository.find_user_by_handle(
             email_or_handle
-        ) or await UserRepository.find_user_by_handle(email_or_handle)
+        )
 
     @staticmethod
     async def find_user_by_id(user_id: PydanticObjectId) -> User | None:
@@ -94,9 +90,7 @@ class UserRepository:
         return user
 
     @staticmethod
-    async def set_reset_password_code(
-        user: User, code: str, expires_at: datetime
-    ) -> User:
+    async def set_reset_password_code(user: User, code: str, expires_at: datetime) -> User:
         """Set reset password code and expiration."""
         user.reset_password_code = code
         user.reset_password_expires = expires_at
@@ -112,9 +106,7 @@ class UserRepository:
         return user
 
     @staticmethod
-    async def update_user_profile(
-        user_id: PydanticObjectId, update_data: dict[str, Any]
-    ) -> User | None:
+    async def update_user_profile(user_id: PydanticObjectId, update_data: dict[str, Any]) -> User | None:
         """Update user profile fields."""
         user = await UserRepository.find_user_by_id(user_id)
         if not user:

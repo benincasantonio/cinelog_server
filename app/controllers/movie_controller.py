@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from app.config.rate_limiter import limiter
 from app.dependencies.auth_dependency import auth_dependency
-from app.schemas.tmdb_schemas import TMDBMovieSearchResult, TMDBMovieDetails
+from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult
 from app.services.tmdb_service import TMDBService
 
 router = APIRouter()
@@ -26,9 +26,7 @@ async def search_movies(
 
 
 @router.get("/{tmdb_id}")
-async def get_movie_details(
-    tmdb_id: int, _: PydanticObjectId = Depends(auth_dependency)
-) -> TMDBMovieDetails:
+async def get_movie_details(tmdb_id: int, _: PydanticObjectId = Depends(auth_dependency)) -> TMDBMovieDetails:
     """
     Get full movie details from TMDB by movie ID.
     """

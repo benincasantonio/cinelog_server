@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.schemas.auth_schemas import RegisterRequest
-from app.services.auth_service import AuthService
 from app.services.auth_rate_limit_service import AuthRateLimitService
+from app.services.auth_service import AuthService
 from app.utils.exceptions_utils import AppException
 
 
@@ -21,14 +21,10 @@ class TestAuthService:
 
     @pytest.fixture
     def auth_service(self, mock_user_repo, mock_email_service):
-        return AuthService(
-            user_repository=mock_user_repo, email_service=mock_email_service
-        )
+        return AuthService(user_repository=mock_user_repo, email_service=mock_email_service)
 
     @pytest.mark.asyncio
-    async def test_forgot_password_success(
-        self, auth_service, mock_user_repo, mock_email_service
-    ):
+    async def test_forgot_password_success(self, auth_service, mock_user_repo, mock_email_service):
         email = "test@example.com"
         mock_user = SimpleNamespace(email=email)
         mock_user_repo.find_user_by_email.return_value = mock_user
@@ -94,9 +90,7 @@ class TestAuthService:
         with pytest.MonkeyPatch.context() as m:
             from app.services.password_service import PasswordService
 
-            m.setattr(
-                PasswordService, "verify_password", lambda p, h: p == "password123"
-            )
+            m.setattr(PasswordService, "verify_password", lambda p, h: p == "password123")
 
             user = await auth_service.login(email, password)
             assert user == mock_user
@@ -130,9 +124,7 @@ class TestAuthService:
         assert exc.value.error.error_code == 401
 
     @pytest.mark.asyncio
-    async def test_register_email_case_insensitivity(
-        self, auth_service, mock_user_repo
-    ):
+    async def test_register_email_case_insensitivity(self, auth_service, mock_user_repo):
         request = RegisterRequest(
             first_name="Jane",
             last_name="Doe",
@@ -179,9 +171,7 @@ class TestAuthService:
         with pytest.MonkeyPatch.context() as m:
             from app.services.password_service import PasswordService
 
-            m.setattr(
-                PasswordService, "verify_password", lambda p, h: p == "password123"
-            )
+            m.setattr(PasswordService, "verify_password", lambda p, h: p == "password123")
 
             user = await auth_service.login(email_input, password)
             assert user == mock_user

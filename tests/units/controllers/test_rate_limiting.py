@@ -10,16 +10,21 @@ Note: Redis is swapped for in-memory storage for all unit tests via the
 ``use_memory_storage_for_rate_limiter`` autouse fixture in conftest.py.
 """
 
-import pytest
-from fastapi.testclient import TestClient
+from datetime import date, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from beanie import PydanticObjectId
-from datetime import date, datetime
+from fastapi.testclient import TestClient
 
 import app.config.rate_limiter as rate_limiter_module
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
+from app.schemas.auth_schemas import RegisterResponse
+from app.schemas.log_schemas import LogCreateResponse
+from app.schemas.movie_schemas import MovieResponse
+from app.schemas.tmdb_schemas import TMDBMovieSearchResult
 from app.services.auth_rate_limit_service import (
     AuthRateLimitService,
 )
@@ -30,11 +35,6 @@ from app.utils.rate_limit_utils import (
     get_rate_limit_key,
     get_session_rate_limit_key,
 )
-from app.schemas.auth_schemas import RegisterResponse
-from app.schemas.log_schemas import LogCreateResponse
-from app.schemas.movie_schemas import MovieResponse
-from app.schemas.tmdb_schemas import TMDBMovieSearchResult
-
 
 RATE_LIMIT_HEADERS = ("x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset")
 
@@ -49,9 +49,7 @@ def assert_429_response(response):
     """Assert a well-formed 429 rate limit response."""
     assert response.status_code == 429
     assert_rate_limit_headers(response)
-    assert "retry-after" in response.headers, (
-        "429 response must include Retry-After header"
-    )
+    assert "retry-after" in response.headers, "429 response must include Retry-After header"
     body = response.json()
     assert body["error_code_name"] == "RATE_LIMIT_EXCEEDED"
     assert body["error_code"] == 429
@@ -119,9 +117,7 @@ class TestRateLimitDecoratorsApplied:
 
     def test_login_has_rate_limit(self):
         key = "app.controllers.auth_controller.login"
-        assert key in rate_limiter_module.limiter._route_limits, (
-            "login endpoint must have @limiter.limit() decorator"
-        )
+        assert key in rate_limiter_module.limiter._route_limits, "login endpoint must have @limiter.limit() decorator"
 
     def test_forgot_password_has_rate_limit(self):
         key = "app.controllers.auth_controller.forgot_password"
@@ -214,9 +210,7 @@ class TestRegisterRateLimit:
         "app.controllers.auth_controller.auth_service.register",
         new_callable=AsyncMock,
     )
-    def test_register_session_limit_allows_another_client_on_same_ip(
-        self, mock_register
-    ):
+    def test_register_session_limit_allows_another_client_on_same_ip(self, mock_register):
         """A second client on the same IP should still be allowed before the IP cap."""
         mock_register.return_value = self.REGISTER_RESPONSE
 
@@ -249,9 +243,7 @@ class TestRegisterRateLimit:
         "app.controllers.auth_controller.auth_service.register",
         new_callable=AsyncMock,
     )
-    def test_register_ip_limit_blocks_after_ten_requests_across_clients(
-        self, mock_register
-    ):
+    def test_register_ip_limit_blocks_after_ten_requests_across_clients(self, mock_register):
         """The outer IP gate should block the 11th request across sessions."""
         mock_register.return_value = self.REGISTER_RESPONSE
 
@@ -380,9 +372,7 @@ class TestLoginRateLimit:
         "app.controllers.auth_controller.auth_service.login",
         new_callable=AsyncMock,
     )
-    def test_login_ip_limit_blocks_after_thirty_requests_across_clients(
-        self, mock_login
-    ):
+    def test_login_ip_limit_blocks_after_thirty_requests_across_clients(self, mock_login):
         """The outer IP gate should block the 31st request across sessions."""
         mock_login.return_value = self._mock_user()
 
@@ -391,12 +381,7 @@ class TestLoginRateLimit:
         third_client = TestClient(app, base_url="https://testserver")
         try:
             for _ in range(10):
-                assert (
-                    first_client.post(
-                        "/v1/auth/login", json=self.LOGIN_PAYLOAD
-                    ).status_code
-                    == 200
-                )
+                assert first_client.post("/v1/auth/login", json=self.LOGIN_PAYLOAD).status_code == 200
                 first_client.cookies.pop("__Host-access_token", None)
                 first_client.cookies.pop("refresh_token", None)
                 first_client.cookies.pop("__Host-csrf_token", None)
@@ -432,9 +417,7 @@ class TestLoginRateLimit:
         "app.controllers.auth_controller.auth_service.login",
         new_callable=AsyncMock,
     )
-    def test_login_failed_account_limit_blocks_after_five_invalid_attempts(
-        self, mock_login, client
-    ):
+    def test_login_failed_account_limit_blocks_after_five_invalid_attempts(self, mock_login, client):
         """The email-based account bucket should block the 6th login attempt."""
         from app.utils.error_codes_utils import ErrorCodes
         from app.utils.exceptions_utils import AppException
@@ -452,9 +435,7 @@ class TestLoginRateLimit:
         "app.controllers.auth_controller.auth_service.login",
         new_callable=AsyncMock,
     )
-    def test_login_failed_account_limit_short_circuits_before_auth_service(
-        self, mock_login, client
-    ):
+    def test_login_failed_account_limit_short_circuits_before_auth_service(self, mock_login, client):
         """Once exhausted, the account limiter should block before auth_service.login runs."""
         from app.utils.error_codes_utils import ErrorCodes
         from app.utils.exceptions_utils import AppException
@@ -512,9 +493,7 @@ class TestLoginRateLimit:
         "app.controllers.auth_controller.auth_service.login",
         new_callable=AsyncMock,
     )
-    def test_login_does_not_require_rate_limit_cache_dependency(
-        self, mock_login, client
-    ):
+    def test_login_does_not_require_rate_limit_cache_dependency(self, mock_login, client):
         """Login account limiting should not depend on a request-state cache helper."""
         mock_login.return_value = self._mock_user()
 
@@ -563,9 +542,7 @@ class TestForgotPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.forgot_password",
         new_callable=AsyncMock,
     )
-    def test_forgot_password_allows_requests_within_limit(
-        self, mock_forgot_password, client
-    ):
+    def test_forgot_password_allows_requests_within_limit(self, mock_forgot_password, client):
         """First 3 requests should succeed (200) with rate limit headers."""
         mock_forgot_password.return_value = None
 
@@ -581,9 +558,7 @@ class TestForgotPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.forgot_password",
         new_callable=AsyncMock,
     )
-    def test_forgot_password_blocks_request_over_limit(
-        self, mock_forgot_password, client
-    ):
+    def test_forgot_password_blocks_request_over_limit(self, mock_forgot_password, client):
         """4th request should hit the session/account forgot-password limit."""
         mock_forgot_password.return_value = None
 
@@ -603,18 +578,11 @@ class TestForgotPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.forgot_password",
         new_callable=AsyncMock,
     )
-    def test_forgot_password_account_limit_blocks_across_clients(
-        self, mock_forgot_password
-    ):
+    def test_forgot_password_account_limit_blocks_across_clients(self, mock_forgot_password):
         """The hashed-email account bucket should block the 6th cross-client attempt."""
         mock_forgot_password.return_value = None
 
-        clients = [
-            TestClient(
-                app, base_url="https://testserver", client=(f"10.0.2.{i}", 50000)
-            )
-            for i in range(1, 7)
-        ]
+        clients = [TestClient(app, base_url="https://testserver", client=(f"10.0.2.{i}", 50000)) for i in range(1, 7)]
         try:
             for client in clients[:5]:
                 response = client.post(
@@ -636,9 +604,7 @@ class TestForgotPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.forgot_password",
         new_callable=AsyncMock,
     )
-    def test_forgot_password_ip_limit_blocks_after_six_requests_across_clients(
-        self, mock_forgot_password
-    ):
+    def test_forgot_password_ip_limit_blocks_after_six_requests_across_clients(self, mock_forgot_password):
         """The outer IP gate should block after the broader IP window is exhausted."""
         mock_forgot_password.return_value = None
 
@@ -713,9 +679,7 @@ class TestResetPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.reset_password",
         new_callable=AsyncMock,
     )
-    def test_reset_password_allows_requests_within_limit(
-        self, mock_reset_password, client
-    ):
+    def test_reset_password_allows_requests_within_limit(self, mock_reset_password, client):
         """First 5 requests should succeed (200) with rate limit headers."""
         mock_reset_password.return_value = True
 
@@ -731,9 +695,7 @@ class TestResetPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.reset_password",
         new_callable=AsyncMock,
     )
-    def test_reset_password_blocks_request_over_limit(
-        self, mock_reset_password, client
-    ):
+    def test_reset_password_blocks_request_over_limit(self, mock_reset_password, client):
         """11th request should hit the session/account reset-password limit."""
         mock_reset_password.return_value = True
 
@@ -753,9 +715,7 @@ class TestResetPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.reset_password",
         new_callable=AsyncMock,
     )
-    def test_reset_password_invalid_code_limit_blocks_on_eleventh_failure(
-        self, mock_reset_password, client
-    ):
+    def test_reset_password_invalid_code_limit_blocks_on_eleventh_failure(self, mock_reset_password, client):
         """The 11th invalid reset attempt should hit the reset account bucket."""
         from app.utils.error_codes_utils import ErrorCodes
         from app.utils.exceptions_utils import AppException
@@ -779,21 +739,14 @@ class TestResetPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.reset_password",
         new_callable=AsyncMock,
     )
-    def test_reset_password_account_limit_blocks_on_eleventh_failure_across_clients(
-        self, mock_reset_password
-    ):
+    def test_reset_password_account_limit_blocks_on_eleventh_failure_across_clients(self, mock_reset_password):
         """The reset-password account bucket should block the 11th invalid attempt across clients."""
         from app.utils.error_codes_utils import ErrorCodes
         from app.utils.exceptions_utils import AppException
 
         mock_reset_password.side_effect = AppException(ErrorCodes.INVALID_CREDENTIALS)
 
-        clients = [
-            TestClient(
-                app, base_url="https://testserver", client=(f"10.0.0.{i}", 50000)
-            )
-            for i in range(1, 12)
-        ]
+        clients = [TestClient(app, base_url="https://testserver", client=(f"10.0.0.{i}", 50000)) for i in range(1, 12)]
 
         try:
             for client in clients[:10]:
@@ -816,21 +769,14 @@ class TestResetPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.reset_password",
         new_callable=AsyncMock,
     )
-    def test_reset_password_account_limit_short_circuits_before_reset_logic(
-        self, mock_reset_password
-    ):
+    def test_reset_password_account_limit_short_circuits_before_reset_logic(self, mock_reset_password):
         """Once the reset-password account bucket is exhausted, reset logic should not run."""
         from app.utils.error_codes_utils import ErrorCodes
         from app.utils.exceptions_utils import AppException
 
         mock_reset_password.side_effect = AppException(ErrorCodes.INVALID_CREDENTIALS)
 
-        clients = [
-            TestClient(
-                app, base_url="https://testserver", client=(f"10.0.1.{i}", 50000)
-            )
-            for i in range(1, 12)
-        ]
+        clients = [TestClient(app, base_url="https://testserver", client=(f"10.0.1.{i}", 50000)) for i in range(1, 12)]
 
         try:
             for client in clients[:10]:
@@ -856,9 +802,7 @@ class TestResetPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.reset_password",
         new_callable=AsyncMock,
     )
-    def test_reset_password_session_limit_blocks_before_account_limit(
-        self, mock_reset_password, client
-    ):
+    def test_reset_password_session_limit_blocks_before_account_limit(self, mock_reset_password, client):
         """A single client should hit the session limit before the account bucket is exhausted."""
         mock_reset_password.return_value = True
 
@@ -879,9 +823,7 @@ class TestResetPasswordRateLimit:
         "app.controllers.auth_controller.auth_service.reset_password",
         new_callable=AsyncMock,
     )
-    def test_reset_password_invalid_code_limit_short_circuits_on_eleventh_failure(
-        self, mock_reset_password, client
-    ):
+    def test_reset_password_invalid_code_limit_short_circuits_on_eleventh_failure(self, mock_reset_password, client):
         """Once exhausted, the reset account bucket should block before reset logic runs."""
         from app.utils.error_codes_utils import ErrorCodes
         from app.utils.exceptions_utils import AppException
@@ -966,9 +908,7 @@ class TestSearchMoviesRateLimit:
         """A second user on the same IP should get a fresh bucket."""
         first_client = TestClient(app, base_url="https://testserver")
         second_client = TestClient(app, base_url="https://testserver")
-        mock_search.return_value = TMDBMovieSearchResult(
-            page=1, total_results=0, total_pages=0, results=[]
-        )
+        mock_search.return_value = TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
 
         try:
             first_client.cookies.set("__Host-access_token", user_one_token)
@@ -991,15 +931,11 @@ class TestSearchMoviesRateLimit:
         "app.controllers.movie_controller.tmdb_service.search_movie",
         new_callable=AsyncMock,
     )
-    def test_search_movies_same_user_shares_limit_across_clients(
-        self, mock_search, user_one_token
-    ):
+    def test_search_movies_same_user_shares_limit_across_clients(self, mock_search, user_one_token):
         """Two clients for the same authenticated user should share one bucket."""
         first_client = TestClient(app, base_url="https://testserver")
         second_client = TestClient(app, base_url="https://testserver")
-        mock_search.return_value = TMDBMovieSearchResult(
-            page=1, total_results=0, total_pages=0, results=[]
-        )
+        mock_search.return_value = TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
 
         try:
             first_client.cookies.set("__Host-access_token", user_one_token)
@@ -1019,15 +955,11 @@ class TestSearchMoviesRateLimit:
         "app.controllers.movie_controller.tmdb_service.search_movie",
         new_callable=AsyncMock,
     )
-    def test_search_movies_allows_requests_within_limit(
-        self, mock_search, client, override_auth
-    ):
+    def test_search_movies_allows_requests_within_limit(self, mock_search, client, override_auth):
         """First 20 requests should succeed (200) with rate limit headers."""
         app.dependency_overrides[auth_dependency] = override_auth
         client.cookies.set("__Host-access_token", "token")
-        mock_search.return_value = TMDBMovieSearchResult(
-            page=1, total_results=0, total_pages=0, results=[]
-        )
+        mock_search.return_value = TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
 
         try:
             for _ in range(20):
@@ -1042,15 +974,11 @@ class TestSearchMoviesRateLimit:
         "app.controllers.movie_controller.tmdb_service.search_movie",
         new_callable=AsyncMock,
     )
-    def test_search_movies_blocks_request_over_limit(
-        self, mock_search, client, override_auth
-    ):
+    def test_search_movies_blocks_request_over_limit(self, mock_search, client, override_auth):
         """21st request should be rate-limited (429) with proper headers and body."""
         app.dependency_overrides[auth_dependency] = override_auth
         client.cookies.set("__Host-access_token", "token")
-        mock_search.return_value = TMDBMovieSearchResult(
-            page=1, total_results=0, total_pages=0, results=[]
-        )
+        mock_search.return_value = TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
 
         try:
             for _ in range(20):
@@ -1079,9 +1007,7 @@ class TestCreateLogRateLimit:
         "app.controllers.log_controller.log_service.create_log",
         new_callable=AsyncMock,
     )
-    def test_create_log_allows_requests_within_limit(
-        self, mock_create_log, client, override_auth, sample_log_response
-    ):
+    def test_create_log_allows_requests_within_limit(self, mock_create_log, client, override_auth, sample_log_response):
         """First 20 requests should succeed (201) with rate limit headers."""
         app.dependency_overrides[auth_dependency] = override_auth
         client.cookies.set("__Host-access_token", "token")
@@ -1105,9 +1031,7 @@ class TestCreateLogRateLimit:
         "app.controllers.log_controller.log_service.create_log",
         new_callable=AsyncMock,
     )
-    def test_create_log_blocks_request_over_limit(
-        self, mock_create_log, client, override_auth, sample_log_response
-    ):
+    def test_create_log_blocks_request_over_limit(self, mock_create_log, client, override_auth, sample_log_response):
         """21st request should be rate-limited (429) with proper headers and body."""
         app.dependency_overrides[auth_dependency] = override_auth
         client.cookies.set("__Host-access_token", "token")
@@ -1145,9 +1069,7 @@ class TestUpdateLogRateLimit:
         "app.controllers.log_controller.log_service.update_log",
         new_callable=AsyncMock,
     )
-    def test_update_log_allows_requests_within_limit(
-        self, mock_update_log, client, override_auth, sample_log_response
-    ):
+    def test_update_log_allows_requests_within_limit(self, mock_update_log, client, override_auth, sample_log_response):
         """First 10 requests should succeed (200) with rate limit headers."""
         app.dependency_overrides[auth_dependency] = override_auth
         client.cookies.set("__Host-access_token", "token")
@@ -1171,9 +1093,7 @@ class TestUpdateLogRateLimit:
         "app.controllers.log_controller.log_service.update_log",
         new_callable=AsyncMock,
     )
-    def test_update_log_blocks_request_over_limit(
-        self, mock_update_log, client, override_auth, sample_log_response
-    ):
+    def test_update_log_blocks_request_over_limit(self, mock_update_log, client, override_auth, sample_log_response):
         """11th request should be rate-limited (429) with proper headers and body."""
         app.dependency_overrides[auth_dependency] = override_auth
         client.cookies.set("__Host-access_token", "token")
@@ -1301,25 +1221,16 @@ class TestRateLimitSessionMiddleware:
                 json={"email": "test@example.com"},
             )
         session_cookie = response.cookies.get(RATE_LIMIT_SESSION_COOKIE)
-        assert session_cookie is not None, (
-            "Expected session cookie to be set for a session-tracked route"
-        )
-        assert (
-            rate_limit_cache_service.build_session_key(session_cookie)
-            in fake_cache_client.values
-        )
+        assert session_cookie is not None, "Expected session cookie to be set for a session-tracked route"
+        assert rate_limit_cache_service.build_session_key(session_cookie) in fake_cache_client.values
 
     def test_does_not_set_cookie_for_untracked_route(self, client, fake_cache_client):
         """Routes outside the session-tracked auth list should not issue a session."""
         response = client.get("/")
-        assert RATE_LIMIT_SESSION_COOKIE not in response.cookies, (
-            "Should not set session cookie for an untracked route"
-        )
+        assert RATE_LIMIT_SESSION_COOKIE not in response.cookies, "Should not set session cookie for an untracked route"
         assert fake_cache_client.set_calls == []
 
-    def test_access_token_cookie_does_not_skip_tracking_on_public_auth_route(
-        self, client, fake_cache_client
-    ):
+    def test_access_token_cookie_does_not_skip_tracking_on_public_auth_route(self, client, fake_cache_client):
         """A raw access-token cookie must not bypass tracking on public auth routes."""
         client.cookies.set(ACCESS_TOKEN_COOKIE, "some-token")
         with patch(
@@ -1332,15 +1243,11 @@ class TestRateLimitSessionMiddleware:
                 json={"email": "test@example.com"},
             )
         session_cookie = response.cookies.get(RATE_LIMIT_SESSION_COOKIE)
-        assert session_cookie is not None, (
-            "Expected session cookie to still be issued on a session-tracked route"
-        )
+        assert session_cookie is not None, "Expected session cookie to still be issued on a session-tracked route"
         assert fake_cache_client.set_calls != []
         client.cookies.clear()
 
-    def test_does_not_reset_cookie_when_session_is_valid(
-        self, client, fake_cache_client, rate_limit_cache_service
-    ):
+    def test_does_not_reset_cookie_when_session_is_valid(self, client, fake_cache_client, rate_limit_cache_service):
         """Should trust a session cookie only when it exists in Redis."""
         session_id = "existing-session"
         session_key = rate_limit_cache_service.build_session_key(session_id)
@@ -1367,9 +1274,7 @@ class TestRateLimitSessionMiddleware:
         )
         client.cookies.clear()
 
-    def test_reissues_cookie_when_session_cookie_is_unknown(
-        self, client, fake_cache_client, rate_limit_cache_service
-    ):
+    def test_reissues_cookie_when_session_cookie_is_unknown(self, client, fake_cache_client, rate_limit_cache_service):
         """Should replace a client-provided session that is not registered in Redis."""
         client.cookies.set(RATE_LIMIT_SESSION_COOKIE, "unknown-session")
         with patch(
@@ -1385,8 +1290,5 @@ class TestRateLimitSessionMiddleware:
         new_session_id = response.cookies.get(RATE_LIMIT_SESSION_COOKIE)
         assert new_session_id is not None
         assert new_session_id != "unknown-session"
-        assert (
-            rate_limit_cache_service.build_session_key(new_session_id)
-            in fake_cache_client.values
-        )
+        assert rate_limit_cache_service.build_session_key(new_session_id) in fake_cache_client.values
         client.cookies.clear()

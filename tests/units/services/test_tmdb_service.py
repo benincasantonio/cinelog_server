@@ -8,7 +8,6 @@ from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult
 from app.services.tmdb_cache_service import TMDBCacheService
 from app.services.tmdb_service import TMDBService
 
-
 # ---------------------------------------------------------------------------
 # Shared test data
 # ---------------------------------------------------------------------------
@@ -160,18 +159,14 @@ class TestTMDBServiceCaching:
     # ------------------------------------------------------------------
 
     @pytest.mark.asyncio
-    async def test_search_movie_returns_cached_result_without_calling_api(
-        self, mock_cache, service_with_cache
-    ):
+    async def test_search_movie_returns_cached_result_without_calling_api(self, mock_cache, service_with_cache):
         """When the cache already holds a result, the TMDB HTTP API must not be called."""
         # Arrange — prime the cache with a pre-built result
         cached_result = TMDBMovieSearchResult(**SEARCH_PAYLOAD)
         mock_cache.get_search = AsyncMock(return_value=cached_result)
 
         # Act
-        with patch(
-            "app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock
-        ) as mock_http_get:
+        with patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock) as mock_http_get:
             result = await service_with_cache.search_movie("Fight Club")
 
         # Assert
@@ -181,9 +176,7 @@ class TestTMDBServiceCaching:
 
     @pytest.mark.asyncio
     @patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock)
-    async def test_search_movie_caches_result_on_cache_miss(
-        self, mock_http_get, mock_cache, service_with_cache
-    ):
+    async def test_search_movie_caches_result_on_cache_miss(self, mock_http_get, mock_cache, service_with_cache):
         """On a cache miss the service calls the API and stores the result in the cache."""
         # Arrange — cache miss
         mock_cache.get_search = AsyncMock(return_value=None)
@@ -208,18 +201,14 @@ class TestTMDBServiceCaching:
     # ------------------------------------------------------------------
 
     @pytest.mark.asyncio
-    async def test_get_movie_details_returns_cached_result_without_calling_api(
-        self, mock_cache, service_with_cache
-    ):
+    async def test_get_movie_details_returns_cached_result_without_calling_api(self, mock_cache, service_with_cache):
         """When the cache already holds details, the TMDB HTTP API must not be called."""
         # Arrange
         cached_details = TMDBMovieDetails(**DETAILS_PAYLOAD)
         mock_cache.get_details = AsyncMock(return_value=cached_details)
 
         # Act
-        with patch(
-            "app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock
-        ) as mock_http_get:
+        with patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock) as mock_http_get:
             result = await service_with_cache.get_movie_details(550)
 
         # Assert
@@ -229,9 +218,7 @@ class TestTMDBServiceCaching:
 
     @pytest.mark.asyncio
     @patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock)
-    async def test_get_movie_details_caches_result_on_cache_miss(
-        self, mock_http_get, mock_cache, service_with_cache
-    ):
+    async def test_get_movie_details_caches_result_on_cache_miss(self, mock_http_get, mock_cache, service_with_cache):
         """On a cache miss the service calls the API and stores the details in the cache."""
         # Arrange — cache miss
         mock_cache.get_details = AsyncMock(return_value=None)
@@ -258,9 +245,7 @@ class TestTMDBServiceCaching:
 
     @pytest.mark.asyncio
     @patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock)
-    async def test_search_movie_raises_on_bad_status(
-        self, mock_http_get, mock_cache, service_with_cache
-    ):
+    async def test_search_movie_raises_on_bad_status(self, mock_http_get, mock_cache, service_with_cache):
         """search_movie propagates an HTTP error from raise_for_status to the caller."""
         # Arrange
         request = httpx.Request("GET", "https://api.themoviedb.org/3/search/movie")

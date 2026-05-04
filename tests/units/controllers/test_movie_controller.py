@@ -1,20 +1,21 @@
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 
+import pytest
+from fastapi.testclient import TestClient
+
 from app import app
+from app.dependencies.auth_dependency import auth_dependency
 from app.schemas.tmdb_schemas import (
-    TMDBMovieSearchResult,
-    TMDBMovieDetails,
-    TMDBMovieSearchResultItem,
     TMDBGenre,
+    TMDBMovieDetails,
+    TMDBMovieSearchResult,
+    TMDBMovieSearchResultItem,
     TMDBProductionCompany,
     TMDBProductionCountry,
     TMDBSpokenLanguage,
 )
-from app.dependencies.auth_dependency import auth_dependency
-from app.utils.exceptions_utils import AppException
 from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 
 
 @pytest.fixture
@@ -116,19 +117,11 @@ class TestMovieController:
                     logo_path="/logo.jpg",
                 )
             ],
-            production_countries=[
-                TMDBProductionCountry(iso_3166_1="US", name="United States of America")
-            ],
-            spoken_languages=[
-                TMDBSpokenLanguage(
-                    iso_639_1="en", name="English", english_name="English"
-                )
-            ],
+            production_countries=[TMDBProductionCountry(iso_3166_1="US", name="United States of America")],
+            spoken_languages=[TMDBSpokenLanguage(iso_639_1="en", name="English", english_name="English")],
         )
 
-        response = client.get(
-            "/v1/movies/550", cookies={"__Host-access_token": "token"}
-        )
+        response = client.get("/v1/movies/550", cookies={"__Host-access_token": "token"})
 
         app.dependency_overrides = {}
 
@@ -166,16 +159,12 @@ class TestMovieController:
         "app.controllers.movie_controller.tmdb_service.get_movie_details",
         new_callable=AsyncMock,
     )
-    def test_get_movie_details_app_exception(
-        self, mock_get_details, client, override_auth
-    ):
+    def test_get_movie_details_app_exception(self, mock_get_details, client, override_auth):
         """Test get movie details re-raises AppException."""
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_details.side_effect = AppException(ErrorCodes.MOVIE_NOT_FOUND)
 
-        response = client.get(
-            "/v1/movies/999999", cookies={"__Host-access_token": "token"}
-        )
+        response = client.get("/v1/movies/999999", cookies={"__Host-access_token": "token"})
 
         app.dependency_overrides = {}
 

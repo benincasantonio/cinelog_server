@@ -1,11 +1,12 @@
+from datetime import datetime
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
-from datetime import datetime
 
 from app import app
-from app.schemas.movie_rating_schemas import MovieRatingResponse
 from app.dependencies.auth_dependency import auth_dependency
+from app.schemas.movie_rating_schemas import MovieRatingResponse
 
 
 @pytest.fixture
@@ -26,9 +27,7 @@ class TestMovieRatingController:
         "app.controllers.movie_rating_controller.movie_rating_service.create_update_movie_rating",
         new_callable=AsyncMock,
     )
-    def test_create_movie_rating_success(
-        self, mock_create_rating, client, override_auth
-    ):
+    def test_create_movie_rating_success(self, mock_create_rating, client, override_auth):
         """Test creating a movie rating."""
         app.dependency_overrides[auth_dependency] = override_auth
 
@@ -86,9 +85,7 @@ class TestMovieRatingController:
             updated_at=datetime.now(),
         )
 
-        response = client.get(
-            "/v1/movie-ratings/550", cookies={"__Host-access_token": "token"}
-        )
+        response = client.get("/v1/movie-ratings/550", cookies={"__Host-access_token": "token"})
 
         app.dependency_overrides = {}
 
@@ -105,9 +102,7 @@ class TestMovieRatingController:
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_rating.return_value = None
 
-        response = client.get(
-            "/v1/movie-ratings/999", cookies={"__Host-access_token": "token"}
-        )
+        response = client.get("/v1/movie-ratings/999", cookies={"__Host-access_token": "token"})
 
         app.dependency_overrides = {}
 

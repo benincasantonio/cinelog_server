@@ -46,9 +46,7 @@ class StatsResponse(BaseSchema):
 
 
 class LogDistributionEntry(BaseSchema):
-    watched_where: Literal["cinema", "streaming", "homeVideo", "tv", "other"] | None = (
-        None
-    )
+    watched_where: Literal["cinema", "streaming", "homeVideo", "tv", "other"] | None = None
     count: int = 0
 
 

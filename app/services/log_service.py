@@ -1,23 +1,23 @@
 from beanie import PydanticObjectId
 
+from app.models.movie import Movie
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
 from app.repository.user_repository import UserRepository
-from app.services.movie_service import MovieService
-from app.schemas.movie_schemas import MovieResponse
 from app.schemas.log_schemas import (
     LogCreateRequest,
     LogCreateResponse,
-    LogUpdateRequest,
+    LogListItem,
     LogListRequest,
     LogListResponse,
-    LogListItem,
+    LogUpdateRequest,
 )
+from app.schemas.movie_schemas import MovieResponse
+from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
-from app.utils.exceptions_utils import AppException
 from app.utils.error_codes_utils import ErrorCodes
-from app.models.movie import Movie
+from app.utils.exceptions_utils import AppException
 
 
 class LogService:
@@ -39,9 +39,7 @@ class LogService:
             movie_service = MovieService(movie_repository)
 
         self.movie_service = movie_service
-        self.movie_rating_repository = (
-            movie_rating_repository or MovieRatingRepository()
-        )
+        self.movie_rating_repository = movie_rating_repository or MovieRatingRepository()
         self.movie_repository = movie_repository or MovieRepository()
         self.stats_cache_service = stats_cache_service or StatsCacheService()
         self.user_repository = user_repository or UserRepository()
@@ -61,9 +59,7 @@ class LogService:
             updated_at=movie.updated_at,
         )
 
-    async def create_log(
-        self, user_id: PydanticObjectId, request: LogCreateRequest
-    ) -> LogCreateResponse:
+    async def create_log(self, user_id: PydanticObjectId, request: LogCreateRequest) -> LogCreateResponse:
         """
         Create a new viewing log entry.
 
@@ -71,9 +67,7 @@ class LogService:
         and created automatically.
         """
         # Ensure movie exists (find or create from TMDB)
-        movie: Movie = await self.movie_service.find_or_create_movie(
-            tmdb_id=request.tmdb_id
-        )
+        movie: Movie = await self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
 
         # Update the movieId in the request with the actual database ID
         request.movie_id = str(movie.id)
@@ -82,9 +76,7 @@ class LogService:
         if not request.poster_path and movie.poster_path:
             request.poster_path = movie.poster_path
 
-        log = await self.log_repository.create_log(
-            user_id=user_id, create_log_request=request
-        )
+        log = await self.log_repository.create_log(user_id=user_id, create_log_request=request)
 
         await self.stats_cache_service.invalidate_user_stats(user_id)
 
@@ -99,15 +91,11 @@ class LogService:
             watched_where=log.watched_where,
         )
 
-    async def update_log(
-        self, user_id: PydanticObjectId, log_id: str, request: LogUpdateRequest
-    ) -> LogCreateResponse:
+    async def update_log(self, user_id: PydanticObjectId, log_id: str, request: LogUpdateRequest) -> LogCreateResponse:
         """
         Update an existing log entry.
         """
-        log = await self.log_repository.update_log(
-            log_id=log_id, user_id=user_id, update_request=request
-        )
+        log = await self.log_repository.update_log(log_id=log_id, user_id=user_id, update_request=request)
 
         if not log:
             # Log not found or doesn't belong to user
@@ -140,9 +128,7 @@ class LogService:
 
         await self.stats_cache_service.invalidate_user_stats(user_id)
 
-    async def get_user_logs(
-        self, user_id: PydanticObjectId, request: LogListRequest
-    ) -> LogListResponse:
+    async def get_user_logs(self, user_id: PydanticObjectId, request: LogListRequest) -> LogListResponse:
         """
         Get list of user's viewing logs with optional filtering and sorting.
         """
@@ -158,10 +144,8 @@ class LogService:
 
         unique_movie_ids = {log_data.movie_id for log_data in logs_data}
 
-        movie_ratings = (
-            await self.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids(
-                user_id=user_id, movie_ids=unique_movie_ids
-            )
+        movie_ratings = await self.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids(
+            user_id=user_id, movie_ids=unique_movie_ids
         )
 
         movies = await self.movie_repository.find_movies_by_ids(unique_movie_ids)

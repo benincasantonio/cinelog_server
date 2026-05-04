@@ -1,15 +1,15 @@
 import os
-from typing import TypedDict, List
+from typing import TypedDict
 
 
 class CORSConfig(TypedDict):
-    allow_origins: List[str]
+    allow_origins: list[str]
     allow_credentials: bool
-    allow_methods: List[str]
-    allow_headers: List[str]
+    allow_methods: list[str]
+    allow_headers: list[str]
 
 
-def get_cors_origins() -> List[str]:
+def get_cors_origins() -> list[str]:
     """
     Get allowed CORS origins based on environment and CORS_ORIGINS variable.
     """

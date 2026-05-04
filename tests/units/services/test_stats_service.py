@@ -1,19 +1,21 @@
-import pytest
 from datetime import date
 from unittest.mock import AsyncMock
+
+import pytest
 from beanie import PydanticObjectId
-from app.services.stats_service import StatsService
-from app.schemas.stats_schemas import (
-    LogStats,
-    LogDistributionEntry,
-    StatsResponse,
-    StatsSummary,
-    StatsDistribution,
-    StatsByMethod,
-    StatsPace,
-)
+
 from app.schemas.movie_rating_schemas import MovieRatingStats
 from app.schemas.movie_schemas import MovieStats
+from app.schemas.stats_schemas import (
+    LogDistributionEntry,
+    LogStats,
+    StatsByMethod,
+    StatsDistribution,
+    StatsPace,
+    StatsResponse,
+    StatsSummary,
+)
+from app.services.stats_service import StatsService
 
 
 @pytest.fixture
@@ -78,9 +80,7 @@ class TestStatsService:
     ):
         """Test stats with no logs."""
         mock_log_repository.get_log_stats.return_value = _empty_log_stats()
-        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
-            _empty_movie_rating_stats()
-        )
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
         result = await stats_service.get_user_stats(PydanticObjectId())
@@ -115,12 +115,10 @@ class TestStatsService:
                 LogDistributionEntry(watched_where="tv", count=1),
             ],
         )
-        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
-            MovieRatingStats(average_rating=7.666, total_ratings=2)
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = MovieRatingStats(
+            average_rating=7.666, total_ratings=2
         )
-        mock_movie_repository.get_movie_stats.return_value = MovieStats(
-            total_runtime=360
-        )
+        mock_movie_repository.get_movie_stats.return_value = MovieStats(total_runtime=360)
 
         result = await stats_service.get_user_stats(PydanticObjectId())
 
@@ -140,9 +138,7 @@ class TestStatsService:
     ):
         """Test stats with year filters."""
         mock_log_repository.get_log_stats.return_value = _empty_log_stats()
-        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
-            _empty_movie_rating_stats()
-        )
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
         user_id = PydanticObjectId()
@@ -175,9 +171,7 @@ class TestStatsService:
                 LogDistributionEntry(watched_where="other", count=2),
             ],
         )
-        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
-            _empty_movie_rating_stats()
-        )
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
         result = await stats_service.get_user_stats(PydanticObjectId())
@@ -198,9 +192,7 @@ def _sample_stats_response() -> StatsResponse:
             total_minutes=600,
             vote_average=7.5,
         ),
-        distribution=StatsDistribution(
-            by_method=StatsByMethod(cinema=2, streaming=1, home_video=1, tv=1, other=0)
-        ),
+        distribution=StatsDistribution(by_method=StatsByMethod(cinema=2, streaming=1, home_video=1, tv=1, other=0)),
         pace=StatsPace(on_track_for=0, current_average=0.0, days_since_last_log=0),
     )
 
@@ -235,9 +227,7 @@ class TestStatsServiceCache:
     ):
         """When cache misses, compute stats and cache the result."""
         mock_log_repository.get_log_stats.return_value = _empty_log_stats()
-        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = (
-            _empty_movie_rating_stats()
-        )
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
         user_id = PydanticObjectId()

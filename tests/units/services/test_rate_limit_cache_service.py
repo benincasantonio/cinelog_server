@@ -11,10 +11,7 @@ from app.utils.auth_utils import RATE_LIMIT_SESSION_TTL_SECONDS
 
 class TestBuildSessionKey:
     def test_build_session_key(self):
-        assert (
-            RateLimitCacheService.build_session_key("session123")
-            == "rl_session:session123"
-        )
+        assert RateLimitCacheService.build_session_key("session123") == "rl_session:session123"
 
 
 class TestGetSession:

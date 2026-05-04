@@ -1,6 +1,7 @@
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 # Set environment variables for testing before any app imports
 os.environ["JWT_SECRET_KEY"] = "test-secret-key"

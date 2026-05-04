@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from bson import ObjectId
@@ -12,7 +12,7 @@ async def test_log_creation(beanie_test_db):
         user_id=ObjectId(),
         movie_id=ObjectId(),
         tmdb_id=10,
-        date_watched=datetime(2023, 10, 1, tzinfo=timezone.utc),
+        date_watched=datetime(2023, 10, 1, tzinfo=UTC),
         watched_where="cinema",
         viewing_notes="Great movie!",
         poster_path="/path/to/poster.jpg",
@@ -36,7 +36,7 @@ async def test_required_fields(beanie_test_db):
         user_id=ObjectId(),
         movie_id=ObjectId(),
         tmdb_id=10,
-        date_watched=datetime(2023, 10, 1, tzinfo=timezone.utc),
+        date_watched=datetime(2023, 10, 1, tzinfo=UTC),
         watched_where="cinema",
     )
 
@@ -52,6 +52,6 @@ async def test_wrong_watched_where():
             user_id=ObjectId(),
             movie_id=ObjectId(),
             tmdb_id=10,
-            date_watched=datetime(2023, 10, 1, tzinfo=timezone.utc),
+            date_watched=datetime(2023, 10, 1, tzinfo=UTC),
             watched_where="unknown",
         )

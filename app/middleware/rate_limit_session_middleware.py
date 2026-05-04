@@ -19,9 +19,7 @@ class RateLimitSessionMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._rate_limit_cache = RateLimitCacheService()
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.url.path not in PUBLIC_AUTH_PATHS:
             return await call_next(request)
 

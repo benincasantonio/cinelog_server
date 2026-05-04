@@ -1,6 +1,6 @@
-from typing import Optional
-from pydantic import Field
 from datetime import datetime
+
+from pydantic import Field
 
 from app.schemas.base_schemas import BaseSchema
 
@@ -9,12 +9,8 @@ class MovieRatingCreateUpdateRequest(BaseSchema):
     """Schema for creating or updating a movie rating."""
 
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
-    rating: int = Field(
-        ..., ge=1, le=10, description="Rating given to the movie (1-10)"
-    )
-    comment: Optional[str] = Field(
-        None, description="User's review or opinion about the movie"
-    )
+    rating: int = Field(..., ge=1, le=10, description="Rating given to the movie (1-10)")
+    comment: str | None = Field(None, description="User's review or opinion about the movie")
 
 
 class MovieRatingResponse(BaseSchema):
@@ -24,24 +20,14 @@ class MovieRatingResponse(BaseSchema):
     user_id: str = Field(..., description="Unique identifier of the user who rated")
     movie_id: str = Field(..., description="Unique identifier of the movie")
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
-    rating: int = Field(
-        ..., ge=1, le=10, description="Rating given to the movie (1-10)"
-    )
-    comment: Optional[str] = Field(
-        None, description="User's review or opinion about the movie"
-    )
-    created_at: datetime = Field(
-        ..., description="Timestamp when the rating was created"
-    )
-    updated_at: datetime = Field(
-        ..., description="Timestamp when the rating was last updated"
-    )
+    rating: int = Field(..., ge=1, le=10, description="Rating given to the movie (1-10)")
+    comment: str | None = Field(None, description="User's review or opinion about the movie")
+    created_at: datetime = Field(..., description="Timestamp when the rating was created")
+    updated_at: datetime = Field(..., description="Timestamp when the rating was last updated")
 
 
 class MovieRatingStats(BaseSchema):
     """Schema for movie rating statistics."""
 
-    average_rating: Optional[float] = Field(
-        None, description="Average rating for the movie"
-    )
+    average_rating: float | None = Field(None, description="Average rating for the movie")
     total_ratings: int = Field(..., description="Total number of ratings for the movie")

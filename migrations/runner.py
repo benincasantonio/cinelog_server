@@ -13,7 +13,7 @@ import os
 import re
 import sys
 import urllib.parse
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from pymongo import MongoClient
@@ -127,9 +127,7 @@ def _remove_migration_record(db: Database, version: str, module_name: str) -> No
     db.migration_versions.delete_one({"_id": f"{version}_{module_name}"})
 
 
-def _run_up_migration(
-    db: Database, version: str, module_name: str, dry_run: bool = False
-) -> bool:
+def _run_up_migration(db: Database, version: str, module_name: str, dry_run: bool = False) -> bool:
     """Run the up() function of a migration.
 
     Args:
@@ -146,9 +144,7 @@ def _run_up_migration(
     module = _load_migration_module(version, module_name)
 
     if not hasattr(module, "up"):
-        print(
-            f"  [error] Migration {version}_{module_name} does not define up() function"
-        )
+        print(f"  [error] Migration {version}_{module_name} does not define up() function")
         return False
 
     try:
@@ -162,9 +158,7 @@ def _run_up_migration(
         return False
 
 
-def _run_down_migration(
-    db: Database, version: str, module_name: str, dry_run: bool = False
-) -> bool:
+def _run_down_migration(db: Database, version: str, module_name: str, dry_run: bool = False) -> bool:
     """Run the down() function of a migration.
 
     Args:
@@ -185,9 +179,7 @@ def _run_down_migration(
     module = _load_migration_module(version, module_name)
 
     if not hasattr(module, "down"):
-        print(
-            f"  [error] Migration {version}_{module_name} does not define down() function"
-        )
+        print(f"  [error] Migration {version}_{module_name} does not define down() function")
         return False
 
     try:
@@ -200,9 +192,7 @@ def _run_down_migration(
         return False
 
 
-def _run_pending_migrations(
-    db: Database, dry_run: bool = False, yes: bool = False
-) -> bool:
+def _run_pending_migrations(db: Database, dry_run: bool = False, yes: bool = False) -> bool:
     """Discover and run all pending migrations in order.
 
     Args:
@@ -244,9 +234,7 @@ def _run_pending_migrations(
     return True
 
 
-def _rollback_migration(
-    db: Database, target_version: str, dry_run: bool = False, yes: bool = False
-) -> bool:
+def _rollback_migration(db: Database, target_version: str, dry_run: bool = False, yes: bool = False) -> bool:
     """Rollback a specific migration.
 
     Args:
@@ -261,7 +249,7 @@ def _rollback_migration(
     applied_versions = _get_applied_versions(db)
 
     discovered = _discover_migrations()
-    version_map = {v: n for v, n in discovered}
+    version_map = dict(discovered)
 
     if target_version not in version_map:
         print(f"[rollback] Migration {target_version} not found")
@@ -275,9 +263,7 @@ def _rollback_migration(
         return False
 
     if not yes and not dry_run:
-        response = input(
-            f"[rollback] Rollback migration {target_version}_{module_name}? (y/N): "
-        )
+        response = input(f"[rollback] Rollback migration {target_version}_{module_name}? (y/N): ")
         if response.lower() != "y":
             print("[rollback] Aborted")
             return False
@@ -297,9 +283,7 @@ def main() -> int:
         action="store_true",
         help="Show pending migrations without applying them",
     )
-    parser.add_argument(
-        "--yes", action="store_true", help="Skip confirmation prompts (for CI/CD)"
-    )
+    parser.add_argument("--yes", action="store_true", help="Skip confirmation prompts (for CI/CD)")
     parser.add_argument(
         "--rollback",
         metavar="VERSION",
@@ -318,9 +302,7 @@ def main() -> int:
         print(f"[migrate] Connected to MongoDB: {mongodb_db_name}")
 
         if args.rollback:
-            success = _rollback_migration(
-                db, args.rollback, dry_run=args.dry_run, yes=args.yes
-            )
+            success = _rollback_migration(db, args.rollback, dry_run=args.dry_run, yes=args.yes)
         else:
             success = _run_pending_migrations(db, dry_run=args.dry_run, yes=args.yes)
 
@@ -332,8 +314,8 @@ def main() -> int:
         try:
             if client:
                 client.close()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[warning] Failed to close MongoDB client: {e}")
 
 
 if __name__ == "__main__":

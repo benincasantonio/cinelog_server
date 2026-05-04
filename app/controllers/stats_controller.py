@@ -2,8 +2,8 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.dependencies.auth_dependency import auth_dependency
+from app.schemas.stats_schemas import StatsRequest, StatsResponse
 from app.services.stats_service import StatsService
-from app.schemas.stats_schemas import StatsResponse, StatsRequest
 from app.utils.exceptions_utils import AppException
 
 router = APIRouter()
@@ -29,9 +29,7 @@ async def get_my_stats(
         and stats_request.year_to is not None
         and stats_request.year_from > stats_request.year_to
     ):
-        raise HTTPException(
-            status_code=400, detail="yearFrom cannot be greater than yearTo"
-        )
+        raise HTTPException(status_code=400, detail="yearFrom cannot be greater than yearTo")
 
     try:
         stats_response = await stats_service.get_user_stats(
@@ -41,8 +39,6 @@ async def get_my_stats(
         )
         return stats_response
     except NotImplementedError:
-        raise HTTPException(
-            status_code=501, detail="Stats endpoint not implemented yet"
-        )
+        raise HTTPException(status_code=501, detail="Stats endpoint not implemented yet") from None
     except AppException as e:
         raise e

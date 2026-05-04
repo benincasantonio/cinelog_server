@@ -1,17 +1,18 @@
+from datetime import date
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
-from datetime import date
 
 from app import app
+from app.dependencies.auth_dependency import auth_dependency
 from app.schemas.user_schemas import (
-    UserResponse,
     ChangePasswordResponse,
     UserProfileResponse,
+    UserResponse,
 )
-from app.dependencies.auth_dependency import auth_dependency
-from app.utils.exceptions_utils import AppException
 from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 
 
 @pytest.fixture
@@ -43,9 +44,7 @@ class TestUserController:
             profile_visibility="private",
         )
 
-        response = client.get(
-            "/v1/users/info", cookies={"__Host-access_token": "token"}
-        )
+        response = client.get("/v1/users/info", cookies={"__Host-access_token": "token"})
 
         app.dependency_overrides = {}
 
@@ -68,9 +67,7 @@ class TestUserController:
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_user_info.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
 
-        response = client.get(
-            "/v1/users/info", cookies={"__Host-access_token": "token"}
-        )
+        response = client.get("/v1/users/info", cookies={"__Host-access_token": "token"})
 
         app.dependency_overrides = {}
 
@@ -82,9 +79,7 @@ class TestGetVisibleProfile:
         "app.controllers.user_controller.user_service.get_visible_profile",
         new_callable=AsyncMock,
     )
-    def test_get_visible_profile_success(
-        self, mock_get_visible_profile, client, override_auth
-    ):
+    def test_get_visible_profile_success(self, mock_get_visible_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
         mock_get_visible_profile.return_value = UserProfileResponse(
@@ -108,9 +103,7 @@ class TestGetVisibleProfile:
         assert data["firstName"] == "John"
         assert data["handle"] == "johndoe"
         assert data["profileVisibility"] == "public"
-        mock_get_visible_profile.assert_awaited_once_with(
-            handle="johndoe", requester_id="user123"
-        )
+        mock_get_visible_profile.assert_awaited_once_with(handle="johndoe", requester_id="user123")
 
     def test_get_visible_profile_unauthorized(self, client):
         app.dependency_overrides = {}
@@ -121,9 +114,7 @@ class TestGetVisibleProfile:
         "app.controllers.user_controller.user_service.get_visible_profile",
         new_callable=AsyncMock,
     )
-    def test_get_visible_profile_not_found(
-        self, mock_get_visible_profile, client, override_auth
-    ):
+    def test_get_visible_profile_not_found(self, mock_get_visible_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_visible_profile.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
 
@@ -178,9 +169,7 @@ class TestUpdateProfileController:
         "app.controllers.user_controller.user_service.update_profile",
         new_callable=AsyncMock,
     )
-    def test_update_profile_with_visibility(
-        self, mock_update_profile, client, override_auth
-    ):
+    def test_update_profile_with_visibility(self, mock_update_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
         mock_update_profile.return_value = UserResponse(
@@ -224,9 +213,7 @@ class TestUpdateProfileController:
         "app.controllers.user_controller.user_service.update_profile",
         new_callable=AsyncMock,
     )
-    def test_update_profile_user_not_found(
-        self, mock_update_profile, client, override_auth
-    ):
+    def test_update_profile_user_not_found(self, mock_update_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
         mock_update_profile.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
 
@@ -248,9 +235,7 @@ class TestUpdateProfileController:
         "app.controllers.user_controller.user_service.update_profile",
         new_callable=AsyncMock,
     )
-    def test_update_profile_invalid_name(
-        self, mock_update_profile, client, override_auth
-    ):
+    def test_update_profile_invalid_name(self, mock_update_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
         response = client.put(
@@ -271,9 +256,7 @@ class TestUpdateProfileController:
         "app.controllers.user_controller.user_service.update_profile",
         new_callable=AsyncMock,
     )
-    def test_update_profile_invalid_visibility(
-        self, mock_update_profile, client, override_auth
-    ):
+    def test_update_profile_invalid_visibility(self, mock_update_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
         response = client.put(
@@ -299,9 +282,7 @@ class TestChangePasswordController:
     def test_change_password_success(self, mock_change_password, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
-        mock_change_password.return_value = ChangePasswordResponse(
-            message="Password updated successfully"
-        )
+        mock_change_password.return_value = ChangePasswordResponse(message="Password updated successfully")
 
         response = client.put(
             "/v1/users/settings/password",
@@ -337,13 +318,9 @@ class TestChangePasswordController:
         "app.controllers.user_controller.user_service.change_password",
         new_callable=AsyncMock,
     )
-    def test_change_password_invalid_current(
-        self, mock_change_password, client, override_auth
-    ):
+    def test_change_password_invalid_current(self, mock_change_password, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
-        mock_change_password.side_effect = AppException(
-            ErrorCodes.INVALID_CURRENT_PASSWORD
-        )
+        mock_change_password.side_effect = AppException(ErrorCodes.INVALID_CURRENT_PASSWORD)
 
         response = client.put(
             "/v1/users/settings/password",
@@ -363,9 +340,7 @@ class TestChangePasswordController:
         "app.controllers.user_controller.user_service.change_password",
         new_callable=AsyncMock,
     )
-    def test_change_password_same_password(
-        self, mock_change_password, client, override_auth
-    ):
+    def test_change_password_same_password(self, mock_change_password, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
         mock_change_password.side_effect = AppException(ErrorCodes.SAME_PASSWORD)
 

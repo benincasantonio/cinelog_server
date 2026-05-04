@@ -18,9 +18,7 @@ class User(BaseEntity):
     date_of_birth: datetime | None = Field(default=None, alias="dateOfBirth")
     password_hash: str | None = Field(default=None, alias="passwordHash")
     reset_password_code: str | None = Field(default=None, alias="resetPasswordCode")
-    reset_password_expires: datetime | None = Field(
-        default=None, alias="resetPasswordExpires"
-    )
+    reset_password_expires: datetime | None = Field(default=None, alias="resetPasswordExpires")
 
     class Settings:
         name = "users"

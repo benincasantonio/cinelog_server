@@ -1,7 +1,8 @@
-from fastapi import Response
-from datetime import timedelta
 import os
 import secrets
+from datetime import timedelta
+
+from fastapi import Response
 
 from app.services.token_service import TokenService
 
@@ -83,9 +84,7 @@ def clear_auth_cookies(response: Response) -> None:
     """
     Clears all authentication and CSRF cookies from the response.
     """
-    response.delete_cookie(
-        ACCESS_TOKEN_COOKIE, path="/", secure=True, httponly=True, samesite="strict"
-    )
+    response.delete_cookie(ACCESS_TOKEN_COOKIE, path="/", secure=True, httponly=True, samesite="strict")
     response.delete_cookie(
         REFRESH_TOKEN_COOKIE,
         path="/v1/auth/refresh",
@@ -93,9 +92,7 @@ def clear_auth_cookies(response: Response) -> None:
         httponly=True,
         samesite="strict",
     )
-    response.delete_cookie(
-        CSRF_TOKEN_COOKIE, path="/", secure=True, httponly=True, samesite="lax"
-    )
+    response.delete_cookie(CSRF_TOKEN_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
 
 
 def set_rate_limit_session_id(response: Response, session_id: str | None = None):

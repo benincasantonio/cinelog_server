@@ -1,6 +1,7 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
 
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
@@ -101,9 +102,7 @@ class TestStatsController:
         app.dependency_overrides = {}
 
         assert response.status_code == 200
-        mock_get_stats.assert_called_once_with(
-            user_id="user123", year_from=2023, year_to=2024
-        )
+        mock_get_stats.assert_called_once_with(user_id="user123", year_from=2023, year_to=2024)
 
     def test_get_my_stats_invalid_year_range(self, client, override_auth):
         """Test stats with invalid year range (yearFrom > yearTo)."""
@@ -147,8 +146,8 @@ class TestStatsController:
     )
     def test_get_my_stats_app_exception(self, mock_get_stats, client, override_auth):
         """Test stats re-raises AppException."""
-        from app.utils.exceptions_utils import AppException
         from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_stats.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)

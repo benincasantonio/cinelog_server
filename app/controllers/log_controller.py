@@ -2,16 +2,16 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.config.rate_limiter import limiter
+from app.dependencies.auth_dependency import auth_dependency
 from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import (
     LogCreateRequest,
     LogCreateResponse,
-    LogUpdateRequest,
     LogListRequest,
     LogListResponse,
+    LogUpdateRequest,
 )
 from app.services.log_service import LogService
-from app.dependencies.auth_dependency import auth_dependency
 
 router = APIRouter()
 
@@ -50,9 +50,7 @@ async def update_log(
     Requires authentication via Cookie token.
     Only the owner of the log can update it.
     """
-    return await log_service.update_log(
-        user_id=user_id, log_id=log_id, request=request_body
-    )
+    return await log_service.update_log(user_id=user_id, log_id=log_id, request=request_body)
 
 
 @router.delete(
@@ -90,6 +88,4 @@ async def get_logs_by_handle(
     Returns logs if the profile is public or the requester is the owner.
     Returns 403 if the profile is not public and the requester is not the owner.
     """
-    return await log_service.get_user_logs_by_handle(
-        handle=handle, requester_id=user_id, request=list_request
-    )
+    return await log_service.get_user_logs_by_handle(handle=handle, requester_id=user_id, request=list_request)

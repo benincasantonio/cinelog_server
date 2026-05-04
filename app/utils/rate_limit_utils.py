@@ -31,9 +31,7 @@ async def rate_limit_exceeded_handler(request: Request, exc: Exception) -> JSONR
     )
     response = cast(
         JSONResponse,
-        request.app.state.limiter._inject_headers(
-            response, request.state.view_rate_limit
-        ),
+        request.app.state.limiter._inject_headers(response, request.state.view_rate_limit),
     )
     return response
 

@@ -1,18 +1,17 @@
 from datetime import date
 
+from beanie import PydanticObjectId, SortDirection
+
 from app.models.log import Log
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 from app.schemas.stats_schemas import LogDistributionEntry, LogStats
 from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
 from app.utils.object_id_utils import to_object_id
-from beanie import SortDirection, PydanticObjectId
 
 
 class LogRepository:
     @staticmethod
-    async def create_log(
-        user_id: PydanticObjectId, create_log_request: LogCreateRequest
-    ) -> Log:
+    async def create_log(user_id: PydanticObjectId, create_log_request: LogCreateRequest) -> Log:
         """
         Create a new log entry in the database.
         """
@@ -38,14 +37,10 @@ class LogRepository:
         log_object_id = to_object_id(log_id)
         if log_object_id is None or user_id is None:
             return None
-        return await Log.find_one(
-            Log.active_filter({"_id": log_object_id, "userId": user_id})
-        )
+        return await Log.find_one(Log.active_filter({"_id": log_object_id, "userId": user_id}))
 
     @staticmethod
-    async def update_log(
-        log_id: str, user_id: PydanticObjectId, update_request: LogUpdateRequest
-    ) -> Log | None:
+    async def update_log(log_id: str, user_id: PydanticObjectId, update_request: LogUpdateRequest) -> Log | None:
         """
         Update an existing log entry.
         """
@@ -89,14 +84,8 @@ class LogRepository:
         if date_filters:
             filters["dateWatched"] = date_filters
 
-        sort_spec: list[tuple[str, SortDirection]] = [
-            ("dateWatched", SortDirection.DESCENDING)
-        ]
-        sort_direction: SortDirection = (
-            SortDirection.DESCENDING
-            if sort_order == "desc"
-            else SortDirection.ASCENDING
-        )
+        sort_spec: list[tuple[str, SortDirection]] = [("dateWatched", SortDirection.DESCENDING)]
+        sort_direction: SortDirection = SortDirection.DESCENDING if sort_order == "desc" else SortDirection.ASCENDING
         if sort_by == "watchedWhere":
             sort_spec = [
                 ("watchedWhere", sort_direction),
@@ -111,9 +100,7 @@ class LogRepository:
         return await Log.find(filters).sort(sort_spec).to_list()
 
     @staticmethod
-    async def find_logs_by_movie_id(
-        movie_id: str, user_id: PydanticObjectId | None = None
-    ) -> list[Log]:
+    async def find_logs_by_movie_id(movie_id: str, user_id: PydanticObjectId | None = None) -> list[Log]:
         """
         Find all log entries for a specific movie by its ID.
         Optionally filter by user_id.
