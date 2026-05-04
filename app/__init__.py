@@ -8,26 +8,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pymongo import AsyncMongoClient
 from slowapi.errors import RateLimitExceeded
-from app.config.rate_limiter import limiter
-from app.utils.rate_limit_utils import rate_limit_exceeded_handler
+
 import app.controllers.auth_controller as auth_controller
-import app.controllers.movie_controller as movie_controller
 import app.controllers.log_controller as log_controller
-import app.controllers.user_controller as user_controller
+import app.controllers.movie_controller as movie_controller
 import app.controllers.movie_rating_controller as movie_rating_controller
 import app.controllers.stats_controller as stats_controller
-from app.middleware.csrf_middleware import CSRFMiddleware
-from app.middleware.rate_limit_session_middleware import RateLimitSessionMiddleware
-from app.utils.exceptions_utils import AppException
+import app.controllers.user_controller as user_controller
 from app.config.cors import get_cors_config
 from app.config.public_routes import CSRF_EXEMPT_PATHS
+from app.config.rate_limiter import limiter
+from app.config.redis import get_redis_config
+from app.middleware.csrf_middleware import CSRFMiddleware
+from app.middleware.rate_limit_session_middleware import RateLimitSessionMiddleware
 from app.models.log import Log
 from app.models.movie import Movie
 from app.models.movie_rating import MovieRating
 from app.models.user import User
-from app.config.redis import get_redis_config
 from app.services.cache_service import CacheService
 from app.services.tmdb_service import TMDBService
+from app.utils.exceptions_utils import AppException
+from app.utils.rate_limit_utils import rate_limit_exceeded_handler
 
 
 def _get_mongodb_settings() -> tuple[str, str]:
@@ -56,9 +57,7 @@ def _get_mongodb_settings() -> tuple[str, str]:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     mongodb_uri, mongodb_db = _get_mongodb_settings()
-    mongo_client: AsyncMongoClient = AsyncMongoClient(
-        mongodb_uri, uuidRepresentation="standard"
-    )
+    mongo_client: AsyncMongoClient = AsyncMongoClient(mongodb_uri, uuidRepresentation="standard")
     await init_beanie(
         database=mongo_client[mongodb_db],
         document_models=[User, Log, Movie, MovieRating],
@@ -113,9 +112,7 @@ app.include_router(auth_controller.router, prefix="/v1/auth", tags=["Auth"])
 app.include_router(movie_controller.router, prefix="/v1/movies", tags=["Movies"])
 app.include_router(log_controller.router, prefix="/v1/logs", tags=["Logs"])
 app.include_router(user_controller.router, prefix="/v1/users", tags=["Users"])
-app.include_router(
-    movie_rating_controller.router, prefix="/v1/movie-ratings", tags=["Movie Ratings"]
-)
+app.include_router(movie_rating_controller.router, prefix="/v1/movie-ratings", tags=["Movie Ratings"])
 app.include_router(stats_controller.router, prefix="/v1/stats", tags=["Stats"])
 
 

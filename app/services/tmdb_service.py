@@ -54,9 +54,7 @@ class TMDBService:
             return cached
 
         url = "https://api.themoviedb.org/3/search/movie"
-        response = await self._client.get(
-            url, headers=self._headers(), params={"query": query}
-        )
+        response = await self._client.get(url, headers=self._headers(), params={"query": query})
         response.raise_for_status()
 
         result = TMDBMovieSearchResult(**response.json())

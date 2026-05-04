@@ -19,9 +19,7 @@ class TMDBMovieSearchResultItem(BaseSchema):
         validation_alias="poster_path",
         description="Path to the movie poster image",
     )
-    vote_average: float = Field(
-        ..., validation_alias="vote_average", description="Average rating of the movie"
-    )
+    vote_average: float = Field(..., validation_alias="vote_average", description="Average rating of the movie")
     backdrop_path: str | None = Field(
         None,
         validation_alias="backdrop_path",
@@ -58,9 +56,7 @@ class TMDBMovieSearchResult(BaseSchema):
         validation_alias="total_pages",
         description="Total number of pages available",
     )
-    results: list[TMDBMovieSearchResultItem] = Field(
-        ..., description="List of movie search result items"
-    )
+    results: list[TMDBMovieSearchResultItem] = Field(..., description="List of movie search result items")
 
 
 class TMDBGenre(BaseSchema):
@@ -75,9 +71,7 @@ class TMDBProductionCompany(BaseSchema):
 
     id: int = Field(..., description="Unique identifier for the production company")
     name: str = Field(..., description="Name of the production company")
-    logo_path: str | None = Field(
-        None, validation_alias="logo_path", description="Path to the company logo"
-    )
+    logo_path: str | None = Field(None, validation_alias="logo_path", description="Path to the company logo")
     origin_country: str = Field(
         ...,
         validation_alias="origin_country",
@@ -88,22 +82,16 @@ class TMDBProductionCompany(BaseSchema):
 class TMDBProductionCountry(BaseSchema):
     """Production country information from TMDB"""
 
-    iso_3166_1: str = Field(
-        ..., validation_alias="iso_3166_1", description="ISO 3166-1 country code"
-    )
+    iso_3166_1: str = Field(..., validation_alias="iso_3166_1", description="ISO 3166-1 country code")
     name: str = Field(..., description="Country name")
 
 
 class TMDBSpokenLanguage(BaseSchema):
     """Spoken language information from TMDB"""
 
-    iso_639_1: str = Field(
-        ..., validation_alias="iso_639_1", description="ISO 639-1 language code"
-    )
+    iso_639_1: str = Field(..., validation_alias="iso_639_1", description="ISO 639-1 language code")
     name: str = Field(..., description="Language name")
-    english_name: str = Field(
-        ..., validation_alias="english_name", description="English name of the language"
-    )
+    english_name: str = Field(..., validation_alias="english_name", description="English name of the language")
 
 
 class TMDBMovieDetails(BaseSchema):
@@ -132,12 +120,8 @@ class TMDBMovieDetails(BaseSchema):
         validation_alias="backdrop_path",
         description="Path to the movie backdrop image",
     )
-    vote_average: float = Field(
-        ..., validation_alias="vote_average", description="Average rating of the movie"
-    )
-    vote_count: int = Field(
-        ..., validation_alias="vote_count", description="Number of votes"
-    )
+    vote_average: float = Field(..., validation_alias="vote_average", description="Average rating of the movie")
+    vote_count: int = Field(..., validation_alias="vote_count", description="Number of votes")
     runtime: int | None = Field(None, description="Runtime in minutes")
     budget: int = Field(..., description="Budget of the movie")
     revenue: int = Field(..., description="Revenue of the movie")

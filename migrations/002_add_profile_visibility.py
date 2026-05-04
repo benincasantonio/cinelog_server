@@ -10,9 +10,7 @@ from pymongo.database import Database
 def up(db: Database, dry_run: bool = False) -> None:
     users_collection = db.users
 
-    missing_count = users_collection.count_documents(
-        {"profileVisibility": {"$exists": False}}
-    )
+    missing_count = users_collection.count_documents({"profileVisibility": {"$exists": False}})
 
     if missing_count == 0:
         print("  [002] All users already have profileVisibility field")
@@ -21,10 +19,7 @@ def up(db: Database, dry_run: bool = False) -> None:
     print(f"  [002] Found {missing_count} user(s) without profileVisibility")
 
     if dry_run:
-        print(
-            "    [dry-run] Would set profileVisibility='private' "
-            f"on {missing_count} user(s)"
-        )
+        print(f"    [dry-run] Would set profileVisibility='private' on {missing_count} user(s)")
         return
 
     result = users_collection.update_many(
@@ -32,9 +27,7 @@ def up(db: Database, dry_run: bool = False) -> None:
         {"$set": {"profileVisibility": "private"}},
     )
 
-    print(
-        f"    [002] Set profileVisibility='private' on {result.modified_count} user(s)"
-    )
+    print(f"    [002] Set profileVisibility='private' on {result.modified_count} user(s)")
 
 
 def down(db: Database) -> None:

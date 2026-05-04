@@ -1,41 +1,41 @@
 import logging
 
-from beanie import PydanticObjectId
-from fastapi import APIRouter, Response, status, Request, Depends
-from fastapi.responses import JSONResponse
 import jwt
+from beanie import PydanticObjectId
+from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi.responses import JSONResponse
 
 from app.config.rate_limiter import limiter
 from app.dependencies.auth_dependency import auth_dependency
 from app.repository.user_repository import UserRepository
 from app.schemas.auth_schemas import (
-    RegisterRequest,
-    RegisterResponse,
+    CsrfTokenResponse,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     LoginResponse,
     LogoutResponse,
     RefreshResponse,
-    ForgotPasswordRequest,
-    ForgotPasswordResponse,
+    RegisterRequest,
+    RegisterResponse,
     ResetPasswordRequest,
     ResetPasswordResponse,
-    CsrfTokenResponse,
 )
-from app.services.auth_service import AuthService
 from app.services.auth_rate_limit_service import (
     AuthRateLimitService,
 )
+from app.services.auth_service import AuthService
 from app.services.token_service import TokenService
+from app.utils.auth_utils import (
+    clear_auth_cookies,
+    set_auth_cookies,
+    set_csrf_cookie,
+)
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 from app.utils.rate_limit_utils import (
     get_ip_rate_limit_key,
     get_session_rate_limit_key,
-)
-from app.utils.auth_utils import (
-    set_auth_cookies,
-    set_csrf_cookie,
-    clear_auth_cookies,
 )
 
 router = APIRouter()
@@ -46,14 +46,10 @@ auth_service = AuthService(user_repository)
 auth_rate_limit_service = AuthRateLimitService()
 
 
-@router.post(
-    "/register", status_code=status.HTTP_201_CREATED, response_model=RegisterResponse
-)
+@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=RegisterResponse)
 @limiter.limit("10/hour", key_func=get_ip_rate_limit_key)
 @limiter.limit("5/hour", key_func=get_session_rate_limit_key)
-async def register(
-    request: Request, response: Response, request_body: RegisterRequest
-) -> RegisterResponse:
+async def register(request: Request, response: Response, request_body: RegisterRequest) -> RegisterResponse:
     """
     Handle user registration.
     User must login separately after registration.
@@ -75,9 +71,7 @@ async def login(
     auth_rate_limit_service.enforce_login_failure_limit(request_body.email)
 
     try:
-        user = await auth_service.login(
-            email=request_body.email, password=request_body.password
-        )
+        user = await auth_service.login(email=request_body.email, password=request_body.password)
     except AppException as exc:
         if exc.error == ErrorCodes.INVALID_CREDENTIALS:
             auth_rate_limit_service.register_login_failure(request_body.email)
@@ -119,17 +113,13 @@ async def logout(response: Response) -> LogoutResponse:
     response_model=RefreshResponse,
     responses={401: {"description": "Invalid, expired, or missing refresh token"}},
 )
-async def refresh_token(
-    request: Request, response: Response
-) -> RefreshResponse | JSONResponse:
+async def refresh_token(request: Request, response: Response) -> RefreshResponse | JSONResponse:
     """
     Refresh access token using refresh token cookie.
     """
 
     def clear_cookies_response(detail: str) -> JSONResponse:
-        err_response = JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": detail}
-        )
+        err_response = JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": detail})
         clear_auth_cookies(err_response)
         return err_response
 
@@ -177,9 +167,7 @@ async def forgot_password(
     auth_rate_limit_service.register_forgot_password_attempt(request_body.email)
 
     await auth_service.forgot_password(request_body.email)
-    return ForgotPasswordResponse(
-        message="If the email exists, a reset code has been sent."
-    )
+    return ForgotPasswordResponse(message="If the email exists, a reset code has been sent.")
 
 
 @router.post("/reset-password", response_model=ResetPasswordResponse)

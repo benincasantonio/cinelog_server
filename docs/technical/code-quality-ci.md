@@ -19,6 +19,32 @@ It has two parallel jobs:
 
 The format job is check-only and does not modify files in CI.
 
+## Ruff Configuration
+
+Ruff is configured in `pyproject.toml` and is used for both linting and formatting. Black is not required because Ruff formatter owns code formatting for the project.
+
+The configuration targets Python 3.12, uses a 120-character line length, and enables these lint rule families:
+
+- `E`, `W`: pycodestyle errors and warnings
+- `F`: Pyflakes checks such as unused imports and undefined names
+- `I`: import sorting
+- `N`: naming conventions
+- `UP`: Python syntax modernization
+- `S`: security-oriented checks
+- `B`: bug-prone pattern checks
+- `A`: builtin shadowing checks
+- `C4`: comprehension simplification checks
+- `PT`: pytest style checks
+
+Import sorting treats `app` as first-party code.
+
+The lint configuration intentionally ignores a small set of rules that conflict with established project patterns:
+
+- FastAPI route dependencies use `Depends(...)` in default arguments.
+- Existing application exception naming uses `AppException`.
+- Cookie, token, and test fixture names can look like hardcoded secrets to static analysis.
+- Test files use pytest `assert` statements and occasionally broad exception assertions by design.
+
 ## Related Workflows
 
 Other quality gates are handled by separate workflows:

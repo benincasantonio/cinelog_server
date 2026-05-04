@@ -34,9 +34,7 @@ class CacheService:
     def get_instance(cls) -> "CacheService":
         with cls._singleton_lock:
             if cls._singleton is None:
-                raise RuntimeError(
-                    "CacheService not initialized. Call initialize() first."
-                )
+                raise RuntimeError("CacheService not initialized. Call initialize() first.")
             return cls._singleton
 
     async def get(self, key: str) -> CacheValue | None:

@@ -1,15 +1,16 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from beanie import PydanticObjectId
 
-from app.services.stats_cache_service import StatsCacheService, STATS_CACHE_TTL
 from app.schemas.stats_schemas import (
+    StatsByMethod,
+    StatsDistribution,
+    StatsPace,
     StatsResponse,
     StatsSummary,
-    StatsDistribution,
-    StatsByMethod,
-    StatsPace,
 )
+from app.services.stats_cache_service import STATS_CACHE_TTL, StatsCacheService
 
 
 def _sample_stats_response() -> StatsResponse:
@@ -21,9 +22,7 @@ def _sample_stats_response() -> StatsResponse:
             total_minutes=600,
             vote_average=7.5,
         ),
-        distribution=StatsDistribution(
-            by_method=StatsByMethod(cinema=2, streaming=1, home_video=1, tv=1, other=0)
-        ),
+        distribution=StatsDistribution(by_method=StatsByMethod(cinema=2, streaming=1, home_video=1, tv=1, other=0)),
         pace=StatsPace(on_track_for=0, current_average=0.0, days_since_last_log=0),
     )
 
@@ -35,24 +34,15 @@ class TestBuildKey:
 
     def test_both_filters(self):
         uid = PydanticObjectId()
-        assert (
-            StatsCacheService.build_key(uid, 2023, 2024)
-            == f"cinelog:stats:{uid}:2023:2024"
-        )
+        assert StatsCacheService.build_key(uid, 2023, 2024) == f"cinelog:stats:{uid}:2023:2024"
 
     def test_only_year_from(self):
         uid = PydanticObjectId()
-        assert (
-            StatsCacheService.build_key(uid, year_from=2023)
-            == f"cinelog:stats:{uid}:2023:any"
-        )
+        assert StatsCacheService.build_key(uid, year_from=2023) == f"cinelog:stats:{uid}:2023:any"
 
     def test_only_year_to(self):
         uid = PydanticObjectId()
-        assert (
-            StatsCacheService.build_key(uid, year_to=2024)
-            == f"cinelog:stats:{uid}:any:2024"
-        )
+        assert StatsCacheService.build_key(uid, year_to=2024) == f"cinelog:stats:{uid}:any:2024"
 
 
 class TestGetStats:
@@ -122,6 +112,4 @@ class TestInvalidateUserStats:
         ):
             service = StatsCacheService()
             await service.invalidate_user_stats(uid)
-            mock_cache.invalidate_pattern.assert_awaited_once_with(
-                f"cinelog:stats:{uid}:*"
-            )
+            mock_cache.invalidate_pattern.assert_awaited_once_with(f"cinelog:stats:{uid}:*")

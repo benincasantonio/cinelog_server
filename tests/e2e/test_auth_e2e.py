@@ -3,9 +3,10 @@ E2E tests for authentication endpoints.
 Tests the full stack: FastAPI -> AuthService -> Firebase + MongoDB.
 """
 
-from app.utils.error_codes_utils import ErrorCodes
-from app.services.token_service import TokenService
 from datetime import timedelta
+
+from app.services.token_service import TokenService
+from app.utils.error_codes_utils import ErrorCodes
 
 
 class TestAuthE2E:
@@ -54,10 +55,7 @@ class TestAuthE2E:
         response = await async_client.post("/v1/auth/register", json=payload)
 
         assert response.status_code == 409  # EMAIL_ALREADY_EXISTS
-        assert (
-            response.json()["error_code_name"]
-            == ErrorCodes.EMAIL_ALREADY_EXISTS.error_code_name
-        )
+        assert response.json()["error_code_name"] == ErrorCodes.EMAIL_ALREADY_EXISTS.error_code_name
 
     async def test_register_duplicate_handle(self, async_client):
         """Test registration with duplicate handle."""
@@ -90,10 +88,7 @@ class TestAuthE2E:
         )
 
         assert response.status_code == 409  # HANDLE_ALREADY_TAKEN
-        assert (
-            response.json()["error_code_name"]
-            == ErrorCodes.HANDLE_ALREADY_TAKEN.error_code_name
-        )
+        assert response.json()["error_code_name"] == ErrorCodes.HANDLE_ALREADY_TAKEN.error_code_name
 
     async def test_register_invalid_email(self, async_client):
         """Test registration with invalid email format."""
@@ -170,10 +165,7 @@ class TestAuthE2E:
         )
 
         assert response.status_code == 401
-        assert (
-            response.json()["error_code_name"]
-            == ErrorCodes.INVALID_CREDENTIALS.error_code_name
-        )
+        assert response.json()["error_code_name"] == ErrorCodes.INVALID_CREDENTIALS.error_code_name
 
     async def test_logout_success(self, async_client):
         """Test successful logout."""
@@ -195,21 +187,13 @@ class TestAuthE2E:
         )
         csrf_token = login_resp.json()["csrfToken"]
 
-        logout_resp = await async_client.post(
-            "/v1/auth/logout", headers={"X-CSRF-Token": csrf_token}
-        )
+        logout_resp = await async_client.post("/v1/auth/logout", headers={"X-CSRF-Token": csrf_token})
 
         assert logout_resp.status_code == 200
         # In httpx AsyncClient, deleted cookies might be empty or have expired max-age.
         # Check that the Set-Cookie headers for deletion were sent.
-        set_cookies = [
-            h[1]
-            for h in logout_resp.headers.multi_items()
-            if h[0].lower() == "set-cookie"
-        ]
-        assert any(
-            "__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies
-        )
+        set_cookies = [h[1] for h in logout_resp.headers.multi_items() if h[0].lower() == "set-cookie"]
+        assert any("__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies)
         assert any("refresh_token=" in c and "Max-Age=0" in c for c in set_cookies)
 
     async def test_refresh_token_success(self, async_client):
@@ -244,14 +228,8 @@ class TestAuthE2E:
         assert refresh_resp.status_code == 401
 
         # Check that the Set-Cookie headers for deletion were sent.
-        set_cookies = [
-            h[1]
-            for h in refresh_resp.headers.multi_items()
-            if h[0].lower() == "set-cookie"
-        ]
-        assert any(
-            "__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies
-        )
+        set_cookies = [h[1] for h in refresh_resp.headers.multi_items() if h[0].lower() == "set-cookie"]
+        assert any("__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies)
         assert any("refresh_token=" in c and "Max-Age=0" in c for c in set_cookies)
 
     async def test_refresh_token_expired(self, async_client):
@@ -269,14 +247,8 @@ class TestAuthE2E:
         assert refresh_resp.status_code == 401
 
         # Check that the Set-Cookie headers for deletion were sent.
-        set_cookies = [
-            h[1]
-            for h in refresh_resp.headers.multi_items()
-            if h[0].lower() == "set-cookie"
-        ]
-        assert any(
-            "__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies
-        )
+        set_cookies = [h[1] for h in refresh_resp.headers.multi_items() if h[0].lower() == "set-cookie"]
+        assert any("__Host-access_token=" in c and "Max-Age=0" in c for c in set_cookies)
         assert any("refresh_token=" in c and "Max-Age=0" in c for c in set_cookies)
 
     async def test_forgot_and_reset_password_flow(self, async_client):
@@ -295,9 +267,7 @@ class TestAuthE2E:
         )
 
         # 1. Forgot password
-        forgot_resp = await async_client.post(
-            "/v1/auth/forgot-password", json={"email": "reset@example.com"}
-        )
+        forgot_resp = await async_client.post("/v1/auth/forgot-password", json={"email": "reset@example.com"})
         assert forgot_resp.status_code == 200
 
         # Fetch the reset code directly from DB since it was mocked via email
@@ -346,9 +316,7 @@ class TestAuthE2E:
                 "profile_visibility": "public",
             },
         )
-        await async_client.post(
-            "/v1/auth/forgot-password", json={"email": "invalidcode@example.com"}
-        )
+        await async_client.post("/v1/auth/forgot-password", json={"email": "invalidcode@example.com"})
 
         reset_resp = await async_client.post(
             "/v1/auth/reset-password",
@@ -884,9 +852,7 @@ class TestAuthE2E:
 
     # --- Combined XSS payloads ---
 
-    async def test_register_bio_sanitized_while_valid_names_accepted(
-        self, async_client
-    ):
+    async def test_register_bio_sanitized_while_valid_names_accepted(self, async_client):
         """Bio is sanitized (stripped), valid names pass through."""
         response = await async_client.post(
             "/v1/auth/register",
@@ -909,9 +875,7 @@ class TestAuthE2E:
         assert "Hello" in data["bio"]
         assert "World" in data["bio"]
 
-    async def test_register_rejects_xss_in_first_name_with_valid_others(
-        self, async_client
-    ):
+    async def test_register_rejects_xss_in_first_name_with_valid_others(self, async_client):
         """XSS in firstName is rejected even when other fields are valid."""
         response = await async_client.post(
             "/v1/auth/register",
@@ -928,9 +892,7 @@ class TestAuthE2E:
         )
         assert response.status_code == 422
 
-    async def test_register_rejects_xss_in_last_name_with_valid_others(
-        self, async_client
-    ):
+    async def test_register_rejects_xss_in_last_name_with_valid_others(self, async_client):
         """XSS in lastName is rejected even when other fields are valid."""
         response = await async_client.post(
             "/v1/auth/register",

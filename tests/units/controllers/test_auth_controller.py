@@ -2,10 +2,11 @@
 Unit tests for auth controller endpoints.
 """
 
-import pytest
-from fastapi.testclient import TestClient
-from beanie import PydanticObjectId
 from unittest.mock import AsyncMock, patch
+
+import pytest
+from beanie import PydanticObjectId
+from fastapi.testclient import TestClient
 
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
@@ -20,9 +21,7 @@ def client():
 class TestAuthController:
     """Tests for auth controller endpoints."""
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.register", new_callable=AsyncMock
-    )
+    @patch("app.controllers.auth_controller.auth_service.register", new_callable=AsyncMock)
     def test_register_success(self, mock_register, client):
         """Test successful user registration."""
         mock_register.return_value = RegisterResponse(
@@ -55,13 +54,11 @@ class TestAuthController:
         assert data["handle"] == "johndoe"
         mock_register.assert_called_once()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.register", new_callable=AsyncMock
-    )
+    @patch("app.controllers.auth_controller.auth_service.register", new_callable=AsyncMock)
     def test_register_with_exception(self, mock_register, client):
         """Test registration that raises AppException."""
-        from app.utils.exceptions_utils import AppException
         from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         mock_register.side_effect = AppException(ErrorCodes.EMAIL_ALREADY_EXISTS)
 
@@ -103,9 +100,7 @@ class TestAuthController:
         )
 
         assert response.status_code == 200
-        assert response.json() == {
-            "message": "If the email exists, a reset code has been sent."
-        }
+        assert response.json() == {"message": "If the email exists, a reset code has been sent."}
         mock_forgot_password.assert_awaited_once_with("test@example.com")
 
     @patch(

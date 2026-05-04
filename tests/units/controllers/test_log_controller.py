@@ -1,18 +1,20 @@
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
 from datetime import date, datetime
+from unittest.mock import AsyncMock, patch
+
+import pytest
 from beanie import PydanticObjectId
-from app.utils.exceptions_utils import AppException
-from app.utils.error_codes_utils import ErrorCodes
+from fastapi.testclient import TestClient
+
 from app import app
+from app.dependencies.auth_dependency import auth_dependency
 from app.schemas.log_schemas import (
     LogCreateResponse,
-    LogListResponse,
     LogListItem,
+    LogListResponse,
 )
 from app.schemas.movie_schemas import MovieResponse
-from app.dependencies.auth_dependency import auth_dependency
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 
 
 @pytest.fixture
@@ -96,9 +98,7 @@ def override_auth():
 class TestCreateLog:
     """Tests for POST /v1/logs endpoint."""
 
-    @patch(
-        "app.controllers.log_controller.log_service.create_log", new_callable=AsyncMock
-    )
+    @patch("app.controllers.log_controller.log_service.create_log", new_callable=AsyncMock)
     def test_create_log_success(
         self,
         mock_create_log,
@@ -164,12 +164,8 @@ class TestCreateLog:
 class TestUpdateLog:
     """Tests for PUT /v1/logs/{log_id} endpoint."""
 
-    @patch(
-        "app.controllers.log_controller.log_service.update_log", new_callable=AsyncMock
-    )
-    def test_update_log_success(
-        self, mock_update_log, client, sample_log_response, override_auth
-    ):
+    @patch("app.controllers.log_controller.log_service.update_log", new_callable=AsyncMock)
+    def test_update_log_success(self, mock_update_log, client, sample_log_response, override_auth):
         """Test successful log update."""
         app.dependency_overrides[auth_dependency] = override_auth
         mock_update_log.return_value = sample_log_response
@@ -208,12 +204,8 @@ class TestUpdateLog:
 class TestDeleteLog:
     """Tests for DELETE /v1/logs/{log_id} endpoint."""
 
-    @patch(
-        "app.controllers.log_controller.log_service.delete_log", new_callable=AsyncMock
-    )
-    def test_delete_log_success_returns_204(
-        self, mock_delete_log, client, override_auth
-    ):
+    @patch("app.controllers.log_controller.log_service.delete_log", new_callable=AsyncMock)
+    def test_delete_log_success_returns_204(self, mock_delete_log, client, override_auth):
         """Successful deletion returns 204 No Content with empty body."""
         app.dependency_overrides[auth_dependency] = override_auth
         mock_delete_log.return_value = None
@@ -230,12 +222,8 @@ class TestDeleteLog:
         assert response.content == b""
         mock_delete_log.assert_called_once()
 
-    @patch(
-        "app.controllers.log_controller.log_service.delete_log", new_callable=AsyncMock
-    )
-    def test_delete_log_not_found_returns_404(
-        self, mock_delete_log, client, override_auth
-    ):
+    @patch("app.controllers.log_controller.log_service.delete_log", new_callable=AsyncMock)
+    def test_delete_log_not_found_returns_404(self, mock_delete_log, client, override_auth):
         """Deleting a missing or non-owned log returns 404."""
         app.dependency_overrides[auth_dependency] = override_auth
         mock_delete_log.side_effect = AppException(ErrorCodes.LOG_NOT_FOUND)
@@ -249,10 +237,7 @@ class TestDeleteLog:
         app.dependency_overrides = {}
 
         assert response.status_code == 404
-        assert (
-            response.json()["error_code_name"]
-            == ErrorCodes.LOG_NOT_FOUND.error_code_name
-        )
+        assert response.json()["error_code_name"] == ErrorCodes.LOG_NOT_FOUND.error_code_name
 
     def test_delete_log_unauthorized(self, client):
         """Delete without access token returns 401."""
@@ -273,16 +258,12 @@ class TestGetLogsByHandle:
         "app.controllers.log_controller.log_service.get_user_logs_by_handle",
         new_callable=AsyncMock,
     )
-    def test_get_logs_by_handle_success(
-        self, mock_get_logs_by_handle, client, sample_log_list_response, override_auth
-    ):
+    def test_get_logs_by_handle_success(self, mock_get_logs_by_handle, client, sample_log_list_response, override_auth):
         """Test successful log list retrieval by handle."""
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_logs_by_handle.return_value = sample_log_list_response
 
-        response = client.get(
-            "/v1/logs/johndoe", cookies={"__Host-access_token": "token"}
-        )
+        response = client.get("/v1/logs/johndoe", cookies={"__Host-access_token": "token"})
 
         app.dependency_overrides = {}
 
@@ -302,21 +283,15 @@ class TestGetLogsByHandle:
         "app.controllers.log_controller.log_service.get_user_logs_by_handle",
         new_callable=AsyncMock,
     )
-    def test_get_logs_by_handle_profile_not_public(
-        self, mock_get_logs_by_handle, client, override_auth
-    ):
+    def test_get_logs_by_handle_profile_not_public(self, mock_get_logs_by_handle, client, override_auth):
         """Test log list retrieval for private profile."""
-        from app.utils.exceptions_utils import AppException
         from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         app.dependency_overrides[auth_dependency] = override_auth
-        mock_get_logs_by_handle.side_effect = AppException(
-            ErrorCodes.PROFILE_NOT_PUBLIC
-        )
+        mock_get_logs_by_handle.side_effect = AppException(ErrorCodes.PROFILE_NOT_PUBLIC)
 
-        response = client.get(
-            "/v1/logs/johndoe", cookies={"__Host-access_token": "token"}
-        )
+        response = client.get("/v1/logs/johndoe", cookies={"__Host-access_token": "token"})
 
         app.dependency_overrides = {}
 
@@ -326,19 +301,15 @@ class TestGetLogsByHandle:
         "app.controllers.log_controller.log_service.get_user_logs_by_handle",
         new_callable=AsyncMock,
     )
-    def test_get_logs_by_handle_user_not_found(
-        self, mock_get_logs_by_handle, client, override_auth
-    ):
+    def test_get_logs_by_handle_user_not_found(self, mock_get_logs_by_handle, client, override_auth):
         """Test log list retrieval for nonexistent user."""
-        from app.utils.exceptions_utils import AppException
         from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
 
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_logs_by_handle.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
 
-        response = client.get(
-            "/v1/logs/nonexistent", cookies={"__Host-access_token": "token"}
-        )
+        response = client.get("/v1/logs/nonexistent", cookies={"__Host-access_token": "token"})
 
         app.dependency_overrides = {}
 

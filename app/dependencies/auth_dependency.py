@@ -1,5 +1,6 @@
 from beanie import PydanticObjectId
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
+
 from app.services.token_service import TokenService
 from app.utils.auth_utils import ACCESS_TOKEN_COOKIE
 
@@ -30,4 +31,4 @@ def auth_dependency(request: Request) -> PydanticObjectId:
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(status_code=401, detail="Unauthorized") from None

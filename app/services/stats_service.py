@@ -26,9 +26,7 @@ class StatsService:
         stats_cache_service: StatsCacheService | None = None,
     ):
         self.log_repository = log_repository or LogRepository()
-        self.movie_rating_repository = (
-            movie_rating_repository or MovieRatingRepository()
-        )
+        self.movie_rating_repository = movie_rating_repository or MovieRatingRepository()
         self.movie_repository = movie_repository or MovieRepository()
         self.stats_cache_service = stats_cache_service or StatsCacheService()
 
@@ -42,9 +40,7 @@ class StatsService:
         if cached is not None:
             return cached
 
-        date_from: date | None = (
-            date(year_from, 1, 1) if year_from is not None else None
-        )
+        date_from: date | None = date(year_from, 1, 1) if year_from is not None else None
         date_to: date | None = date(year_to, 12, 31) if year_to is not None else None
 
         log_stats: LogStats = await self.log_repository.get_log_stats(
@@ -56,9 +52,7 @@ class StatsService:
         movie_ids = set(log_stats.unique_movie_ids)
 
         movie_rating_stats, movie_stats = await asyncio.gather(
-            self.movie_rating_repository.get_user_movie_ratings_average(
-                user_id, movie_ids
-            ),
+            self.movie_rating_repository.get_user_movie_ratings_average(user_id, movie_ids),
             self.movie_repository.get_movie_stats(movie_ids),
         )
 
@@ -69,9 +63,7 @@ class StatsService:
             unique_titles=log_stats.unique_titles,
             total_rewatches=total_rewatches,
             total_minutes=movie_stats.total_runtime,
-            vote_average=movie_rating_stats.average_rating
-            if movie_rating_stats
-            else None,
+            vote_average=movie_rating_stats.average_rating if movie_rating_stats else None,
         )
 
         distribution = self._build_distribution(log_stats)
@@ -80,9 +72,7 @@ class StatsService:
 
         result = StatsResponse(summary=summary, distribution=distribution, pace=pace)
 
-        await self.stats_cache_service.set_stats(
-            user_id, year_from, year_to, stats=result
-        )
+        await self.stats_cache_service.set_stats(user_id, year_from, year_to, stats=result)
 
         return result
 

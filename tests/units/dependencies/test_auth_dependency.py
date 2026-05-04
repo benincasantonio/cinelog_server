@@ -1,10 +1,12 @@
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from beanie import PydanticObjectId
-from app.dependencies.auth_dependency import auth_dependency
+from bson import ObjectId
 from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
-from bson import ObjectId
+
+from app.dependencies.auth_dependency import auth_dependency
 
 
 class TestAuthDependency:
@@ -16,9 +18,7 @@ class TestAuthDependency:
         mock_request.cookies = {"__Host-access_token": "valid_token"}
         mock_request.headers = {}
 
-        with patch(
-            "app.dependencies.auth_dependency.TokenService.decode_token"
-        ) as mock_decode:
+        with patch("app.dependencies.auth_dependency.TokenService.decode_token") as mock_decode:
             user_id_str = str(ObjectId())
             mock_decode.return_value = {"sub": user_id_str, "type": "access"}
 
@@ -77,9 +77,7 @@ class TestAuthDependency:
         mock_request.cookies = {"__Host-access_token": "refresh_token"}
         mock_request.headers = {}
 
-        with patch(
-            "app.dependencies.auth_dependency.TokenService.decode_token"
-        ) as mock_decode:
+        with patch("app.dependencies.auth_dependency.TokenService.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": "user123", "type": "refresh"}
 
             with pytest.raises(HTTPException) as exc_info:
@@ -94,9 +92,7 @@ class TestAuthDependency:
         mock_request.cookies = {"__Host-access_token": "valid_token"}
         mock_request.headers = {}
 
-        with patch(
-            "app.dependencies.auth_dependency.TokenService.decode_token"
-        ) as mock_decode:
+        with patch("app.dependencies.auth_dependency.TokenService.decode_token") as mock_decode:
             mock_decode.return_value = {"type": "access"}  # Missing sub
 
             with pytest.raises(HTTPException) as exc_info:

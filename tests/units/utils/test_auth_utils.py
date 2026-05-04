@@ -1,10 +1,10 @@
 from fastapi import Response
 
 from app.utils.auth_utils import (
-    clear_auth_cookies,
     ACCESS_TOKEN_COOKIE,
-    REFRESH_TOKEN_COOKIE,
     CSRF_TOKEN_COOKIE,
+    REFRESH_TOKEN_COOKIE,
+    clear_auth_cookies,
 )
 
 

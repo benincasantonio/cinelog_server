@@ -1,8 +1,8 @@
 from beanie import PydanticObjectId
 
 from app.models.movie_rating import MovieRating
-from app.utils.object_id_utils import to_object_id
 from app.schemas.movie_rating_schemas import MovieRatingStats
+from app.utils.object_id_utils import to_object_id
 
 
 class MovieRatingRepository:
@@ -18,24 +18,18 @@ class MovieRatingRepository:
         if user_object_id is None or movie_object_id is None:
             return None
         return await MovieRating.find_one(
-            MovieRating.active_filter(
-                {"userId": user_object_id, "movieId": movie_object_id}
-            )
+            MovieRating.active_filter({"userId": user_object_id, "movieId": movie_object_id})
         )
 
     @staticmethod
-    async def find_movie_rating_by_user_and_tmdb(
-        user_id: PydanticObjectId, tmdb_id: int
-    ) -> MovieRating | None:
+    async def find_movie_rating_by_user_and_tmdb(user_id: PydanticObjectId, tmdb_id: int) -> MovieRating | None:
         """
         Find a movie rating by user ID and TMDB ID.
         """
         user_object_id = to_object_id(user_id)
         if user_object_id is None:
             return None
-        return await MovieRating.find_one(
-            MovieRating.active_filter({"userId": user_object_id, "tmdbId": tmdb_id})
-        )
+        return await MovieRating.find_one(MovieRating.active_filter({"userId": user_object_id, "tmdbId": tmdb_id}))
 
     @staticmethod
     async def create_update_movie_rating(
@@ -49,11 +43,7 @@ class MovieRatingRepository:
         Create or update a movie rating for a specific user and movie.
         If a rating already exists for the user and movie, it will be updated.
         """
-        existing_rating = (
-            await MovieRatingRepository.find_movie_rating_by_user_and_movie(
-                user_id, movie_id
-            )
-        )
+        existing_rating = await MovieRatingRepository.find_movie_rating_by_user_and_movie(user_id, movie_id)
 
         if existing_rating:
             existing_rating.rating = rating
@@ -88,9 +78,7 @@ class MovieRatingRepository:
         if user_object_id is None:
             return []
         return await MovieRating.find(
-            MovieRating.active_filter(
-                {"userId": user_object_id, "movieId": {"$in": list(movie_ids)}}
-            )
+            MovieRating.active_filter({"userId": user_object_id, "movieId": {"$in": list(movie_ids)}})
         ).to_list()
 
     async def get_user_movie_ratings_average(
@@ -115,10 +103,6 @@ class MovieRatingRepository:
             },
         ]
 
-        stats = await MovieRating.aggregate(
-            pipeline, projection_model=MovieRatingStats
-        ).to_list(length=1)
+        stats = await MovieRating.aggregate(pipeline, projection_model=MovieRatingStats).to_list(length=1)
 
-        return (
-            stats[0] if stats else MovieRatingStats(average_rating=0.0, total_ratings=0)
-        )
+        return stats[0] if stats else MovieRatingStats(average_rating=0.0, total_ratings=0)

@@ -22,9 +22,7 @@ class TestMovieRatingE2E:
 
     async def test_owner_reads_own_rating(self, async_client):
         """Owner can read their own rating."""
-        login = await register_and_login(
-            async_client, _user_payload("rating_owner@example.com", "ratingowner")
-        )
+        login = await register_and_login(async_client, _user_payload("rating_owner@example.com", "ratingowner"))
 
         create_resp = await async_client.post(
             "/v1/movie-ratings/",
@@ -40,9 +38,7 @@ class TestMovieRatingE2E:
 
     async def test_returns_204_when_no_rating(self, async_client):
         """GET returns 204 No Content when the caller has no rating for the tmdb_id."""
-        await register_and_login(
-            async_client, _user_payload("rating_empty@example.com", "ratingempty")
-        )
+        await register_and_login(async_client, _user_payload("rating_empty@example.com", "ratingempty"))
 
         response = await async_client.get("/v1/movie-ratings/550")
 

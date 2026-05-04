@@ -45,9 +45,7 @@ async def test_movie_update(
 
 
 @pytest.mark.asyncio
-async def test_find_movie_by_id(
-    beanie_test_db, movie_create_request: MovieCreateRequest
-):
+async def test_find_movie_by_id(beanie_test_db, movie_create_request: MovieCreateRequest):
     repository = MovieRepository()
     movie = await repository.create_movie(movie_create_request)
 
@@ -60,9 +58,7 @@ async def test_find_movie_by_id(
 
 
 @pytest.mark.asyncio
-async def test_find_movie_by_tmdb_id(
-    beanie_test_db, movie_create_request: MovieCreateRequest
-):
+async def test_find_movie_by_tmdb_id(beanie_test_db, movie_create_request: MovieCreateRequest):
     repository = MovieRepository()
     movie = await repository.create_movie(movie_create_request)
 
@@ -75,22 +71,16 @@ async def test_find_movie_by_tmdb_id(
 
 
 @pytest.mark.asyncio
-async def test_update_movie_not_found(
-    beanie_test_db, movie_update_request: MovieUpdateRequest
-):
+async def test_update_movie_not_found(beanie_test_db, movie_update_request: MovieUpdateRequest):
     repository = MovieRepository()
-    result = await repository.update_movie(
-        PydanticObjectId("507f1f77bcf86cd799439011"), movie_update_request
-    )
+    result = await repository.update_movie(PydanticObjectId("507f1f77bcf86cd799439011"), movie_update_request)
     assert result is None
 
 
 @pytest.mark.asyncio
 async def test_find_movie_by_id_not_found(beanie_test_db):
     repository = MovieRepository()
-    result = await repository.find_movie_by_id(
-        PydanticObjectId("507f1f77bcf86cd799439011")
-    )
+    result = await repository.find_movie_by_id(PydanticObjectId("507f1f77bcf86cd799439011"))
     assert result is None
 
 
@@ -102,9 +92,7 @@ async def test_find_movie_by_tmdb_id_not_found(beanie_test_db):
 
 
 @pytest.mark.asyncio
-async def test_find_movie_filters_soft_deleted(
-    beanie_test_db, movie_create_request: MovieCreateRequest
-):
+async def test_find_movie_filters_soft_deleted(beanie_test_db, movie_create_request: MovieCreateRequest):
     repository = MovieRepository()
     movie = await repository.create_movie(movie_create_request)
     movie.deleted = True
@@ -233,9 +221,7 @@ async def test_create_from_tmdb_data_duplicate_key_returns_existing(beanie_test_
     from app.schemas.tmdb_schemas import TMDBMovieDetails
 
     repository = MovieRepository()
-    existing = await repository.create_movie(
-        MovieCreateRequest(title="Existing Movie", tmdb_id=98765)
-    )
+    existing = await repository.create_movie(MovieCreateRequest(title="Existing Movie", tmdb_id=98765))
 
     tmdb_data = TMDBMovieDetails(
         id=98765,

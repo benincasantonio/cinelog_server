@@ -8,9 +8,9 @@ Since the string values are valid 24-character hex ObjectId strings, we can
 directly convert them to ObjectId values without generating new IDs.
 """
 
+from bson import ObjectId
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
-from bson import ObjectId
 
 
 def up(db: Database, dry_run: bool = False) -> None:
@@ -53,9 +53,7 @@ def _convert_movies_ids(db: Database, dry_run: bool = False) -> None:
     movies_collection = db.movies
 
     # Find all movies with string _id
-    string_id_movies = list(
-        movies_collection.find({"_id": {"$type": "string"}}, projection=None)
-    )
+    string_id_movies = list(movies_collection.find({"_id": {"$type": "string"}}, projection=None))
 
     if not string_id_movies:
         print("    [001] No movies with string _id found")
@@ -79,17 +77,13 @@ def _convert_movies_ids(db: Database, dry_run: bool = False) -> None:
         try:
             new_id = ObjectId(old_id)
         except Exception as e:
-            print(
-                f"    [001] Skipping movie with invalid ObjectId string '{old_id}': {e}"
-            )
+            print(f"    [001] Skipping movie with invalid ObjectId string '{old_id}': {e}")
             continue
 
         # Check if ObjectId version already exists (could happen if partially migrated)
         existing = movies_collection.find_one({"_id": new_id})
         if existing:
-            print(
-                f"    [001] ObjectId version already exists for '{old_id}', deleting string version"
-            )
+            print(f"    [001] ObjectId version already exists for '{old_id}', deleting string version")
             movies_collection.delete_one({"_id": old_id})
             continue
 
@@ -144,9 +138,7 @@ def _convert_logs_movie_ids(db: Database, dry_run: bool = False) -> None:
         [{"$set": {"movieId": {"$toObjectId": "$movieId"}}}],
     )
 
-    print(
-        f"    [001] Converted {result.modified_count} log(s) from string movieId to ObjectId"
-    )
+    print(f"    [001] Converted {result.modified_count} log(s) from string movieId to ObjectId")
 
 
 def _convert_movie_ratings_movie_ids(db: Database, dry_run: bool = False) -> None:
@@ -161,9 +153,7 @@ def _convert_movie_ratings_movie_ids(db: Database, dry_run: bool = False) -> Non
     movie_ratings_collection = db.movie_ratings
 
     # Check if any movie_ratings have string movieId
-    string_count = movie_ratings_collection.count_documents(
-        {"movieId": {"$type": "string"}}
-    )
+    string_count = movie_ratings_collection.count_documents({"movieId": {"$type": "string"}})
 
     if string_count == 0:
         print("    [001] No movie_ratings with string movieId found")
@@ -172,9 +162,7 @@ def _convert_movie_ratings_movie_ids(db: Database, dry_run: bool = False) -> Non
     print(f"    [001] Found {string_count} movie_rating(s) with string movieId")
 
     if dry_run:
-        print(
-            "    [dry-run] Would convert movie_rating movieId references using $toObjectId"
-        )
+        print("    [dry-run] Would convert movie_rating movieId references using $toObjectId")
         return
 
     # Use aggregation pipeline to convert string movieId to ObjectId
@@ -183,9 +171,7 @@ def _convert_movie_ratings_movie_ids(db: Database, dry_run: bool = False) -> Non
         [{"$set": {"movieId": {"$toObjectId": "$movieId"}}}],
     )
 
-    print(
-        f"    [001] Converted {result.modified_count} movie_rating(s) from string movieId to ObjectId"
-    )
+    print(f"    [001] Converted {result.modified_count} movie_rating(s) from string movieId to ObjectId")
 
 
 def down(db: Database) -> None:

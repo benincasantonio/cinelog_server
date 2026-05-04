@@ -20,9 +20,7 @@ from app.utils.exceptions_utils import AppException
 
 _RATE_LIMIT_HMAC_SECRET = os.getenv("RATE_LIMIT_HMAC_SECRET")
 if not _RATE_LIMIT_HMAC_SECRET:
-    raise ValueError(
-        "RATE_LIMIT_HMAC_SECRET environment variable is not set. Application cannot start."
-    )
+    raise ValueError("RATE_LIMIT_HMAC_SECRET environment variable is not set. Application cannot start.")
 
 
 class AuthRateLimitService:

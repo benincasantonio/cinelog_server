@@ -1,17 +1,17 @@
 from typing import Annotated
+
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.dependencies.auth_dependency import auth_dependency
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
-from app.services.movie_rating_service import MovieRatingService
-from app.services.movie_service import MovieService
 from app.schemas.movie_rating_schemas import (
     MovieRatingCreateUpdateRequest,
     MovieRatingResponse,
 )
-
+from app.services.movie_rating_service import MovieRatingService
+from app.services.movie_service import MovieService
 
 router = APIRouter()
 
@@ -19,9 +19,7 @@ movie_rating_repository = MovieRatingRepository()
 movie_repository = MovieRepository()
 movie_service = MovieService(movie_repository)
 
-movie_rating_service = MovieRatingService(
-    movie_rating_repository=movie_rating_repository, movie_service=movie_service
-)
+movie_rating_service = MovieRatingService(movie_rating_repository=movie_rating_repository, movie_service=movie_service)
 
 
 @router.post("/")

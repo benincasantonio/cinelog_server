@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta, timezone
 import secrets
+from datetime import UTC, datetime, timedelta
 
 from app.repository.user_repository import UserRepository
 from app.schemas.auth_schemas import (
@@ -7,8 +7,8 @@ from app.schemas.auth_schemas import (
     RegisterResponse,
 )
 from app.schemas.user_schemas import UserCreateRequest
-from app.services.password_service import PasswordService
 from app.services.email_service import EmailService
+from app.services.password_service import PasswordService
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
@@ -31,16 +31,12 @@ class AuthService:
         """
         # Check if email already exists in MongoDB
         email_lowercase = request.email.strip().lower()
-        existing_user_by_email = await self.user_repository.find_user_by_email(
-            email_lowercase
-        )
+        existing_user_by_email = await self.user_repository.find_user_by_email(email_lowercase)
         if existing_user_by_email:
             raise AppException(ErrorCodes.EMAIL_ALREADY_EXISTS)
 
         # Check if handle already exists in MongoDB
-        existing_user_by_handle = await self.user_repository.find_user_by_handle(
-            request.handle.strip()
-        )
+        existing_user_by_handle = await self.user_repository.find_user_by_handle(request.handle.strip())
         if existing_user_by_handle:
             raise AppException(ErrorCodes.HANDLE_ALREADY_TAKEN)
 
@@ -114,7 +110,7 @@ class AuthService:
 
         # Generate 6-digit code
         reset_code = secrets.token_hex(3).upper()  # 6 chars
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expires_at = datetime.now(UTC) + timedelta(minutes=15)
 
         await self.user_repository.set_reset_password_code(user, reset_code, expires_at)
 
@@ -136,9 +132,7 @@ class AuthService:
         if user.reset_password_expires is None:
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
 
-        if user.reset_password_expires.replace(tzinfo=timezone.utc) < datetime.now(
-            timezone.utc
-        ):
+        if user.reset_password_expires.replace(tzinfo=UTC) < datetime.now(UTC):
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)  # Expired
 
         hashed_password = PasswordService.get_password_hash(new_password.strip())

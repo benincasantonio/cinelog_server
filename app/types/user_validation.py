@@ -12,7 +12,7 @@ Types:
     ProfileVisibilityStr — required profile visibility ("public", "friends_only", "private")
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 from pydantic import AfterValidator, StringConstraints
 
@@ -35,9 +35,7 @@ def validate_handle(v: str) -> str:
     if v[0].isdigit():
         raise ValueError("Handle must not start with a number")
     if not HANDLE_PATTERN.match(v):
-        raise ValueError(
-            "Handle must contain only alphanumeric characters or underscores"
-        )
+        raise ValueError("Handle must contain only alphanumeric characters or underscores")
     return v
 
 
@@ -48,15 +46,11 @@ def sanitize_bio(v: str) -> str:
 def validate_profile_visibility(v: str) -> str:
     v = v.strip().lower()
     if v not in PROFILE_VISIBILITY_CHOICES:
-        raise ValueError(
-            f"Profile visibility must be one of {PROFILE_VISIBILITY_CHOICES}"
-        )
+        raise ValueError(f"Profile visibility must be one of {PROFILE_VISIBILITY_CHOICES}")
     return v
 
 
-NameStr = Annotated[
-    str, AfterValidator(validate_name), StringConstraints(min_length=1, max_length=50)
-]
+NameStr = Annotated[str, AfterValidator(validate_name), StringConstraints(min_length=1, max_length=50)]
 
 HandleStr = Annotated[
     str,
@@ -64,9 +58,7 @@ HandleStr = Annotated[
     StringConstraints(min_length=3, max_length=20),
 ]
 
-BioStr = Optional[
-    Annotated[str, AfterValidator(sanitize_bio), StringConstraints(max_length=500)]
-]
+BioStr = Annotated[str, AfterValidator(sanitize_bio), StringConstraints(max_length=500)] | None
 
 ProfileVisibilityStr = Annotated[
     str,

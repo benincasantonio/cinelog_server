@@ -35,9 +35,7 @@ class TMDBCacheService:
 
     async def set_search(self, query: str, result: TMDBMovieSearchResult) -> None:
         key = self.build_search_key(query)
-        await self._cache.set(
-            key, result.model_dump(mode="json"), ttl=TMDB_SEARCH_CACHE_TTL
-        )
+        await self._cache.set(key, result.model_dump(mode="json"), ttl=TMDB_SEARCH_CACHE_TTL)
         logger.debug("TMDB cache set for key=%s", key)
 
     async def get_details(self, tmdb_id: int) -> TMDBMovieDetails | None:
@@ -51,7 +49,5 @@ class TMDBCacheService:
 
     async def set_details(self, tmdb_id: int, details: TMDBMovieDetails) -> None:
         key = self.build_details_key(tmdb_id)
-        await self._cache.set(
-            key, details.model_dump(mode="json"), ttl=TMDB_DETAILS_CACHE_TTL
-        )
+        await self._cache.set(key, details.model_dump(mode="json"), ttl=TMDB_DETAILS_CACHE_TTL)
         logger.debug("TMDB cache set for key=%s", key)

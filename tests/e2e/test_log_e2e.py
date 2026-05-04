@@ -3,8 +3,8 @@ E2E tests for log controller endpoints.
 Tests the full stack: FastAPI -> LogService -> MongoDB.
 """
 
-from tests.e2e.conftest import register, register_and_login
 from app.utils.error_codes_utils import ErrorCodes
+from tests.e2e.conftest import register, register_and_login
 
 
 class TestLogE2E:
@@ -99,9 +99,7 @@ class TestLogE2E:
         assert len(bounded_data["logs"]) == 1
         assert bounded_data["logs"][0]["dateWatched"] == "2024-01-15"
 
-        partial_response = await async_client.get(
-            f"/v1/logs/{handle}?dateWatchedFrom=2024-01-15"
-        )
+        partial_response = await async_client.get(f"/v1/logs/{handle}?dateWatchedFrom=2024-01-15")
         assert partial_response.status_code == 200
         partial_data = partial_response.json()
         assert len(partial_data["logs"]) == 2
@@ -141,9 +139,7 @@ class TestLogE2E:
             )
             assert create_response.status_code == 201
 
-        asc_response = await async_client.get(
-            f"/v1/logs/{handle}?sortBy=dateWatched&sortOrder=asc"
-        )
+        asc_response = await async_client.get(f"/v1/logs/{handle}?sortBy=dateWatched&sortOrder=asc")
         assert asc_response.status_code == 200
         asc_data = asc_response.json()
         assert [log["dateWatched"] for log in asc_data["logs"]] == [
@@ -152,9 +148,7 @@ class TestLogE2E:
             "2024-01-20",
         ]
 
-        desc_response = await async_client.get(
-            f"/v1/logs/{handle}?sortBy=dateWatched&sortOrder=desc"
-        )
+        desc_response = await async_client.get(f"/v1/logs/{handle}?sortBy=dateWatched&sortOrder=desc")
         assert desc_response.status_code == 200
         desc_data = desc_response.json()
         assert [log["dateWatched"] for log in desc_data["logs"]] == [
@@ -363,9 +357,7 @@ class TestLogE2E:
 
     async def test_update_log_unauthorized(self, async_client):
         """Test updating a log without authentication."""
-        response = await async_client.put(
-            "/v1/logs/507f1f77bcf86cd799439011", json={"viewingNotes": "Should fail"}
-        )
+        response = await async_client.put("/v1/logs/507f1f77bcf86cd799439011", json={"viewingNotes": "Should fail"})
         assert response.status_code in [401, 403]
 
     async def test_update_log_invalid_watched_where(self, async_client):
@@ -535,10 +527,7 @@ class TestLogE2E:
             headers={"X-CSRF-Token": csrf_token},
         )
         assert second_delete.status_code == 404
-        assert (
-            second_delete.json()["error_code_name"]
-            == ErrorCodes.LOG_NOT_FOUND.error_code_name
-        )
+        assert second_delete.json()["error_code_name"] == ErrorCodes.LOG_NOT_FOUND.error_code_name
 
     async def test_delete_log_invalid_id_returns_not_found(self, async_client):
         """Test deleting a non-existent log ID returns LOG_NOT_FOUND."""

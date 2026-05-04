@@ -1,6 +1,6 @@
-from pydantic import EmailStr, Field
 from datetime import date
-from typing import Optional
+
+from pydantic import EmailStr, Field
 
 from app.schemas.base_schemas import BaseSchema
 from app.types import BioStr, HandleStr, NameStr, ProfileVisibilityStr
@@ -12,9 +12,7 @@ class RegisterRequest(BaseSchema):
     first_name: NameStr = Field(description="User's first name")
     last_name: NameStr = Field(description="User's last name")
     email: EmailStr = Field(..., description="User's email address")
-    password: str = Field(
-        ..., min_length=8, max_length=128, description="User's password"
-    )
+    password: str = Field(..., min_length=8, max_length=128, description="User's password")
     handle: HandleStr = Field(description="User's unique handle")
     bio: BioStr = Field(None, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
@@ -32,10 +30,8 @@ class RegisterResponse(BaseSchema):
     last_name: str = Field(..., description="User's last name")
     email: EmailStr = Field(..., description="User's email address")
     handle: str = Field(..., description="User's unique handle")
-    bio: Optional[str] = Field(None, description="User biography")
-    profile_visibility: ProfileVisibilityStr = Field(
-        ..., description="Profile visibility setting"
-    )
+    bio: str | None = Field(None, description="User biography")
+    profile_visibility: ProfileVisibilityStr = Field(..., description="Profile visibility setting")
 
 
 class LoginRequest(BaseSchema):
@@ -53,7 +49,7 @@ class LoginResponse(BaseSchema):
     first_name: str = Field(..., description="User's first name")
     last_name: str = Field(..., description="User's last name")
     handle: str = Field(..., description="User's unique handle")
-    bio: Optional[str] = Field(None, description="User biography")
+    bio: str | None = Field(None, description="User biography")
     csrf_token: str = Field(..., description="CSRF token for subsequent requests")
 
 
@@ -87,9 +83,7 @@ class ResetPasswordRequest(BaseSchema):
 
     email: EmailStr = Field(..., description="User's email address")
     code: str = Field(..., description="Password reset code")
-    new_password: str = Field(
-        ..., min_length=8, max_length=128, description="New password"
-    )
+    new_password: str = Field(..., min_length=8, max_length=128, description="New password")
 
 
 class ResetPasswordResponse(BaseSchema):

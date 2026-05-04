@@ -1,10 +1,10 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from beanie import PydanticObjectId
 from pymongo.errors import DuplicateKeyError
 
 from app.models.movie import Movie
-from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest, MovieStats
+from app.schemas.movie_schemas import MovieCreateRequest, MovieStats, MovieUpdateRequest
 from app.schemas.tmdb_schemas import TMDBMovieDetails
 
 
@@ -21,10 +21,10 @@ class MovieRepository:
         return movie
 
     @staticmethod
-    async def update_movie(id: PydanticObjectId, request: MovieUpdateRequest) -> None:
+    async def update_movie(movie_id: PydanticObjectId, request: MovieUpdateRequest) -> None:
         """Update a movie in the database."""
 
-        movie = await MovieRepository.find_movie_by_id(id)
+        movie = await MovieRepository.find_movie_by_id(movie_id)
 
         if not movie:
             return None
@@ -90,9 +90,7 @@ class MovieRepository:
 
     async def find_movies_by_ids(self, movie_ids: set[PydanticObjectId]) -> list[Movie]:
         """Find multiple movies by their IDs."""
-        return await Movie.find(
-            Movie.active_filter({"_id": {"$in": list(movie_ids)}})
-        ).to_list()
+        return await Movie.find(Movie.active_filter({"_id": {"$in": list(movie_ids)}})).to_list()
 
     async def get_movie_stats(self, movie_ids: set[PydanticObjectId]) -> MovieStats:
         pipeline = [
@@ -105,8 +103,6 @@ class MovieRepository:
             },
         ]
 
-        movie_stats = await Movie.aggregate(
-            pipeline, projection_model=MovieStats
-        ).to_list(length=1)
+        movie_stats = await Movie.aggregate(pipeline, projection_model=MovieStats).to_list(length=1)
 
         return movie_stats[0] if movie_stats else MovieStats(total_runtime=0)

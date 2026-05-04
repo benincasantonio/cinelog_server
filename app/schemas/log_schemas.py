@@ -1,8 +1,7 @@
-from typing import Optional
+from datetime import date
 
 from beanie import PydanticObjectId
 from pydantic import Field, field_validator, model_validator
-from datetime import date
 
 from app.schemas.base_schemas import BaseSchema
 from app.schemas.movie_schemas import MovieResponse
@@ -10,15 +9,11 @@ from app.types import WatchedWhereStr
 
 
 class LogCreateRequest(BaseSchema):
-    movie_id: Optional[str] = Field(
-        None, description="Unique identifier of the movie (auto-generated from tmdbId)"
-    )
+    movie_id: str | None = Field(None, description="Unique identifier of the movie (auto-generated from tmdbId)")
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
-    viewing_notes: Optional[str] = Field(
-        None, description="Optional notes about this viewing"
-    )
-    poster_path: Optional[str] = Field(
+    viewing_notes: str | None = Field(None, description="Optional notes about this viewing")
+    poster_path: str | None = Field(
         None,
         description="Path to the movie poster image (auto-fetched from TMDB if not provided)",
     )
@@ -34,13 +29,9 @@ class LogCreateResponse(BaseSchema):
     movie: MovieResponse = Field(..., description="Details of the movie")
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
-    viewing_notes: Optional[str] = Field(
-        None, description="Optional notes about this viewing"
-    )
-    poster_path: Optional[str] = Field(
-        None, description="Path to the movie poster image"
-    )
-    watched_where: Optional[str] = Field(
+    viewing_notes: str | None = Field(None, description="Optional notes about this viewing")
+    poster_path: str | None = Field(None, description="Path to the movie poster image")
+    watched_where: str | None = Field(
         None,
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
@@ -49,12 +40,8 @@ class LogCreateResponse(BaseSchema):
 class LogUpdateRequest(BaseSchema):
     """Schema for updating an existing log entry."""
 
-    date_watched: Optional[date] = Field(
-        None, description="Date when the movie was watched"
-    )
-    viewing_notes: Optional[str] = Field(
-        None, description="Optional notes about this viewing"
-    )
+    date_watched: date | None = Field(None, description="Date when the movie was watched")
+    viewing_notes: str | None = Field(None, description="Optional notes about this viewing")
     watched_where: WatchedWhereStr | None = Field(
         None,
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
@@ -63,25 +50,17 @@ class LogUpdateRequest(BaseSchema):
 
 class LogListItem(BaseSchema):
     id: PydanticObjectId = Field(..., description="Unique identifier of the log entry")
-    movie_id: PydanticObjectId = Field(
-        ..., description="Unique identifier of the movie"
-    )
-    movie: Optional[MovieResponse] = Field(None, description="Details of the movie")
+    movie_id: PydanticObjectId = Field(..., description="Unique identifier of the movie")
+    movie: MovieResponse | None = Field(None, description="Details of the movie")
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
-    viewing_notes: Optional[str] = Field(
-        None, description="Optional notes about this viewing"
-    )
-    poster_path: Optional[str] = Field(
-        None, description="Path to the movie poster image"
-    )
-    watched_where: Optional[str] = Field(
+    viewing_notes: str | None = Field(None, description="Optional notes about this viewing")
+    poster_path: str | None = Field(None, description="Path to the movie poster image")
+    watched_where: str | None = Field(
         None,
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
-    movie_rating: Optional[int] = Field(
-        None, description="User rating for the movie (if available)"
-    )
+    movie_rating: int | None = Field(None, description="User rating for the movie (if available)")
 
 
 class LogListResponse(BaseSchema):
@@ -89,20 +68,14 @@ class LogListResponse(BaseSchema):
 
 
 class LogListRequest(BaseSchema):
-    sort_by: str = Field(
-        "dateWatched", description="Field to sort by (e.g., dateWatched)"
-    )
+    sort_by: str = Field("dateWatched", description="Field to sort by (e.g., dateWatched)")
     sort_order: str = Field("desc", description="Sort order (asc or desc)")
     watched_where: WatchedWhereStr | None = Field(
         None,
         description="Filter logs by where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
-    date_watched_from: date | None = Field(
-        None, description="Filter logs by date watched from"
-    )
-    date_watched_to: date | None = Field(
-        None, description="Filter logs by date watched to"
-    )
+    date_watched_from: date | None = Field(None, description="Filter logs by date watched from")
+    date_watched_to: date | None = Field(None, description="Filter logs by date watched to")
 
     @model_validator(mode="after")
     def validate_dates(self):

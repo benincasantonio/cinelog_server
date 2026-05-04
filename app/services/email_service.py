@@ -1,8 +1,8 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import os
 import logging
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 class EmailService:
@@ -20,13 +20,9 @@ class EmailService:
         If SMTP configuration is missing, log the code to console (dev mode).
         """
         if not self.smtp_server:
-            self.logger.warning(
-                f"SMTP not configured. Reset code for {to_email}: {code}"
-            )
+            self.logger.warning(f"SMTP not configured. Reset code for {to_email}: {code}")
             # print to stdout ensuring it's visible in docker logs/console during dev
-            print(
-                f"--- EMAIL MOCK ---\nTo: {to_email}\nSubject: Password Reset\nCode: {code}\n------------------"
-            )
+            print(f"--- EMAIL MOCK ---\nTo: {to_email}\nSubject: Password Reset\nCode: {code}\n------------------")
             return
 
         try:
@@ -51,10 +47,7 @@ class EmailService:
             message.attach(part1)
             message.attach(part2)
 
-            use_ssl = (
-                os.getenv("SMTP_USE_SSL", "false").lower() == "true"
-                or self.smtp_port == 465
-            )
+            use_ssl = os.getenv("SMTP_USE_SSL", "false").lower() == "true" or self.smtp_port == 465
 
             if use_ssl:
                 with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
@@ -83,5 +76,9 @@ class EmailService:
             self.logger.error(f"Failed to send email to {to_email}: {str(e)}")
             # Fallback log in case of error
             print(
-                f"--- EMAIL FAILURE FALLBACK ---\nTo: {to_email}\nCode: {code}\nError: {e}\n------------------------------"
+                "--- EMAIL FAILURE FALLBACK ---\n"
+                f"To: {to_email}\n"
+                f"Code: {code}\n"
+                f"Error: {e}\n"
+                "------------------------------"
             )

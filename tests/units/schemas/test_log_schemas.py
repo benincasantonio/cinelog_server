@@ -3,14 +3,15 @@ Unit tests for log schemas validators.
 Tests all validator functions in log_schemas.py.
 """
 
-import pytest
 from datetime import date
+
+import pytest
 from pydantic import ValidationError
 
 from app.schemas.log_schemas import (
     LogCreateRequest,
-    LogUpdateRequest,
     LogListRequest,
+    LogUpdateRequest,
 )
 
 
@@ -21,9 +22,7 @@ class TestLogCreateRequest:
         """Test valid watched_where values."""
         valid_values = ["cinema", "streaming", "homeVideo", "tv", "other"]
         for value in valid_values:
-            request = LogCreateRequest(
-                tmdb_id=12345, date_watched=date(2023, 10, 1), watched_where=value
-            )
+            request = LogCreateRequest(tmdb_id=12345, date_watched=date(2023, 10, 1), watched_where=value)
             assert request.watched_where == value
 
     def test_invalid_watched_where(self):
@@ -122,22 +121,16 @@ class TestLogListRequest:
 
     def test_valid_date_range(self):
         """Test valid date range."""
-        request = LogListRequest(
-            date_watched_from=date(2023, 1, 1), date_watched_to=date(2023, 12, 31)
-        )
+        request = LogListRequest(date_watched_from=date(2023, 1, 1), date_watched_to=date(2023, 12, 31))
         assert request.date_watched_from == date(2023, 1, 1)
         assert request.date_watched_to == date(2023, 12, 31)
 
     def test_invalid_date_range(self):
         """Test invalid date range (from > to) raises ValidationError."""
         with pytest.raises(ValidationError) as exc_info:
-            LogListRequest(
-                date_watched_from=date(2023, 12, 31), date_watched_to=date(2023, 1, 1)
-            )
+            LogListRequest(date_watched_from=date(2023, 12, 31), date_watched_to=date(2023, 1, 1))
 
-        assert "date_watched_from cannot be after date_watched_to" in str(
-            exc_info.value
-        )
+        assert "date_watched_from cannot be after date_watched_to" in str(exc_info.value)
 
     def test_only_date_from_is_valid(self):
         """Test only date_watched_from without date_watched_to is valid."""

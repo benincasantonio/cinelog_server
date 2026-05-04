@@ -1,13 +1,13 @@
-import pytest
-from unittest.mock import AsyncMock, Mock
 from datetime import date
+from unittest.mock import AsyncMock, Mock
 
+import pytest
 from beanie import PydanticObjectId
 
+from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogUpdateRequest
 from app.services.log_service import LogService
-from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest, LogListRequest
-from app.utils.exceptions_utils import AppException
 from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 
 
 @pytest.fixture
@@ -49,9 +49,7 @@ class TestLogService:
     """Tests for LogService."""
 
     @pytest.mark.asyncio
-    async def test_create_log_success(
-        self, log_service, mock_log_repository, mock_movie_service
-    ):
+    async def test_create_log_success(self, log_service, mock_log_repository, mock_movie_service):
         """Test successful log creation."""
         # Setup mocks
         mock_movie = Mock()
@@ -130,17 +128,13 @@ class TestLogService:
         mock_log.watched_where = "cinema"
         mock_log_repository.create_log.return_value = mock_log
 
-        request = LogCreateRequest(
-            tmdb_id=550, date_watched=date(2024, 1, 15), watched_where="cinema"
-        )
+        request = LogCreateRequest(tmdb_id=550, date_watched=date(2024, 1, 15), watched_where="cinema")
         await log_service.create_log(user_id, request)
 
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
-    async def test_create_log_auto_populate_poster(
-        self, log_service, mock_log_repository, mock_movie_service
-    ):
+    async def test_create_log_auto_populate_poster(self, log_service, mock_log_repository, mock_movie_service):
         """Test that posterPath is auto-populated from movie if not provided."""
         mock_movie = Mock()
         mock_movie.id = PydanticObjectId()
@@ -180,9 +174,7 @@ class TestLogService:
         assert result.poster_path == "/movie_poster.jpg"
 
     @pytest.mark.asyncio
-    async def test_update_log_success(
-        self, log_service, mock_log_repository, mock_movie_service
-    ):
+    async def test_update_log_success(self, log_service, mock_log_repository, mock_movie_service):
         """Test successful log update."""
         mock_log = Mock()
         mock_log.id = "log123"
@@ -266,24 +258,18 @@ class TestLogService:
             await log_service.update_log("user123", "nonexistent_log", request)
 
     @pytest.mark.asyncio
-    async def test_delete_log_success(
-        self, log_service, mock_log_repository, mock_stats_cache_service
-    ):
+    async def test_delete_log_success(self, log_service, mock_log_repository, mock_stats_cache_service):
         """Test successful log deletion invalidates the stats cache."""
         user_id = PydanticObjectId()
         mock_log_repository.delete_log.return_value = True
 
         await log_service.delete_log(user_id=user_id, log_id="log123")
 
-        mock_log_repository.delete_log.assert_awaited_once_with(
-            log_id="log123", user_id=user_id
-        )
+        mock_log_repository.delete_log.assert_awaited_once_with(log_id="log123", user_id=user_id)
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
-    async def test_delete_log_not_found_raises(
-        self, log_service, mock_log_repository, mock_stats_cache_service
-    ):
+    async def test_delete_log_not_found_raises(self, log_service, mock_log_repository, mock_stats_cache_service):
         """Test deleting a missing log raises LOG_NOT_FOUND and does not invalidate cache."""
         user_id = PydanticObjectId()
         mock_log_repository.delete_log.return_value = False
@@ -295,9 +281,7 @@ class TestLogService:
         mock_stats_cache_service.invalidate_user_stats.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_get_user_logs(
-        self, log_service, mock_log_repository, mock_movie_service
-    ):
+    async def test_get_user_logs(self, log_service, mock_log_repository, mock_movie_service):
         """Test getting user logs."""
         mock_movie = Mock()
         mock_movie.id = PydanticObjectId()
@@ -333,9 +317,7 @@ class TestLogService:
         mock_rating.rating = 8
         mock_rating.movie_id = mock_log.movie_id  # Match the log's movie_id
         mock_movie_rating_repository = Mock()
-        mock_movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = (
-            AsyncMock(return_value=[mock_rating])
-        )
+        mock_movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = AsyncMock(return_value=[mock_rating])
 
         log_service.movie_repository = mock_movie_repository
         log_service.movie_rating_repository = mock_movie_rating_repository
@@ -361,12 +343,8 @@ class TestGetUserLogsByHandle:
         return mock_user
 
     @pytest.mark.asyncio
-    async def test_public_profile_allows_access(
-        self, log_service, mock_user_repository
-    ):
-        mock_user = self._create_mock_user(
-            user_id="user456", handle="johndoe", profile_visibility="public"
-        )
+    async def test_public_profile_allows_access(self, log_service, mock_user_repository):
+        mock_user = self._create_mock_user(user_id="user456", handle="johndoe", profile_visibility="public")
         mock_user_repository.find_user_by_handle.return_value = mock_user
 
         mock_log = Mock()
@@ -378,79 +356,51 @@ class TestGetUserLogsByHandle:
         mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "cinema"
 
-        log_service.log_repository.find_logs_by_user_id = AsyncMock(
-            return_value=[mock_log]
-        )
+        log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[mock_log])
         log_service.movie_repository.find_movies_by_ids = AsyncMock(return_value=[])
-        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = (
-            AsyncMock(return_value=[])
-        )
+        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = AsyncMock(return_value=[])
 
         request = LogListRequest()
-        result = await log_service.get_user_logs_by_handle(
-            handle="johndoe", requester_id="other_user", request=request
-        )
+        result = await log_service.get_user_logs_by_handle(handle="johndoe", requester_id="other_user", request=request)
 
         assert len(result.logs) == 1
         mock_user_repository.find_user_by_handle.assert_awaited_once_with("johndoe")
 
     @pytest.mark.asyncio
     async def test_own_profile_allows_access(self, log_service, mock_user_repository):
-        mock_user = self._create_mock_user(
-            user_id="user123", handle="johndoe", profile_visibility="private"
-        )
+        mock_user = self._create_mock_user(user_id="user123", handle="johndoe", profile_visibility="private")
         mock_user_repository.find_user_by_handle.return_value = mock_user
 
         log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[])
         log_service.movie_repository.find_movies_by_ids = AsyncMock(return_value=[])
-        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = (
-            AsyncMock(return_value=[])
-        )
+        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = AsyncMock(return_value=[])
 
         request = LogListRequest()
-        result = await log_service.get_user_logs_by_handle(
-            handle="johndoe", requester_id="user123", request=request
-        )
+        result = await log_service.get_user_logs_by_handle(handle="johndoe", requester_id="user123", request=request)
 
         assert result.logs == []
 
     @pytest.mark.asyncio
-    async def test_private_profile_blocks_access(
-        self, log_service, mock_user_repository
-    ):
-        mock_user = self._create_mock_user(
-            user_id="user456", handle="johndoe", profile_visibility="private"
-        )
+    async def test_private_profile_blocks_access(self, log_service, mock_user_repository):
+        mock_user = self._create_mock_user(user_id="user456", handle="johndoe", profile_visibility="private")
         mock_user_repository.find_user_by_handle.return_value = mock_user
 
         request = LogListRequest()
         with pytest.raises(AppException) as exc_info:
-            await log_service.get_user_logs_by_handle(
-                handle="johndoe", requester_id="other_user", request=request
-            )
+            await log_service.get_user_logs_by_handle(handle="johndoe", requester_id="other_user", request=request)
 
-        assert (
-            exc_info.value.error.error_code == ErrorCodes.PROFILE_NOT_PUBLIC.error_code
-        )
+        assert exc_info.value.error.error_code == ErrorCodes.PROFILE_NOT_PUBLIC.error_code
 
     @pytest.mark.asyncio
-    async def test_friends_only_profile_blocks_access(
-        self, log_service, mock_user_repository
-    ):
-        mock_user = self._create_mock_user(
-            user_id="user456", handle="johndoe", profile_visibility="friends_only"
-        )
+    async def test_friends_only_profile_blocks_access(self, log_service, mock_user_repository):
+        mock_user = self._create_mock_user(user_id="user456", handle="johndoe", profile_visibility="friends_only")
         mock_user_repository.find_user_by_handle.return_value = mock_user
 
         request = LogListRequest()
         with pytest.raises(AppException) as exc_info:
-            await log_service.get_user_logs_by_handle(
-                handle="johndoe", requester_id="other_user", request=request
-            )
+            await log_service.get_user_logs_by_handle(handle="johndoe", requester_id="other_user", request=request)
 
-        assert (
-            exc_info.value.error.error_code == ErrorCodes.PROFILE_NOT_PUBLIC.error_code
-        )
+        assert exc_info.value.error.error_code == ErrorCodes.PROFILE_NOT_PUBLIC.error_code
 
     @pytest.mark.asyncio
     async def test_user_not_found(self, log_service, mock_user_repository):
@@ -458,8 +408,6 @@ class TestGetUserLogsByHandle:
 
         request = LogListRequest()
         with pytest.raises(AppException) as exc_info:
-            await log_service.get_user_logs_by_handle(
-                handle="nonexistent", requester_id="user123", request=request
-            )
+            await log_service.get_user_logs_by_handle(handle="nonexistent", requester_id="user123", request=request)
 
         assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
