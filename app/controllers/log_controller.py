@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.config.rate_limiter import limiter
 from app.dependencies.auth_dependency import auth_dependency
-from app.repository.log_repository import LogRepository
+from app.repository.log_cache_repository import LogCacheRepository
 from app.schemas.log_schemas import (
     LogCreateRequest,
     LogCreateResponse,
@@ -15,7 +15,7 @@ from app.services.log_service import LogService
 
 router = APIRouter()
 
-log_repository = LogRepository()
+log_repository = LogCacheRepository()
 log_service = LogService(log_repository)
 
 

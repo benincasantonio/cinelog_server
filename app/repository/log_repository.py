@@ -10,8 +10,7 @@ from app.utils.object_id_utils import to_object_id
 
 
 class LogRepository:
-    @staticmethod
-    async def create_log(user_id: PydanticObjectId, create_log_request: LogCreateRequest) -> Log:
+    async def create_log(self, user_id: PydanticObjectId, create_log_request: LogCreateRequest) -> Log:
         """
         Create a new log entry in the database.
         """
@@ -29,22 +28,23 @@ class LogRepository:
         await log.insert()
         return log
 
-    @staticmethod
-    async def find_log_by_id(log_id: str, user_id: PydanticObjectId) -> Log | None:
+    async def find_log_by_id(self, log_id: str, user_id: PydanticObjectId) -> Log | None:
         """
         Find a log entry by its ID, ensuring it belongs to the user.
         """
+        return await self._find_log_by_id(log_id, user_id)
+
+    async def _find_log_by_id(self, log_id: str, user_id: PydanticObjectId) -> Log | None:
         log_object_id = to_object_id(log_id)
         if log_object_id is None or user_id is None:
             return None
         return await Log.find_one(Log.active_filter({"_id": log_object_id, "userId": user_id}))
 
-    @staticmethod
-    async def update_log(log_id: str, user_id: PydanticObjectId, update_request: LogUpdateRequest) -> Log | None:
+    async def update_log(self, log_id: str, user_id: PydanticObjectId, update_request: LogUpdateRequest) -> Log | None:
         """
         Update an existing log entry.
         """
-        log = await LogRepository.find_log_by_id(log_id, user_id)
+        log = await self._find_log_by_id(log_id, user_id)
         if not log:
             return None
 
@@ -57,8 +57,8 @@ class LogRepository:
         await log.save()
         return log
 
-    @staticmethod
     async def find_logs_by_user_id(
+        self,
         user_id: PydanticObjectId,
         watched_where: str | None = None,
         date_watched_from: date | None = None,
@@ -99,8 +99,7 @@ class LogRepository:
 
         return await Log.find(filters).sort(sort_spec).to_list()
 
-    @staticmethod
-    async def find_logs_by_movie_id(movie_id: str, user_id: PydanticObjectId | None = None) -> list[Log]:
+    async def find_logs_by_movie_id(self, movie_id: str, user_id: PydanticObjectId | None = None) -> list[Log]:
         """
         Find all log entries for a specific movie by its ID.
         Optionally filter by user_id.
@@ -115,20 +114,22 @@ class LogRepository:
 
         return await Log.find(query_params).to_list()
 
-    @staticmethod
-    async def delete_log(log_id: str, user_id: PydanticObjectId) -> bool:
+    async def delete_log(self, log_id: str, user_id: PydanticObjectId) -> bool:
         """
         Delete a log entry (hard delete).
         """
-        log = await LogRepository.find_log_by_id(log_id, user_id)
+        log = await self._find_log_by_id(log_id, user_id)
         if not log:
             return False
 
+        return await self._delete_log(log)
+
+    async def _delete_log(self, log: Log) -> bool:
         await log.delete()
         return True
 
-    @staticmethod
     async def get_log_stats(
+        self,
         user_id: PydanticObjectId,
         date_from: date | None = None,
         date_to: date | None = None,
