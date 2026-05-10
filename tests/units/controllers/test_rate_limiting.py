@@ -996,7 +996,7 @@ class TestUpdateLogRateLimit:
         try:
             for _ in range(10):
                 response = client.put(
-                    "/v1/logs/log123",
+                    "/v1/logs/507f1f77bcf86cd799439011",
                     json=self.LOG_UPDATE_PAYLOAD,
                     headers={"X-CSRF-Token": "test-token"},
                 )
@@ -1017,13 +1017,13 @@ class TestUpdateLogRateLimit:
         try:
             for _ in range(10):
                 client.put(
-                    "/v1/logs/log123",
+                    "/v1/logs/507f1f77bcf86cd799439011",
                     json=self.LOG_UPDATE_PAYLOAD,
                     headers={"X-CSRF-Token": "test-token"},
                 )
 
             response = client.put(
-                "/v1/logs/log123",
+                "/v1/logs/507f1f77bcf86cd799439011",
                 json=self.LOG_UPDATE_PAYLOAD,
                 headers={"X-CSRF-Token": "test-token"},
             )
