@@ -71,12 +71,12 @@ async def test_find_log_by_id_cache_hit_skips_repository(beanie_test_db):
     cache.get.return_value = repository._serialize_log(log)
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
-        result = await repository.find_log_by_id(str(log.id), log.user_id)
+        result = await repository.find_log_by_id(log.id, log.user_id)
 
     assert result is not None
     assert result.id == log.id
     inner_repository.find_log_by_id.assert_not_awaited()
-    cache.get.assert_awaited_once_with(repository.build_log_key(str(log.id), log.user_id))
+    cache.get.assert_awaited_once_with(repository.build_log_key(log.id, log.user_id))
 
 
 @pytest.mark.asyncio
@@ -88,11 +88,11 @@ async def test_find_log_by_id_cache_miss_queries_repository_and_sets_cache(beani
     repository = LogCacheRepository(inner_repository)
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
-        result = await repository.find_log_by_id(str(log.id), log.user_id)
+        result = await repository.find_log_by_id(log.id, log.user_id)
 
-    expected_key = repository.build_log_key(str(log.id), log.user_id)
+    expected_key = repository.build_log_key(log.id, log.user_id)
     assert result == log
-    inner_repository.find_log_by_id.assert_awaited_once_with(str(log.id), log.user_id)
+    inner_repository.find_log_by_id.assert_awaited_once_with(log.id, log.user_id)
     cache.set.assert_awaited_once_with(expected_key, repository._serialize_log(log), ttl=LOG_CACHE_TTL)
 
 
@@ -162,12 +162,12 @@ async def test_find_logs_by_movie_id_cache_hit_skips_repository(beanie_test_db):
     cache.get.return_value = repository._serialize_logs([log])
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
-        result = await repository.find_logs_by_movie_id(str(log.movie_id), log.user_id)
+        result = await repository.find_logs_by_movie_id(log.movie_id, log.user_id)
 
     assert len(result) == 1
     assert result[0].id == log.id
     inner_repository.find_logs_by_movie_id.assert_not_awaited()
-    cache.get.assert_awaited_once_with(repository.build_movie_logs_key(str(log.movie_id), log.user_id))
+    cache.get.assert_awaited_once_with(repository.build_movie_logs_key(log.movie_id, log.user_id))
 
 
 @pytest.mark.asyncio
@@ -179,11 +179,11 @@ async def test_find_logs_by_movie_id_cache_miss_queries_repository_and_sets_cach
     repository = LogCacheRepository(inner_repository)
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
-        result = await repository.find_logs_by_movie_id(str(log.movie_id), log.user_id)
+        result = await repository.find_logs_by_movie_id(log.movie_id, log.user_id)
 
-    expected_key = repository.build_movie_logs_key(str(log.movie_id), log.user_id)
+    expected_key = repository.build_movie_logs_key(log.movie_id, log.user_id)
     assert result == [log]
-    inner_repository.find_logs_by_movie_id.assert_awaited_once_with(str(log.movie_id), log.user_id)
+    inner_repository.find_logs_by_movie_id.assert_awaited_once_with(log.movie_id, log.user_id)
     cache.set.assert_awaited_once_with(expected_key, repository._serialize_logs([log]), ttl=LOG_CACHE_TTL)
 
 
@@ -198,13 +198,13 @@ async def test_cache_get_and_set_failures_fall_back_to_repository(beanie_test_db
     repository = LogCacheRepository(inner_repository)
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
-        result = await repository.find_log_by_id(str(log.id), log.user_id)
+        result = await repository.find_log_by_id(log.id, log.user_id)
 
-    expected_key = repository.build_log_key(str(log.id), log.user_id)
+    expected_key = repository.build_log_key(log.id, log.user_id)
     assert result == log
     cache.get.assert_awaited_once_with(expected_key)
     cache.set.assert_awaited_once_with(expected_key, repository._serialize_log(log), ttl=LOG_CACHE_TTL)
-    inner_repository.find_log_by_id.assert_awaited_once_with(str(log.id), log.user_id)
+    inner_repository.find_log_by_id.assert_awaited_once_with(log.id, log.user_id)
 
 
 @pytest.mark.asyncio
@@ -244,10 +244,10 @@ async def test_update_log_invalidates_id_user_and_movie_cache(beanie_test_db):
     request = LogUpdateRequest(viewing_notes="Updated")
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
-        result = await repository.update_log(str(log.id), log.user_id, request)
+        result = await repository.update_log(log.id, log.user_id, request)
 
     assert result == log
-    cache.delete.assert_awaited_once_with(repository.build_log_key(str(log.id), log.user_id))
+    cache.delete.assert_awaited_once_with(repository.build_log_key(log.id, log.user_id))
     cache.invalidate_pattern.assert_has_awaits(
         [
             call(repository.build_user_logs_pattern(log.user_id)),
@@ -267,12 +267,12 @@ async def test_update_log_uses_database_lookup_without_reading_cache(beanie_test
     request = LogUpdateRequest(viewing_notes="Updated from DB")
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
-        result = await repository.update_log(str(log.id), log.user_id, request)
+        result = await repository.update_log(log.id, log.user_id, request)
 
     assert result is not None
     assert result.viewing_notes == "Updated from DB"
     cache.get.assert_not_awaited()
-    cache.delete.assert_awaited_once_with(repository.build_log_key(str(log.id), log.user_id))
+    cache.delete.assert_awaited_once_with(repository.build_log_key(log.id, log.user_id))
 
 
 @pytest.mark.asyncio
@@ -284,12 +284,12 @@ async def test_delete_log_invalidates_only_after_successful_delete(beanie_test_d
     repository = LogCacheRepository(inner_repository)
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
-        result = await repository.delete_log(str(log.id), log.user_id)
+        result = await repository.delete_log(log.id, log.user_id)
 
     assert result == log
     inner_repository.find_log_by_id.assert_not_awaited()
-    inner_repository.delete_log.assert_awaited_once_with(str(log.id), log.user_id)
-    cache.delete.assert_awaited_once_with(repository.build_log_key(str(log.id), log.user_id))
+    inner_repository.delete_log.assert_awaited_once_with(log.id, log.user_id)
+    cache.delete.assert_awaited_once_with(repository.build_log_key(log.id, log.user_id))
     cache.invalidate_pattern.assert_has_awaits(
         [
             call(repository.build_user_logs_pattern(log.user_id)),
@@ -308,18 +308,18 @@ async def test_delete_log_uses_database_lookup_without_reading_cache(beanie_test
     cache.get.return_value = repository._serialize_log(log)
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
-        result = await repository.delete_log(str(log.id), log.user_id)
+        result = await repository.delete_log(log.id, log.user_id)
 
     assert result is not None
     assert await Log.get(log.id) is None
     cache.get.assert_not_awaited()
-    cache.delete.assert_awaited_once_with(repository.build_log_key(str(log.id), log.user_id))
+    cache.delete.assert_awaited_once_with(repository.build_log_key(log.id, log.user_id))
 
 
 @pytest.mark.asyncio
 async def test_delete_log_not_found_skips_invalidation(beanie_test_db):
     user_id = PydanticObjectId()
-    log_id = str(PydanticObjectId())
+    log_id = PydanticObjectId()
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
     inner_repository.delete_log.return_value = None

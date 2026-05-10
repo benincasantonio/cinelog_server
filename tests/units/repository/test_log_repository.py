@@ -2,7 +2,6 @@ from datetime import UTC, datetime
 
 import pytest
 from beanie import PydanticObjectId
-from bson import ObjectId
 
 from app.models.log import Log
 from app.models.movie import Movie
@@ -101,12 +100,13 @@ async def test_find_logs_by_movie_id(
 ):
     log = await log_repository.create_log(user_id, movie_create_request)
     assert movie_create_request.movie_id is not None
-    logs = await log_repository.find_logs_by_movie_id(movie_create_request.movie_id)
+    movie_object_id = PydanticObjectId(movie_create_request.movie_id)
+    logs = await log_repository.find_logs_by_movie_id(movie_object_id)
     assert len(logs) == 1
     assert logs[0].id == log.id
 
     second_log = await log_repository.create_log(user_id, movie_create_request)
-    logs = await log_repository.find_logs_by_movie_id(movie_create_request.movie_id)
+    logs = await log_repository.find_logs_by_movie_id(movie_object_id)
     assert len(logs) == 2
     assert logs[0].id == log.id
     assert logs[1].id == second_log.id
@@ -263,16 +263,8 @@ async def test_log_list_with_watched_where_filter(
 
 @pytest.mark.asyncio
 async def test_find_log_by_id_not_found(beanie_test_db, log_repository: LogRepository, user_id: PydanticObjectId):
-    non_existent_id = str(ObjectId())
+    non_existent_id = PydanticObjectId()
     result = await log_repository.find_log_by_id(non_existent_id, user_id)
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_find_log_by_id_invalid_object_id(
-    beanie_test_db, log_repository: LogRepository, user_id: PydanticObjectId
-):
-    result = await log_repository.find_log_by_id("invalid-log-id", user_id)
     assert result is None
 
 
@@ -285,23 +277,16 @@ async def test_find_log_by_id_success(
     user_id: PydanticObjectId,
 ):
     log = await log_repository.create_log(user_id, movie_create_request)
-    result = await log_repository.find_log_by_id(str(log.id), user_id)
+    result = await log_repository.find_log_by_id(log.id, user_id)
     assert result is not None
     assert result.id == log.id
 
 
 @pytest.mark.asyncio
 async def test_update_log_not_found(beanie_test_db, log_repository: LogRepository, user_id: PydanticObjectId):
-    non_existent_id = str(ObjectId())
+    non_existent_id = PydanticObjectId()
     update_request = LogUpdateRequest(viewing_notes="Updated notes")
     result = await log_repository.update_log(non_existent_id, user_id, update_request)
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_update_log_invalid_object_id(beanie_test_db, log_repository: LogRepository, user_id: PydanticObjectId):
-    update_request = LogUpdateRequest(viewing_notes="Updated notes")
-    result = await log_repository.update_log("invalid-log-id", user_id, update_request)
     assert result is None
 
 
@@ -315,7 +300,7 @@ async def test_update_log_success(
 ):
     log = await log_repository.create_log(user_id, movie_create_request)
     update_request = LogUpdateRequest(viewing_notes="Updated notes", watched_where="streaming")
-    result = await log_repository.update_log(str(log.id), user_id, update_request)
+    result = await log_repository.update_log(log.id, user_id, update_request)
     assert result is not None
     assert result.viewing_notes == "Updated notes"
     assert result.watched_where == "streaming"
@@ -323,14 +308,8 @@ async def test_update_log_success(
 
 @pytest.mark.asyncio
 async def test_delete_log_not_found(beanie_test_db, log_repository: LogRepository, user_id: PydanticObjectId):
-    non_existent_id = str(ObjectId())
+    non_existent_id = PydanticObjectId()
     result = await log_repository.delete_log(non_existent_id, user_id)
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_delete_log_invalid_object_id(beanie_test_db, log_repository: LogRepository, user_id: PydanticObjectId):
-    result = await log_repository.delete_log("invalid-log-id", user_id)
     assert result is None
 
 
@@ -343,7 +322,7 @@ async def test_delete_log_success(
     user_id: PydanticObjectId,
 ):
     log = await log_repository.create_log(user_id, movie_create_request)
-    result = await log_repository.delete_log(str(log.id), user_id)
+    result = await log_repository.delete_log(log.id, user_id)
     assert result is not None
     assert result.id == log.id
     deleted_log = await Log.get(log.id)
@@ -362,7 +341,7 @@ async def test_find_log_by_id_filters_soft_deleted(
     log.deleted = True
     await log.save()
 
-    found = await log_repository.find_log_by_id(str(log.id), user_id)
+    found = await log_repository.find_log_by_id(log.id, user_id)
     assert found is None
 
 
@@ -438,31 +417,12 @@ async def test_find_logs_by_movie_id_with_user_filter(
     other_user_id = PydanticObjectId()
 
     assert movie_create_request.movie_id is not None
-    logs = await log_repository.find_logs_by_movie_id(movie_create_request.movie_id, user_id)
+    movie_object_id = PydanticObjectId(movie_create_request.movie_id)
+    logs = await log_repository.find_logs_by_movie_id(movie_object_id, user_id)
     assert len(logs) == 1
 
-    logs = await log_repository.find_logs_by_movie_id(movie_create_request.movie_id, other_user_id)
+    logs = await log_repository.find_logs_by_movie_id(movie_object_id, other_user_id)
     assert len(logs) == 0
-
-
-@pytest.mark.asyncio
-async def test_find_logs_by_movie_id_invalid_ids(beanie_test_db, log_repository: LogRepository):
-    logs_invalid_movie = await log_repository.find_logs_by_movie_id("invalid-movie-id")
-    assert logs_invalid_movie == []
-
-    from bson import ObjectId as BSONObjectId
-    from bson.errors import InvalidId
-
-    try:
-        # Test with a valid ObjectId string for the movie_id (which will be converted)
-        # and an invalid ObjectId for user_id
-        movie_id = str(ObjectId())
-        invalid_user_id = PydanticObjectId(BSONObjectId("000000000000000000000000"))
-        logs_invalid_user = await log_repository.find_logs_by_movie_id(movie_id, user_id=invalid_user_id)
-        assert logs_invalid_user == []
-    except InvalidId:
-        # If the ID is completely invalid, we expect the query to return empty results
-        assert True
 
 
 @pytest.mark.asyncio
@@ -478,5 +438,5 @@ async def test_find_logs_by_movie_id_excludes_soft_deleted(
     await log.save()
 
     assert movie_create_request.movie_id is not None
-    logs = await log_repository.find_logs_by_movie_id(movie_create_request.movie_id)
+    logs = await log_repository.find_logs_by_movie_id(PydanticObjectId(movie_create_request.movie_id))
     assert logs == []

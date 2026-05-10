@@ -26,7 +26,7 @@ class LogCacheRepository:
     def _cache(self) -> CacheService:
         return CacheService.get_instance()
 
-    def build_log_key(self, log_id: str, user_id: PydanticObjectId) -> str:
+    def build_log_key(self, log_id: PydanticObjectId, user_id: PydanticObjectId) -> str:
         return f"cinelog:logs:id:{user_id}:{log_id}"
 
     def build_user_logs_key(
@@ -46,14 +46,18 @@ class LogCacheRepository:
             f"from:{from_part}:to:{to_part}:sort:{sort_by}:{sort_order}"
         )
 
-    def build_movie_logs_key(self, movie_id: str, user_id: PydanticObjectId | None = None) -> str:
+    def build_movie_logs_key(
+        self,
+        movie_id: PydanticObjectId,
+        user_id: PydanticObjectId | None = None,
+    ) -> str:
         user_part = str(user_id) if user_id is not None else "all"
         return f"cinelog:logs:movie:{movie_id}:user:{user_part}"
 
     def build_user_logs_pattern(self, user_id: PydanticObjectId) -> str:
         return f"cinelog:logs:user:{user_id}:*"
 
-    def build_movie_logs_pattern(self, movie_id: PydanticObjectId | str) -> str:
+    def build_movie_logs_pattern(self, movie_id: PydanticObjectId) -> str:
         return f"cinelog:logs:movie:{movie_id}:*"
 
     def _serialize_log(self, log: Log) -> dict[str, Any]:
@@ -129,11 +133,11 @@ class LogCacheRepository:
     async def _invalidate_user_logs(self, user_id: PydanticObjectId) -> None:
         await self._invalidate_pattern(self.build_user_logs_pattern(user_id))
 
-    async def _invalidate_movie_logs(self, movie_id: PydanticObjectId | str) -> None:
+    async def _invalidate_movie_logs(self, movie_id: PydanticObjectId) -> None:
         await self._invalidate_pattern(self.build_movie_logs_pattern(movie_id))
 
     async def _invalidate_log(self, log: Log) -> None:
-        await self._delete_key(self.build_log_key(str(log.id), log.user_id))
+        await self._delete_key(self.build_log_key(log.id, log.user_id))
         await self._invalidate_user_logs(log.user_id)
         await self._invalidate_movie_logs(log.movie_id)
 
@@ -143,7 +147,7 @@ class LogCacheRepository:
         await self._invalidate_movie_logs(log.movie_id)
         return log
 
-    async def find_log_by_id(self, log_id: str, user_id: PydanticObjectId) -> Log | None:
+    async def find_log_by_id(self, log_id: PydanticObjectId, user_id: PydanticObjectId) -> Log | None:
         key = self.build_log_key(log_id, user_id)
         cached = await self._get_log(key)
         if cached is not None:
@@ -154,7 +158,12 @@ class LogCacheRepository:
             await self._set_log(key, log)
         return log
 
-    async def update_log(self, log_id: str, user_id: PydanticObjectId, update_request: LogUpdateRequest) -> Log | None:
+    async def update_log(
+        self,
+        log_id: PydanticObjectId,
+        user_id: PydanticObjectId,
+        update_request: LogUpdateRequest,
+    ) -> Log | None:
         log = await self.repository.update_log(log_id, user_id, update_request)
         if log is not None:
             await self._invalidate_log(log)
@@ -192,7 +201,11 @@ class LogCacheRepository:
         await self._set_logs(key, logs)
         return logs
 
-    async def find_logs_by_movie_id(self, movie_id: str, user_id: PydanticObjectId | None = None) -> list[Log]:
+    async def find_logs_by_movie_id(
+        self,
+        movie_id: PydanticObjectId,
+        user_id: PydanticObjectId | None = None,
+    ) -> list[Log]:
         key = self.build_movie_logs_key(movie_id, user_id)
         cached = await self._get_logs(key)
         if cached is not None:
@@ -202,7 +215,7 @@ class LogCacheRepository:
         await self._set_logs(key, logs)
         return logs
 
-    async def delete_log(self, log_id: str, user_id: PydanticObjectId) -> Log | None:
+    async def delete_log(self, log_id: PydanticObjectId, user_id: PydanticObjectId) -> Log | None:
         deleted_log = await self.repository.delete_log(log_id, user_id)
         if deleted_log is None:
             return None
