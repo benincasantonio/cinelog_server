@@ -28,19 +28,21 @@ class LogRepository:
         await log.insert()
         return log
 
-    async def find_log_by_id(self, log_id: str, user_id: PydanticObjectId) -> Log | None:
+    async def find_log_by_id(self, log_id: PydanticObjectId, user_id: PydanticObjectId) -> Log | None:
         """
         Find a log entry by its ID, ensuring it belongs to the user.
         """
         return await self._find_log_by_id(log_id, user_id)
 
-    async def _find_log_by_id(self, log_id: str, user_id: PydanticObjectId) -> Log | None:
-        log_object_id = to_object_id(log_id)
-        if log_object_id is None or user_id is None:
-            return None
-        return await Log.find_one(Log.active_filter({"_id": log_object_id, "userId": user_id}))
+    async def _find_log_by_id(self, log_id: PydanticObjectId, user_id: PydanticObjectId) -> Log | None:
+        return await Log.find_one(Log.active_filter({"_id": log_id, "userId": user_id}))
 
-    async def update_log(self, log_id: str, user_id: PydanticObjectId, update_request: LogUpdateRequest) -> Log | None:
+    async def update_log(
+        self,
+        log_id: PydanticObjectId,
+        user_id: PydanticObjectId,
+        update_request: LogUpdateRequest,
+    ) -> Log | None:
         """
         Update an existing log entry.
         """
@@ -99,22 +101,22 @@ class LogRepository:
 
         return await Log.find(filters).sort(sort_spec).to_list()
 
-    async def find_logs_by_movie_id(self, movie_id: str, user_id: PydanticObjectId | None = None) -> list[Log]:
+    async def find_logs_by_movie_id(
+        self,
+        movie_id: PydanticObjectId,
+        user_id: PydanticObjectId | None = None,
+    ) -> list[Log]:
         """
         Find all log entries for a specific movie by its ID.
         Optionally filter by user_id.
         """
-        movie_object_id = to_object_id(movie_id)
-        if movie_object_id is None:
-            return []
-
-        query_params: dict = Log.active_filter({"movieId": movie_object_id})
+        query_params: dict = Log.active_filter({"movieId": movie_id})
         if user_id:
             query_params["userId"] = user_id
 
         return await Log.find(query_params).to_list()
 
-    async def delete_log(self, log_id: str, user_id: PydanticObjectId) -> Log | None:
+    async def delete_log(self, log_id: PydanticObjectId, user_id: PydanticObjectId) -> Log | None:
         """
         Delete a log entry (hard delete). Returns the deleted log, or None if not found.
         """
