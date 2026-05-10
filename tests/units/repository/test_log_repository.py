@@ -325,13 +325,13 @@ async def test_update_log_success(
 async def test_delete_log_not_found(beanie_test_db, log_repository: LogRepository, user_id: PydanticObjectId):
     non_existent_id = str(ObjectId())
     result = await log_repository.delete_log(non_existent_id, user_id)
-    assert result is False
+    assert result is None
 
 
 @pytest.mark.asyncio
 async def test_delete_log_invalid_object_id(beanie_test_db, log_repository: LogRepository, user_id: PydanticObjectId):
     result = await log_repository.delete_log("invalid-log-id", user_id)
-    assert result is False
+    assert result is None
 
 
 @pytest.mark.asyncio
@@ -344,7 +344,8 @@ async def test_delete_log_success(
 ):
     log = await log_repository.create_log(user_id, movie_create_request)
     result = await log_repository.delete_log(str(log.id), user_id)
-    assert result is True
+    assert result is not None
+    assert result.id == log.id
     deleted_log = await Log.get(log.id)
     assert deleted_log is None
 

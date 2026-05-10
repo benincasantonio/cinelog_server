@@ -11,8 +11,7 @@ from app.schemas.tmdb_schemas import TMDBMovieDetails
 class MovieRepository:
     """Repository class for movie-related operations."""
 
-    @staticmethod
-    async def create_movie(request: MovieCreateRequest) -> Movie:
+    async def create_movie(self, request: MovieCreateRequest) -> Movie:
         """Create a new movie in the database."""
 
         movie_data = request.model_dump()
@@ -20,11 +19,10 @@ class MovieRepository:
         await movie.insert()
         return movie
 
-    @staticmethod
-    async def update_movie(movie_id: PydanticObjectId, request: MovieUpdateRequest) -> None:
+    async def update_movie(self, movie_id: PydanticObjectId, request: MovieUpdateRequest) -> None:
         """Update a movie in the database."""
 
-        movie = await MovieRepository.find_movie_by_id(movie_id)
+        movie = await self.find_movie_by_id(movie_id)
 
         if not movie:
             return None
@@ -33,18 +31,15 @@ class MovieRepository:
         movie.updated_at = datetime.now(UTC)
         await movie.save()
 
-    @staticmethod
-    async def find_movie_by_id(movie_id: PydanticObjectId) -> Movie | None:
+    async def find_movie_by_id(self, movie_id: PydanticObjectId) -> Movie | None:
         """Find a movie by ID."""
         return await Movie.find_one(Movie.active_filter({"_id": movie_id}))
 
-    @staticmethod
-    async def find_movie_by_tmdb_id(tmdb_id: int) -> Movie | None:
+    async def find_movie_by_tmdb_id(self, tmdb_id: int) -> Movie | None:
         """Find a movie by TMDB ID."""
         return await Movie.find_one(Movie.active_filter({"tmdbId": tmdb_id}))
 
-    @staticmethod
-    async def create_from_tmdb_data(tmdb_data: TMDBMovieDetails) -> Movie:
+    async def create_from_tmdb_data(self, tmdb_data: TMDBMovieDetails) -> Movie:
         """
         Create a movie from TMDB API response data.
 
@@ -83,7 +78,7 @@ class MovieRepository:
             await movie.insert()
             return movie
         except DuplicateKeyError:
-            existing_movie = await MovieRepository.find_movie_by_tmdb_id(tmdb_data.id)
+            existing_movie = await self.find_movie_by_tmdb_id(tmdb_data.id)
             if existing_movie is None:
                 raise
             return existing_movie

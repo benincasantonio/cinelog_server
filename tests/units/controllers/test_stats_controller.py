@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
+from app.dependencies.service_dependency import get_stats_service
 
 
 @pytest.fixture
@@ -21,10 +22,7 @@ def override_auth():
 class TestStatsController:
     """Tests for stats controller endpoints."""
 
-    @patch(
-        "app.controllers.stats_controller.stats_service.get_user_stats",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_stats_service(), "get_user_stats", new_callable=AsyncMock)
     def test_get_my_stats_success(self, mock_get_stats, client, override_auth):
         """Test successful stats retrieval."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -62,10 +60,7 @@ class TestStatsController:
         assert data["summary"]["totalWatches"] == 10
         assert data["summary"]["uniqueTitles"] == 8
 
-    @patch(
-        "app.controllers.stats_controller.stats_service.get_user_stats",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_stats_service(), "get_user_stats", new_callable=AsyncMock)
     def test_get_my_stats_with_year_filter(self, mock_get_stats, client, override_auth):
         """Test stats retrieval with year filters."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -124,10 +119,7 @@ class TestStatsController:
         response = client.get("/v1/stats/me")
         assert response.status_code == 401
 
-    @patch(
-        "app.controllers.stats_controller.stats_service.get_user_stats",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_stats_service(), "get_user_stats", new_callable=AsyncMock)
     def test_get_my_stats_not_implemented(self, mock_get_stats, client, override_auth):
         """Test stats returns 501 when NotImplementedError is raised."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -140,10 +132,7 @@ class TestStatsController:
         assert response.status_code == 501
         assert "Stats endpoint not implemented yet" in response.json()["detail"]
 
-    @patch(
-        "app.controllers.stats_controller.stats_service.get_user_stats",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_stats_service(), "get_user_stats", new_callable=AsyncMock)
     def test_get_my_stats_app_exception(self, mock_get_stats, client, override_auth):
         """Test stats re-raises AppException."""
         from app.utils.error_codes_utils import ErrorCodes

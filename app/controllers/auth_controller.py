@@ -7,7 +7,10 @@ from fastapi.responses import JSONResponse
 
 from app.config.rate_limiter import limiter
 from app.dependencies.auth_dependency import auth_dependency
-from app.repository.user_repository import UserRepository
+from app.dependencies.service_dependency import (
+    get_auth_rate_limit_service,
+    get_auth_service,
+)
 from app.schemas.auth_schemas import (
     CsrfTokenResponse,
     ForgotPasswordRequest,
@@ -21,9 +24,7 @@ from app.schemas.auth_schemas import (
     ResetPasswordRequest,
     ResetPasswordResponse,
 )
-from app.services.auth_rate_limit_service import (
-    AuthRateLimitService,
-)
+from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.services.auth_service import AuthService
 from app.services.token_service import TokenService
 from app.utils.auth_utils import (
@@ -41,15 +42,16 @@ from app.utils.rate_limit_utils import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-user_repository = UserRepository()
-auth_service = AuthService(user_repository)
-auth_rate_limit_service = AuthRateLimitService()
-
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=RegisterResponse)
 @limiter.limit("10/hour", key_func=get_ip_rate_limit_key)
 @limiter.limit("5/hour", key_func=get_session_rate_limit_key)
-async def register(request: Request, response: Response, request_body: RegisterRequest) -> RegisterResponse:
+async def register(
+    request: Request,
+    response: Response,
+    request_body: RegisterRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> RegisterResponse:
     """
     Handle user registration.
     User must login separately after registration.
@@ -64,6 +66,8 @@ async def login(
     request: Request,
     response: Response,
     request_body: LoginRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+    auth_rate_limit_service: AuthRateLimitService = Depends(get_auth_rate_limit_service),
 ) -> LoginResponse:
     """
     Handle user login with email and password.
@@ -155,6 +159,8 @@ async def forgot_password(
     request: Request,
     response: Response,
     request_body: ForgotPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+    auth_rate_limit_service: AuthRateLimitService = Depends(get_auth_rate_limit_service),
 ) -> ForgotPasswordResponse:
     """
     Initiate password recovery. Sends reset code via email.
@@ -177,6 +183,8 @@ async def reset_password(
     request: Request,
     response: Response,
     request_body: ResetPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+    auth_rate_limit_service: AuthRateLimitService = Depends(get_auth_rate_limit_service),
 ) -> ResetPasswordResponse:
     """
     Complete password recovery with reset code.

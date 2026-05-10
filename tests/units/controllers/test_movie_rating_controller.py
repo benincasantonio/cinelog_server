@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
+from app.dependencies.service_dependency import get_movie_rating_service
 from app.schemas.movie_rating_schemas import MovieRatingResponse
 
 
@@ -23,10 +24,7 @@ def override_auth():
 class TestMovieRatingController:
     """Tests for movie rating controller endpoints."""
 
-    @patch(
-        "app.controllers.movie_rating_controller.movie_rating_service.create_update_movie_rating",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_movie_rating_service(), "create_update_movie_rating", new_callable=AsyncMock)
     def test_create_movie_rating_success(self, mock_create_rating, client, override_auth):
         """Test creating a movie rating."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -66,10 +64,7 @@ class TestMovieRatingController:
         )
         assert response.status_code == 401
 
-    @patch(
-        "app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_movie_rating_service(), "get_movie_ratings_by_tmdb_id", new_callable=AsyncMock)
     def test_get_movie_rating_success(self, mock_get_rating, client, override_auth):
         """Test getting a movie rating."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -93,10 +88,7 @@ class TestMovieRatingController:
         data = response.json()
         assert data["rating"] == 8
 
-    @patch(
-        "app.controllers.movie_rating_controller.movie_rating_service.get_movie_ratings_by_tmdb_id",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_movie_rating_service(), "get_movie_ratings_by_tmdb_id", new_callable=AsyncMock)
     def test_get_movie_rating_not_found(self, mock_get_rating, client, override_auth):
         """Test getting a movie rating that doesn't exist returns 204."""
         app.dependency_overrides[auth_dependency] = override_auth

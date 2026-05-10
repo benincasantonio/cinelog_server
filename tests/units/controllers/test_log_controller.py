@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
+from app.dependencies.service_dependency import get_log_service
 from app.schemas.log_schemas import (
     LogCreateResponse,
     LogListItem,
@@ -98,7 +99,7 @@ def override_auth():
 class TestCreateLog:
     """Tests for POST /v1/logs endpoint."""
 
-    @patch("app.controllers.log_controller.log_service.create_log", new_callable=AsyncMock)
+    @patch.object(get_log_service(), "create_log", new_callable=AsyncMock)
     def test_create_log_success(
         self,
         mock_create_log,
@@ -164,7 +165,7 @@ class TestCreateLog:
 class TestUpdateLog:
     """Tests for PUT /v1/logs/{log_id} endpoint."""
 
-    @patch("app.controllers.log_controller.log_service.update_log", new_callable=AsyncMock)
+    @patch.object(get_log_service(), "update_log", new_callable=AsyncMock)
     def test_update_log_success(self, mock_update_log, client, sample_log_response, override_auth):
         """Test successful log update."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -204,7 +205,7 @@ class TestUpdateLog:
 class TestDeleteLog:
     """Tests for DELETE /v1/logs/{log_id} endpoint."""
 
-    @patch("app.controllers.log_controller.log_service.delete_log", new_callable=AsyncMock)
+    @patch.object(get_log_service(), "delete_log", new_callable=AsyncMock)
     def test_delete_log_success_returns_204(self, mock_delete_log, client, override_auth):
         """Successful deletion returns 204 No Content with empty body."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -222,7 +223,7 @@ class TestDeleteLog:
         assert response.content == b""
         mock_delete_log.assert_called_once()
 
-    @patch("app.controllers.log_controller.log_service.delete_log", new_callable=AsyncMock)
+    @patch.object(get_log_service(), "delete_log", new_callable=AsyncMock)
     def test_delete_log_not_found_returns_404(self, mock_delete_log, client, override_auth):
         """Deleting a missing or non-owned log returns 404."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -254,10 +255,7 @@ class TestDeleteLog:
 class TestGetLogsByHandle:
     """Tests for GET /v1/logs/{handle} endpoint."""
 
-    @patch(
-        "app.controllers.log_controller.log_service.get_user_logs_by_handle",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_log_service(), "get_user_logs_by_handle", new_callable=AsyncMock)
     def test_get_logs_by_handle_success(self, mock_get_logs_by_handle, client, sample_log_list_response, override_auth):
         """Test successful log list retrieval by handle."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -279,10 +277,7 @@ class TestGetLogsByHandle:
 
         assert response.status_code == 401
 
-    @patch(
-        "app.controllers.log_controller.log_service.get_user_logs_by_handle",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_log_service(), "get_user_logs_by_handle", new_callable=AsyncMock)
     def test_get_logs_by_handle_profile_not_public(self, mock_get_logs_by_handle, client, override_auth):
         """Test log list retrieval for private profile."""
         from app.utils.error_codes_utils import ErrorCodes
@@ -297,10 +292,7 @@ class TestGetLogsByHandle:
 
         assert response.status_code == 403
 
-    @patch(
-        "app.controllers.log_controller.log_service.get_user_logs_by_handle",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_log_service(), "get_user_logs_by_handle", new_callable=AsyncMock)
     def test_get_logs_by_handle_user_not_found(self, mock_get_logs_by_handle, client, override_auth):
         """Test log list retrieval for nonexistent user."""
         from app.utils.error_codes_utils import ErrorCodes

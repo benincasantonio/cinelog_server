@@ -4,22 +4,14 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.dependencies.auth_dependency import auth_dependency
-from app.repository.movie_rating_repository import MovieRatingRepository
-from app.repository.movie_repository import MovieRepository
+from app.dependencies.service_dependency import get_movie_rating_service
 from app.schemas.movie_rating_schemas import (
     MovieRatingCreateUpdateRequest,
     MovieRatingResponse,
 )
 from app.services.movie_rating_service import MovieRatingService
-from app.services.movie_service import MovieService
 
 router = APIRouter()
-
-movie_rating_repository = MovieRatingRepository()
-movie_repository = MovieRepository()
-movie_service = MovieService(movie_repository)
-
-movie_rating_service = MovieRatingService(movie_rating_repository=movie_rating_repository, movie_service=movie_service)
 
 
 @router.post("/")
@@ -27,6 +19,7 @@ async def create_movie_rating(
     request_body: MovieRatingCreateUpdateRequest,
     request: Request,
     user_id: Annotated[PydanticObjectId, Depends(auth_dependency)],
+    movie_rating_service: Annotated[MovieRatingService, Depends(get_movie_rating_service)],
 ) -> MovieRatingResponse:
     """
     Create or update a new movie rating entry.
@@ -45,6 +38,7 @@ async def create_movie_rating(
 async def get_movie_rating(
     tmdb_id: int,
     current_user_id: Annotated[PydanticObjectId, Depends(auth_dependency)],
+    movie_rating_service: Annotated[MovieRatingService, Depends(get_movie_rating_service)],
 ) -> MovieRatingResponse | Response:
     """
     Get a movie rating entry by TMDB ID.

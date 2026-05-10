@@ -1,5 +1,5 @@
 from datetime import date
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 from beanie import PydanticObjectId
@@ -261,7 +261,7 @@ class TestLogService:
     async def test_delete_log_success(self, log_service, mock_log_repository, mock_stats_cache_service):
         """Test successful log deletion invalidates the stats cache."""
         user_id = PydanticObjectId()
-        mock_log_repository.delete_log.return_value = True
+        mock_log_repository.delete_log.return_value = MagicMock()
 
         await log_service.delete_log(user_id=user_id, log_id="log123")
 
@@ -272,7 +272,7 @@ class TestLogService:
     async def test_delete_log_not_found_raises(self, log_service, mock_log_repository, mock_stats_cache_service):
         """Test deleting a missing log raises LOG_NOT_FOUND and does not invalidate cache."""
         user_id = PydanticObjectId()
-        mock_log_repository.delete_log.return_value = False
+        mock_log_repository.delete_log.return_value = None
 
         with pytest.raises(AppException) as exc_info:
             await log_service.delete_log(user_id=user_id, log_id="nonexistent")

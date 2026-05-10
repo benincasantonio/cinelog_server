@@ -3,7 +3,7 @@ from datetime import date
 
 from beanie import PydanticObjectId
 
-from app.repository.log_repository import LogRepository
+from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
 from app.schemas.stats_schemas import (
@@ -20,12 +20,12 @@ from app.services.stats_cache_service import StatsCacheService
 class StatsService:
     def __init__(
         self,
-        log_repository: LogRepository | None = None,
+        log_repository: LogCacheRepository | None = None,
         movie_rating_repository: MovieRatingRepository | None = None,
         movie_repository: MovieRepository | None = None,
         stats_cache_service: StatsCacheService | None = None,
     ):
-        self.log_repository = log_repository or LogRepository()
+        self.log_repository = log_repository or LogCacheRepository()
         self.movie_rating_repository = movie_rating_repository or MovieRatingRepository()
         self.movie_repository = movie_repository or MovieRepository()
         self.stats_cache_service = stats_cache_service or StatsCacheService()

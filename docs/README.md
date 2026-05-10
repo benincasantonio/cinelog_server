@@ -29,6 +29,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |
 | [Rate Limiting](technical/rate-limiting.md) | slowapi setup, Redis backend, endpoint decoration, test strategy |
 | [Redis Caching](technical/redis-caching.md) | Cache layer configuration, design, and usage |
+| [Service Dependencies](technical/service-dependencies.md) | Service providers, FastAPI `Depends` wiring, test overrides |
 | [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
 | [TMDB Service](technical/tmdb-service.md) | Singleton lifecycle, HTTP client, cache keys, MovieService integration |
 
