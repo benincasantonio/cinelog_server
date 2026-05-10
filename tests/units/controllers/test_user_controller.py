@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
+from app.dependencies.service_dependency import get_user_service
 from app.schemas.user_schemas import (
     ChangePasswordResponse,
     UserProfileResponse,
@@ -26,10 +27,7 @@ def override_auth():
 
 
 class TestUserController:
-    @patch(
-        "app.controllers.user_controller.user_service.get_user_info",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "get_user_info", new_callable=AsyncMock)
     def test_get_user_info_success(self, mock_get_user_info, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
@@ -59,10 +57,7 @@ class TestUserController:
         response = client.get("/v1/users/info")
         assert response.status_code == 401
 
-    @patch(
-        "app.controllers.user_controller.user_service.get_user_info",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "get_user_info", new_callable=AsyncMock)
     def test_get_user_info_not_found(self, mock_get_user_info, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_user_info.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
@@ -75,10 +70,7 @@ class TestUserController:
 
 
 class TestGetVisibleProfile:
-    @patch(
-        "app.controllers.user_controller.user_service.get_visible_profile",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "get_visible_profile", new_callable=AsyncMock)
     def test_get_visible_profile_success(self, mock_get_visible_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
@@ -110,10 +102,7 @@ class TestGetVisibleProfile:
         response = client.get("/v1/users/johndoe/profile")
         assert response.status_code == 401
 
-    @patch(
-        "app.controllers.user_controller.user_service.get_visible_profile",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "get_visible_profile", new_callable=AsyncMock)
     def test_get_visible_profile_not_found(self, mock_get_visible_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_visible_profile.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
@@ -129,10 +118,7 @@ class TestGetVisibleProfile:
 
 
 class TestUpdateProfileController:
-    @patch(
-        "app.controllers.user_controller.user_service.update_profile",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "update_profile", new_callable=AsyncMock)
     def test_update_profile_success(self, mock_update_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
@@ -165,10 +151,7 @@ class TestUpdateProfileController:
         assert data["bio"] == "New bio"
         mock_update_profile.assert_awaited_once()
 
-    @patch(
-        "app.controllers.user_controller.user_service.update_profile",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "update_profile", new_callable=AsyncMock)
     def test_update_profile_with_visibility(self, mock_update_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
@@ -209,10 +192,7 @@ class TestUpdateProfileController:
         )
         assert response.status_code == 401
 
-    @patch(
-        "app.controllers.user_controller.user_service.update_profile",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "update_profile", new_callable=AsyncMock)
     def test_update_profile_user_not_found(self, mock_update_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
         mock_update_profile.side_effect = AppException(ErrorCodes.USER_NOT_FOUND)
@@ -231,10 +211,7 @@ class TestUpdateProfileController:
 
         assert response.status_code == 404
 
-    @patch(
-        "app.controllers.user_controller.user_service.update_profile",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "update_profile", new_callable=AsyncMock)
     def test_update_profile_invalid_name(self, mock_update_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
@@ -252,10 +229,7 @@ class TestUpdateProfileController:
 
         assert response.status_code == 422
 
-    @patch(
-        "app.controllers.user_controller.user_service.update_profile",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "update_profile", new_callable=AsyncMock)
     def test_update_profile_invalid_visibility(self, mock_update_profile, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
@@ -275,10 +249,7 @@ class TestUpdateProfileController:
 
 
 class TestChangePasswordController:
-    @patch(
-        "app.controllers.user_controller.user_service.change_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "change_password", new_callable=AsyncMock)
     def test_change_password_success(self, mock_change_password, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
@@ -314,10 +285,7 @@ class TestChangePasswordController:
         )
         assert response.status_code == 401
 
-    @patch(
-        "app.controllers.user_controller.user_service.change_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "change_password", new_callable=AsyncMock)
     def test_change_password_invalid_current(self, mock_change_password, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
         mock_change_password.side_effect = AppException(ErrorCodes.INVALID_CURRENT_PASSWORD)
@@ -336,10 +304,7 @@ class TestChangePasswordController:
 
         assert response.status_code == 401
 
-    @patch(
-        "app.controllers.user_controller.user_service.change_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_user_service(), "change_password", new_callable=AsyncMock)
     def test_change_password_same_password(self, mock_change_password, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
         mock_change_password.side_effect = AppException(ErrorCodes.SAME_PASSWORD)

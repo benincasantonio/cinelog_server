@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 import app.config.rate_limiter as rate_limiter_module
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
+from app.dependencies.service_dependency import get_auth_service, get_log_service
 from app.schemas.auth_schemas import RegisterResponse
 from app.schemas.log_schemas import LogCreateResponse
 from app.schemas.movie_schemas import MovieResponse
@@ -179,10 +180,7 @@ class TestRegisterRateLimit:
         profile_visibility="private",
     )
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.register",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "register", new_callable=AsyncMock)
     def test_register_allows_requests_within_limit(self, mock_register, client):
         """First 5 requests should succeed (201) with rate limit headers."""
         mock_register.return_value = self.REGISTER_RESPONSE
@@ -192,10 +190,7 @@ class TestRegisterRateLimit:
             assert response.status_code == 201
             assert_rate_limit_headers(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.register",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "register", new_callable=AsyncMock)
     def test_register_blocks_request_over_limit(self, mock_register, client):
         """6th request should hit the session-scoped limit."""
         mock_register.return_value = self.REGISTER_RESPONSE
@@ -206,10 +201,7 @@ class TestRegisterRateLimit:
         response = client.post("/v1/auth/register", json=self.REGISTER_PAYLOAD)
         assert_429_response(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.register",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "register", new_callable=AsyncMock)
     def test_register_session_limit_allows_another_client_on_same_ip(self, mock_register):
         """A second client on the same IP should still be allowed before the IP cap."""
         mock_register.return_value = self.REGISTER_RESPONSE
@@ -239,10 +231,7 @@ class TestRegisterRateLimit:
             first_client.close()
             second_client.close()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.register",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "register", new_callable=AsyncMock)
     def test_register_ip_limit_blocks_after_ten_requests_across_clients(self, mock_register):
         """The outer IP gate should block the 11th request across sessions."""
         mock_register.return_value = self.REGISTER_RESPONSE
@@ -299,10 +288,7 @@ class TestLoginRateLimit:
             },
         )()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_allows_requests_within_limit(self, mock_login, client):
         """First 10 requests should succeed (200) with rate limit headers."""
         mock_login.return_value = self._mock_user()
@@ -315,10 +301,7 @@ class TestLoginRateLimit:
             client.cookies.pop("refresh_token", None)
             client.cookies.pop("__Host-csrf_token", None)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_blocks_request_over_limit(self, mock_login, client):
         """11th request should hit the session-scoped login limiter."""
         mock_login.return_value = self._mock_user()
@@ -332,10 +315,7 @@ class TestLoginRateLimit:
         response = client.post("/v1/auth/login", json=self.LOGIN_PAYLOAD)
         assert_custom_429_response(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_session_limit_allows_another_client_on_same_ip(self, mock_login):
         """Another anonymous client should still be allowed before the outer IP cap."""
         mock_login.return_value = self._mock_user()
@@ -368,10 +348,7 @@ class TestLoginRateLimit:
             first_client.close()
             second_client.close()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_ip_limit_blocks_after_thirty_requests_across_clients(self, mock_login):
         """The outer IP gate should block the 31st request across sessions."""
         mock_login.return_value = self._mock_user()
@@ -413,10 +390,7 @@ class TestLoginRateLimit:
             second_client.close()
             third_client.close()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_failed_account_limit_blocks_after_five_invalid_attempts(self, mock_login, client):
         """The email-based account bucket should block the 6th login attempt."""
         from app.utils.error_codes_utils import ErrorCodes
@@ -431,10 +405,7 @@ class TestLoginRateLimit:
         response = client.post("/v1/auth/login", json=self.LOGIN_PAYLOAD)
         assert_custom_429_response(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_failed_account_limit_short_circuits_before_auth_service(self, mock_login, client):
         """Once exhausted, the account limiter should block before auth_service.login runs."""
         from app.utils.error_codes_utils import ErrorCodes
@@ -452,10 +423,7 @@ class TestLoginRateLimit:
         assert_custom_429_response(response)
         assert mock_login.await_count == call_count_before_block
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_success_clears_the_failure_bucket(self, mock_login, client):
         """Successful login should clear the email-hash failure bucket."""
 
@@ -467,10 +435,7 @@ class TestLoginRateLimit:
         assert response.status_code == 200
         clear_limit.assert_called_once()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_ignores_failure_bucket_cleanup_errors(self, mock_login, client):
         """Successful login should not fail if failure-bucket cleanup raises."""
 
@@ -489,10 +454,7 @@ class TestLoginRateLimit:
         assert response.status_code == 200
         mock_warning.assert_called_once()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_does_not_require_rate_limit_cache_dependency(self, mock_login, client):
         """Login account limiting should not depend on a request-state cache helper."""
         mock_login.return_value = self._mock_user()
@@ -501,10 +463,7 @@ class TestLoginRateLimit:
 
         assert response.status_code == 200
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.login",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "login", new_callable=AsyncMock)
     def test_login_failure_bucket_hashes_unknown_email(self, mock_login, client):
         """Failed login attempts should use the same hashed email identifier."""
         from app.utils.error_codes_utils import ErrorCodes
@@ -538,10 +497,7 @@ class TestForgotPasswordRateLimit:
 
     FORGOT_PASSWORD_PAYLOAD = {"email": "test@example.com"}
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.forgot_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock)
     def test_forgot_password_allows_requests_within_limit(self, mock_forgot_password, client):
         """First 3 requests should succeed (200) with rate limit headers."""
         mock_forgot_password.return_value = None
@@ -554,10 +510,7 @@ class TestForgotPasswordRateLimit:
             assert response.status_code == 200
             assert_rate_limit_headers(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.forgot_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock)
     def test_forgot_password_blocks_request_over_limit(self, mock_forgot_password, client):
         """4th request should hit the session/account forgot-password limit."""
         mock_forgot_password.return_value = None
@@ -574,10 +527,7 @@ class TestForgotPasswordRateLimit:
         )
         assert_429_response(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.forgot_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock)
     def test_forgot_password_account_limit_blocks_across_clients(self, mock_forgot_password):
         """The hashed-email account bucket should block the 6th cross-client attempt."""
         mock_forgot_password.return_value = None
@@ -600,10 +550,7 @@ class TestForgotPasswordRateLimit:
             for client in clients:
                 client.close()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.forgot_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock)
     def test_forgot_password_ip_limit_blocks_after_six_requests_across_clients(self, mock_forgot_password):
         """The outer IP gate should block after the broader IP window is exhausted."""
         mock_forgot_password.return_value = None
@@ -675,10 +622,7 @@ class TestResetPasswordRateLimit:
         "newPassword": "newsecurepassword123",
     }
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.reset_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "reset_password", new_callable=AsyncMock)
     def test_reset_password_allows_requests_within_limit(self, mock_reset_password, client):
         """First 5 requests should succeed (200) with rate limit headers."""
         mock_reset_password.return_value = True
@@ -691,10 +635,7 @@ class TestResetPasswordRateLimit:
             assert response.status_code == 200
             assert_rate_limit_headers(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.reset_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "reset_password", new_callable=AsyncMock)
     def test_reset_password_blocks_request_over_limit(self, mock_reset_password, client):
         """11th request should hit the session/account reset-password limit."""
         mock_reset_password.return_value = True
@@ -711,10 +652,7 @@ class TestResetPasswordRateLimit:
         )
         assert_429_response(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.reset_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "reset_password", new_callable=AsyncMock)
     def test_reset_password_invalid_code_limit_blocks_on_eleventh_failure(self, mock_reset_password, client):
         """The 11th invalid reset attempt should hit the reset account bucket."""
         from app.utils.error_codes_utils import ErrorCodes
@@ -735,10 +673,7 @@ class TestResetPasswordRateLimit:
         )
         assert_custom_429_response(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.reset_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "reset_password", new_callable=AsyncMock)
     def test_reset_password_account_limit_blocks_on_eleventh_failure_across_clients(self, mock_reset_password):
         """The reset-password account bucket should block the 11th invalid attempt across clients."""
         from app.utils.error_codes_utils import ErrorCodes
@@ -765,10 +700,7 @@ class TestResetPasswordRateLimit:
             for client in clients:
                 client.close()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.reset_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "reset_password", new_callable=AsyncMock)
     def test_reset_password_account_limit_short_circuits_before_reset_logic(self, mock_reset_password):
         """Once the reset-password account bucket is exhausted, reset logic should not run."""
         from app.utils.error_codes_utils import ErrorCodes
@@ -798,10 +730,7 @@ class TestResetPasswordRateLimit:
             for client in clients:
                 client.close()
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.reset_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "reset_password", new_callable=AsyncMock)
     def test_reset_password_session_limit_blocks_before_account_limit(self, mock_reset_password, client):
         """A single client should hit the session limit before the account bucket is exhausted."""
         mock_reset_password.return_value = True
@@ -819,10 +748,7 @@ class TestResetPasswordRateLimit:
         )
         assert_429_response(response)
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.reset_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "reset_password", new_callable=AsyncMock)
     def test_reset_password_invalid_code_limit_short_circuits_on_eleventh_failure(self, mock_reset_password, client):
         """Once exhausted, the reset account bucket should block before reset logic runs."""
         from app.utils.error_codes_utils import ErrorCodes
@@ -1003,10 +929,7 @@ class TestCreateLogRateLimit:
         "watchedWhere": "cinema",
     }
 
-    @patch(
-        "app.controllers.log_controller.log_service.create_log",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_log_service(), "create_log", new_callable=AsyncMock)
     def test_create_log_allows_requests_within_limit(self, mock_create_log, client, override_auth, sample_log_response):
         """First 20 requests should succeed (201) with rate limit headers."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -1027,10 +950,7 @@ class TestCreateLogRateLimit:
             client.cookies.clear()
             app.dependency_overrides = {}
 
-    @patch(
-        "app.controllers.log_controller.log_service.create_log",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_log_service(), "create_log", new_callable=AsyncMock)
     def test_create_log_blocks_request_over_limit(self, mock_create_log, client, override_auth, sample_log_response):
         """21st request should be rate-limited (429) with proper headers and body."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -1065,10 +985,7 @@ class TestUpdateLogRateLimit:
         "watchedWhere": "streaming",
     }
 
-    @patch(
-        "app.controllers.log_controller.log_service.update_log",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_log_service(), "update_log", new_callable=AsyncMock)
     def test_update_log_allows_requests_within_limit(self, mock_update_log, client, override_auth, sample_log_response):
         """First 10 requests should succeed (200) with rate limit headers."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -1089,10 +1006,7 @@ class TestUpdateLogRateLimit:
             client.cookies.clear()
             app.dependency_overrides = {}
 
-    @patch(
-        "app.controllers.log_controller.log_service.update_log",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_log_service(), "update_log", new_callable=AsyncMock)
     def test_update_log_blocks_request_over_limit(self, mock_update_log, client, override_auth, sample_log_response):
         """11th request should be rate-limited (429) with proper headers and body."""
         app.dependency_overrides[auth_dependency] = override_auth
@@ -1211,10 +1125,7 @@ class TestRateLimitSessionMiddleware:
         self, client, fake_cache_client, rate_limit_cache_service
     ):
         """Should issue and register a new session on a session-tracked auth route."""
-        with patch(
-            "app.controllers.auth_controller.auth_service.forgot_password",
-            new_callable=AsyncMock,
-        ) as mock_forgot_password:
+        with patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock) as mock_forgot_password:
             mock_forgot_password.return_value = None
             response = client.post(
                 "/v1/auth/forgot-password",
@@ -1233,10 +1144,7 @@ class TestRateLimitSessionMiddleware:
     def test_access_token_cookie_does_not_skip_tracking_on_public_auth_route(self, client, fake_cache_client):
         """A raw access-token cookie must not bypass tracking on public auth routes."""
         client.cookies.set(ACCESS_TOKEN_COOKIE, "some-token")
-        with patch(
-            "app.controllers.auth_controller.auth_service.forgot_password",
-            new_callable=AsyncMock,
-        ) as mock_forgot_password:
+        with patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock) as mock_forgot_password:
             mock_forgot_password.return_value = None
             response = client.post(
                 "/v1/auth/forgot-password",
@@ -1254,10 +1162,7 @@ class TestRateLimitSessionMiddleware:
         fake_cache_client.values[session_key] = '{"active": true}'
         client.cookies.set(RATE_LIMIT_SESSION_COOKIE, session_id)
 
-        with patch(
-            "app.controllers.auth_controller.auth_service.forgot_password",
-            new_callable=AsyncMock,
-        ) as mock_forgot_password:
+        with patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock) as mock_forgot_password:
             mock_forgot_password.return_value = None
             response = client.post(
                 "/v1/auth/forgot-password",
@@ -1277,10 +1182,7 @@ class TestRateLimitSessionMiddleware:
     def test_reissues_cookie_when_session_cookie_is_unknown(self, client, fake_cache_client, rate_limit_cache_service):
         """Should replace a client-provided session that is not registered in Redis."""
         client.cookies.set(RATE_LIMIT_SESSION_COOKIE, "unknown-session")
-        with patch(
-            "app.controllers.auth_controller.auth_service.forgot_password",
-            new_callable=AsyncMock,
-        ) as mock_forgot_password:
+        with patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock) as mock_forgot_password:
             mock_forgot_password.return_value = None
             response = client.post(
                 "/v1/auth/forgot-password",

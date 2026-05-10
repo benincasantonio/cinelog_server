@@ -6,9 +6,8 @@ from app.utils.object_id_utils import to_object_id
 
 
 class MovieRatingRepository:
-    @staticmethod
     async def find_movie_rating_by_user_and_movie(
-        user_id: PydanticObjectId, movie_id: PydanticObjectId
+        self, user_id: PydanticObjectId, movie_id: PydanticObjectId
     ) -> MovieRating | None:
         """
         Find a movie rating by user ID and movie ID.
@@ -21,8 +20,7 @@ class MovieRatingRepository:
             MovieRating.active_filter({"userId": user_object_id, "movieId": movie_object_id})
         )
 
-    @staticmethod
-    async def find_movie_rating_by_user_and_tmdb(user_id: PydanticObjectId, tmdb_id: int) -> MovieRating | None:
+    async def find_movie_rating_by_user_and_tmdb(self, user_id: PydanticObjectId, tmdb_id: int) -> MovieRating | None:
         """
         Find a movie rating by user ID and TMDB ID.
         """
@@ -31,8 +29,8 @@ class MovieRatingRepository:
             return None
         return await MovieRating.find_one(MovieRating.active_filter({"userId": user_object_id, "tmdbId": tmdb_id}))
 
-    @staticmethod
     async def create_update_movie_rating(
+        self,
         user_id: PydanticObjectId,
         movie_id: PydanticObjectId,
         rating: int,
@@ -43,7 +41,7 @@ class MovieRatingRepository:
         Create or update a movie rating for a specific user and movie.
         If a rating already exists for the user and movie, it will be updated.
         """
-        existing_rating = await MovieRatingRepository.find_movie_rating_by_user_and_movie(user_id, movie_id)
+        existing_rating = await self.find_movie_rating_by_user_and_movie(user_id, movie_id)
 
         if existing_rating:
             existing_rating.rating = rating

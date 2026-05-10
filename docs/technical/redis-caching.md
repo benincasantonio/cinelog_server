@@ -62,13 +62,13 @@ Key construction is the caller's responsibility — `CacheService` is key-agnost
 Cinelog uses cache layers at the same boundary as the data being cached:
 
 - `*_cache_service.py` is for service-level, composed, or external API responses. Examples: `StatsCacheService` caches a `StatsResponse`, and `TMDBCacheService` caches TMDB API responses.
-- `*_cache_repository.py` is for raw persistence lookups. `LogCacheRepository` wraps `LogRepository` and caches raw `Log` documents before `LogService` enriches them with movie and rating data.
+- `*_cache_repository.py` is for raw persistence lookups. `LogCacheRepository` wraps a `LogRepository` instance and caches raw `Log` documents before `LogService` enriches them with movie and rating data.
 
 Use the narrowest boundary that owns the data dependencies. If a response combines multiple repositories or services, caching it at that level also makes invalidation responsible for all of those dependencies.
 
-### Inheritance vs Composition
+### Composition over Inheritance
 
-Use inheritance only when the cache layer is a drop-in replacement for the uncached layer and exposes the same contract. `LogCacheRepository` extends `LogRepository` because callers can use it anywhere a log repository is expected.
+Repository cache decorators use composition. `LogCacheRepository` wraps a `LogRepository` instance via constructor injection, exposes the same method surface, and can be used anywhere a log repository dependency is expected.
 
 Use composition when the cache layer is only a helper for storing, reading, or invalidating cached payloads. `StatsService` composes `StatsCacheService`, and `TMDBService` composes `TMDBCacheService`; those cache services are not substitutes for the full service APIs.
 
@@ -76,7 +76,7 @@ Use composition when the cache layer is only a helper for storing, reading, or i
 
 ## Log Repository Cache
 
-`LogCacheRepository` (`app/repository/log_cache_repository.py`) decorates `LogRepository` and caches:
+`LogCacheRepository` (`app/repository/log_cache_repository.py`) decorates a `LogRepository` instance and caches:
 
 - `find_log_by_id(log_id, user_id)`
 - `find_logs_by_user_id(...)`

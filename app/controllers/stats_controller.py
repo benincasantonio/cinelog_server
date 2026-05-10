@@ -2,13 +2,12 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.dependencies.auth_dependency import auth_dependency
+from app.dependencies.service_dependency import get_stats_service
 from app.schemas.stats_schemas import StatsRequest, StatsResponse
 from app.services.stats_service import StatsService
 from app.utils.exceptions_utils import AppException
 
 router = APIRouter()
-
-stats_service = StatsService()
 
 
 @router.get("/me", response_model=StatsResponse)
@@ -16,6 +15,7 @@ async def get_my_stats(
     request: Request,
     stats_request: StatsRequest = Depends(),
     user_id: PydanticObjectId = Depends(auth_dependency),
+    stats_service: StatsService = Depends(get_stats_service),
 ) -> StatsResponse:
     """
     Get stats for the logged in user.

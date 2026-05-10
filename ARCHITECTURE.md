@@ -8,7 +8,7 @@ The codebase follows a clean layered architecture:
 
 1. **Controllers** (`app/controllers/`) — FastAPI route handlers that define API endpoints
 2. **Services** (`app/services/`) — Business logic layer that orchestrates repository operations and external integrations
-3. **Repositories** (`app/repositories/`) — Data access layer using Beanie ODM
+3. **Repositories** (`app/repository/`) — Data access layer using Beanie ODM
 4. **Models** (`app/models/`) — Beanie document models representing database entities
 5. **Schemas** (`app/schemas/`) — Pydantic models for request/response validation
 6. **Dependencies** (`app/dependencies/`) — FastAPI dependency injection (e.g., JWT auth)
@@ -52,9 +52,16 @@ All routes are registered under the `/v1/` prefix:
 
 **Dependency Flow:**
 
-- Controllers instantiate services with required repositories
-- Services contain business logic and call repositories
+- Controllers depend on services via `Depends(get_*_service)` from `app/dependencies/service_dependency.py`
+- Each `get_*_service` provider is `@lru_cache`-d and constructs the service with its repositories directly
+- Services own their repositories — no separate repository dependency layer
 - Repositories handle direct database operations using Beanie models
+- `LogCacheRepository` is a composition-based decorator over `LogRepository` and is wired in `get_log_service()` / `get_stats_service()`
+
+**Repository Conventions:**
+
+- Repository methods are instance methods; services should not call repository classes statically
+- Storage abstraction (protocols, alternative backends) is intentionally deferred until a second backend exists, which would also require splitting domain models from Beanie `Document` return types
 
 **Error Handling:**
 

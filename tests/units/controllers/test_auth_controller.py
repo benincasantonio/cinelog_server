@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
+from app.dependencies.service_dependency import get_auth_service
 from app.schemas.auth_schemas import RegisterResponse
 
 
@@ -21,7 +22,7 @@ def client():
 class TestAuthController:
     """Tests for auth controller endpoints."""
 
-    @patch("app.controllers.auth_controller.auth_service.register", new_callable=AsyncMock)
+    @patch.object(get_auth_service(), "register", new_callable=AsyncMock)
     def test_register_success(self, mock_register, client):
         """Test successful user registration."""
         mock_register.return_value = RegisterResponse(
@@ -54,7 +55,7 @@ class TestAuthController:
         assert data["handle"] == "johndoe"
         mock_register.assert_called_once()
 
-    @patch("app.controllers.auth_controller.auth_service.register", new_callable=AsyncMock)
+    @patch.object(get_auth_service(), "register", new_callable=AsyncMock)
     def test_register_with_exception(self, mock_register, client):
         """Test registration that raises AppException."""
         from app.utils.error_codes_utils import ErrorCodes
@@ -88,10 +89,7 @@ class TestAuthController:
 
         assert response.status_code == 422  # Validation error
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.forgot_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock)
     def test_forgot_password_success(self, mock_forgot_password, client):
         """Test successful forgot-password request."""
         response = client.post(
@@ -103,10 +101,7 @@ class TestAuthController:
         assert response.json() == {"message": "If the email exists, a reset code has been sent."}
         mock_forgot_password.assert_awaited_once_with("test@example.com")
 
-    @patch(
-        "app.controllers.auth_controller.auth_service.reset_password",
-        new_callable=AsyncMock,
-    )
+    @patch.object(get_auth_service(), "reset_password", new_callable=AsyncMock)
     def test_reset_password_success(self, mock_reset_password, client):
         """Test successful reset-password request."""
         response = client.post(

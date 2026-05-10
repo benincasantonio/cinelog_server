@@ -65,7 +65,7 @@ class LogRepository:
         date_watched_to: date | None = None,
         sort_by: str = "dateWatched",
         sort_order: str = "desc",
-    ):
+    ) -> list[Log]:
         """
         Find all log entries for a specific user with optional filtering and sorting.
         Returns a list of dictionaries containing log data with joined movie data.
@@ -114,19 +114,16 @@ class LogRepository:
 
         return await Log.find(query_params).to_list()
 
-    async def delete_log(self, log_id: str, user_id: PydanticObjectId) -> bool:
+    async def delete_log(self, log_id: str, user_id: PydanticObjectId) -> Log | None:
         """
-        Delete a log entry (hard delete).
+        Delete a log entry (hard delete). Returns the deleted log, or None if not found.
         """
         log = await self._find_log_by_id(log_id, user_id)
         if not log:
-            return False
+            return None
 
-        return await self._delete_log(log)
-
-    async def _delete_log(self, log: Log) -> bool:
         await log.delete()
-        return True
+        return log
 
     async def get_log_stats(
         self,

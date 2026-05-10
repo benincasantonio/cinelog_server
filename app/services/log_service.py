@@ -1,7 +1,7 @@
 from beanie import PydanticObjectId
 
 from app.models.movie import Movie
-from app.repository.log_repository import LogRepository
+from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
 from app.repository.user_repository import UserRepository
@@ -25,22 +25,21 @@ class LogService:
 
     def __init__(
         self,
-        log_repository: LogRepository,
+        log_repository: LogCacheRepository | None = None,
         movie_service: MovieService | None = None,
         movie_repository: MovieRepository | None = None,
         movie_rating_repository: MovieRatingRepository | None = None,
         stats_cache_service: StatsCacheService | None = None,
         user_repository: UserRepository | None = None,
     ):
-        self.log_repository = log_repository
-        # Initialize movie service if not provided
+        self.log_repository = log_repository or LogCacheRepository()
+        resolved_movie_repository = movie_repository or MovieRepository()
         if movie_service is None:
-            movie_repository = MovieRepository()
-            movie_service = MovieService(movie_repository)
+            movie_service = MovieService(resolved_movie_repository)
 
         self.movie_service = movie_service
         self.movie_rating_repository = movie_rating_repository or MovieRatingRepository()
-        self.movie_repository = movie_repository or MovieRepository()
+        self.movie_repository = resolved_movie_repository
         self.stats_cache_service = stats_cache_service or StatsCacheService()
         self.user_repository = user_repository or UserRepository()
 
@@ -122,8 +121,8 @@ class LogService:
         """
         Delete a viewing log entry owned by the given user.
         """
-        deleted = await self.log_repository.delete_log(log_id=log_id, user_id=user_id)
-        if not deleted:
+        deleted_log = await self.log_repository.delete_log(log_id=log_id, user_id=user_id)
+        if deleted_log is None:
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
 
         await self.stats_cache_service.invalidate_user_stats(user_id)
