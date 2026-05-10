@@ -174,7 +174,7 @@ class TestUpdateLog:
         update_request = {"viewingNotes": "Updated notes", "watchedWhere": "streaming"}
 
         response = client.put(
-            "/v1/logs/log123",
+            "/v1/logs/507f1f77bcf86cd799439011",
             json=update_request,
             cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
@@ -193,13 +193,28 @@ class TestUpdateLog:
         update_request = {"viewingNotes": "Updated notes"}
 
         response = client.put(
-            "/v1/logs/log123",
+            "/v1/logs/507f1f77bcf86cd799439011",
             json=update_request,
             cookies={"__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )
 
         assert response.status_code == 401
+
+    def test_update_log_invalid_object_id_returns_422(self, client, override_auth):
+        """Malformed log_id path param fails FastAPI validation with 422."""
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        response = client.put(
+            "/v1/logs/not-an-object-id",
+            json={"viewingNotes": "x"},
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 422
 
 
 class TestDeleteLog:
@@ -212,7 +227,7 @@ class TestDeleteLog:
         mock_delete_log.return_value = None
 
         response = client.delete(
-            "/v1/logs/log123",
+            "/v1/logs/507f1f77bcf86cd799439011",
             cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )
@@ -230,7 +245,7 @@ class TestDeleteLog:
         mock_delete_log.side_effect = AppException(ErrorCodes.LOG_NOT_FOUND)
 
         response = client.delete(
-            "/v1/logs/log123",
+            "/v1/logs/507f1f77bcf86cd799439011",
             cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )
@@ -244,12 +259,26 @@ class TestDeleteLog:
         """Delete without access token returns 401."""
         app.dependency_overrides = {}
         response = client.delete(
-            "/v1/logs/log123",
+            "/v1/logs/507f1f77bcf86cd799439011",
             cookies={"__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )
 
         assert response.status_code == 401
+
+    def test_delete_log_invalid_object_id_returns_422(self, client, override_auth):
+        """Malformed log_id path param fails FastAPI validation with 422."""
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        response = client.delete(
+            "/v1/logs/not-an-object-id",
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 422
 
 
 class TestGetLogsByHandle:

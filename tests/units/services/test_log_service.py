@@ -203,8 +203,8 @@ class TestLogService:
         mock_movie_service.get_movie_by_id.return_value = mock_movie
 
         request = LogUpdateRequest(viewing_notes="Updated notes")
-        log_id_str = str(PydanticObjectId())
-        result = await log_service.update_log("user123", log_id_str, request)
+        log_id = PydanticObjectId()
+        result = await log_service.update_log("user123", log_id, request)
 
         assert result.viewing_notes == "Updated notes"
         mock_log_repository.update_log.assert_awaited_once()
@@ -244,8 +244,8 @@ class TestLogService:
         mock_movie_service.get_movie_by_id.return_value = mock_movie
 
         request = LogUpdateRequest(viewing_notes="Updated notes")
-        log_id_str = str(PydanticObjectId())
-        await log_service.update_log(user_id, log_id_str, request)
+        log_id = PydanticObjectId()
+        await log_service.update_log(user_id, log_id, request)
 
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
@@ -257,33 +257,18 @@ class TestLogService:
         request = LogUpdateRequest(viewing_notes="Updated notes")
 
         with pytest.raises(AppException):
-            await log_service.update_log("user123", str(PydanticObjectId()), request)
-
-    @pytest.mark.asyncio
-    async def test_update_log_invalid_id_raises_log_not_found(
-        self, log_service, mock_log_repository, mock_stats_cache_service
-    ):
-        """Test that an unparseable log_id short-circuits to LOG_NOT_FOUND without hitting the repo."""
-        request = LogUpdateRequest(viewing_notes="Updated notes")
-
-        with pytest.raises(AppException) as exc_info:
-            await log_service.update_log("user123", "not-an-object-id", request)
-
-        assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
-        mock_log_repository.update_log.assert_not_awaited()
-        mock_stats_cache_service.invalidate_user_stats.assert_not_called()
+            await log_service.update_log("user123", PydanticObjectId(), request)
 
     @pytest.mark.asyncio
     async def test_delete_log_success(self, log_service, mock_log_repository, mock_stats_cache_service):
         """Test successful log deletion invalidates the stats cache."""
         user_id = PydanticObjectId()
-        log_id_str = str(PydanticObjectId())
-        expected_log_id = PydanticObjectId(log_id_str)
+        log_id = PydanticObjectId()
         mock_log_repository.delete_log.return_value = MagicMock()
 
-        await log_service.delete_log(user_id=user_id, log_id=log_id_str)
+        await log_service.delete_log(user_id=user_id, log_id=log_id)
 
-        mock_log_repository.delete_log.assert_awaited_once_with(log_id=expected_log_id, user_id=user_id)
+        mock_log_repository.delete_log.assert_awaited_once_with(log_id=log_id, user_id=user_id)
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
@@ -293,23 +278,9 @@ class TestLogService:
         mock_log_repository.delete_log.return_value = None
 
         with pytest.raises(AppException) as exc_info:
-            await log_service.delete_log(user_id=user_id, log_id=str(PydanticObjectId()))
+            await log_service.delete_log(user_id=user_id, log_id=PydanticObjectId())
 
         assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
-        mock_stats_cache_service.invalidate_user_stats.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_delete_log_invalid_id_raises_log_not_found(
-        self, log_service, mock_log_repository, mock_stats_cache_service
-    ):
-        """Test that an unparseable log_id short-circuits to LOG_NOT_FOUND without hitting the repo."""
-        user_id = PydanticObjectId()
-
-        with pytest.raises(AppException) as exc_info:
-            await log_service.delete_log(user_id=user_id, log_id="not-an-object-id")
-
-        assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
-        mock_log_repository.delete_log.assert_not_awaited()
         mock_stats_cache_service.invalidate_user_stats.assert_not_called()
 
     @pytest.mark.asyncio

@@ -18,7 +18,6 @@ from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
-from app.utils.object_id_utils import to_object_id
 
 
 class LogService:
@@ -91,15 +90,16 @@ class LogService:
             watched_where=log.watched_where,
         )
 
-    async def update_log(self, user_id: PydanticObjectId, log_id: str, request: LogUpdateRequest) -> LogCreateResponse:
+    async def update_log(
+        self,
+        user_id: PydanticObjectId,
+        log_id: PydanticObjectId,
+        request: LogUpdateRequest,
+    ) -> LogCreateResponse:
         """
         Update an existing log entry.
         """
-        log_object_id = to_object_id(log_id)
-        if log_object_id is None:
-            raise AppException(ErrorCodes.LOG_NOT_FOUND)
-
-        log = await self.log_repository.update_log(log_id=log_object_id, user_id=user_id, update_request=request)
+        log = await self.log_repository.update_log(log_id=log_id, user_id=user_id, update_request=request)
 
         if not log:
             # Log not found or doesn't belong to user
@@ -122,15 +122,11 @@ class LogService:
             watched_where=log.watched_where,
         )
 
-    async def delete_log(self, user_id: PydanticObjectId, log_id: str) -> None:
+    async def delete_log(self, user_id: PydanticObjectId, log_id: PydanticObjectId) -> None:
         """
         Delete a viewing log entry owned by the given user.
         """
-        log_object_id = to_object_id(log_id)
-        if log_object_id is None:
-            raise AppException(ErrorCodes.LOG_NOT_FOUND)
-
-        deleted_log = await self.log_repository.delete_log(log_id=log_object_id, user_id=user_id)
+        deleted_log = await self.log_repository.delete_log(log_id=log_id, user_id=user_id)
         if deleted_log is None:
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
 

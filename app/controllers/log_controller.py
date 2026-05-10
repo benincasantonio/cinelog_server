@@ -38,7 +38,7 @@ async def create_log(
 async def update_log(
     request: Request,
     response: Response,
-    log_id: str,
+    log_id: PydanticObjectId,
     request_body: LogUpdateRequest,
     user_id: PydanticObjectId = Depends(auth_dependency),
     log_service: LogService = Depends(get_log_service),
@@ -61,7 +61,7 @@ async def update_log(
 async def delete_log(
     request: Request,
     response: Response,
-    log_id: str,
+    log_id: PydanticObjectId,
     user_id: PydanticObjectId = Depends(auth_dependency),
     log_service: LogService = Depends(get_log_service),
 ) -> None:
