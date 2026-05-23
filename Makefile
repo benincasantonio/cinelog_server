@@ -1,4 +1,4 @@
-.PHONY: install dev hooks test-unit test-e2e lint format format-check typecheck security dependency-audit run docker-up docker-down docker-build-prod docker-prod-up docker-prod-down migrate migrate-dry-run
+.PHONY: install dev hooks test-unit test-e2e lint format format-check typecheck security dependency-audit run docker-up docker-down docker-build-prod docker-prod-up docker-prod-down migrate migrate-dry-run db-schema-migrate db-schema-rollback
 
 install:
 	uv sync
@@ -59,3 +59,9 @@ migrate:
 
 migrate-dry-run:
 	uv run python -m migrations.runner --dry-run
+
+db-schema-migrate:
+	uv run alembic upgrade head
+
+db-schema-rollback:
+	uv run alembic downgrade -1

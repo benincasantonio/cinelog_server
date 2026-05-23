@@ -19,6 +19,7 @@ from app.config.cors import get_cors_config
 from app.config.public_routes import CSRF_EXEMPT_PATHS
 from app.config.rate_limiter import limiter
 from app.config.redis import get_redis_config
+from app.db.postgres import close_postgres_engine, init_postgres_engine
 from app.middleware.csrf_middleware import CSRFMiddleware
 from app.middleware.rate_limit_session_middleware import RateLimitSessionMiddleware
 from app.models.log import Log
@@ -62,6 +63,7 @@ async def lifespan(_: FastAPI):
         database=mongo_client[mongodb_db],
         document_models=[User, Log, Movie, MovieRating],
     )
+    init_postgres_engine(required=None)
     CacheService.initialize(get_redis_config())
     cache = CacheService.get_instance()
     if not await cache.health_check():
@@ -71,6 +73,7 @@ async def lifespan(_: FastAPI):
     finally:
         await CacheService.aclose_all()
         await TMDBService.aclose_all()
+        await close_postgres_engine()
         await mongo_client.close()
 
 
