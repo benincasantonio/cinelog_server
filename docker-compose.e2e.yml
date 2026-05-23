@@ -19,3 +19,19 @@ services:
     tmpfs:
       - /data
 
+  postgres_e2e:
+    image: postgres:17-alpine
+    container_name: cinelog_postgres_e2e
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=cinelog_e2e_db
+      - POSTGRES_USER=cinelog
+      - POSTGRES_PASSWORD=cinelog
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cinelog -d cinelog_e2e_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

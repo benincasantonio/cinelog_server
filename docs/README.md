@@ -25,6 +25,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [CORS Configuration](technical/cors-configuration.md) | CORS environment variables and behavior |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Migrations](technical/migrations.md) | Database migration system |
+| [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup, deterministic IDs, and cutover guardrails |
 | [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and friends-only stub |
 | [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |
 | [Rate Limiting](technical/rate-limiting.md) | slowapi setup, Redis backend, endpoint decoration, test strategy |
@@ -50,6 +51,8 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | `make test-e2e` | Start e2e MongoDB, run e2e tests, then stop e2e MongoDB |
 | `make migrate` | Run pending database migrations with confirmation |
 | `make migrate-dry-run` | Preview pending migrations without applying changes |
+| `make db-schema-migrate` | Run Alembic schema migrations against `DATABASE_URL` |
+| `make db-schema-rollback` | Roll back the latest Alembic schema migration |
 | `make lint` | Run Ruff linter |
 | `make format` | Format code with Ruff and apply auto-fixes |
 | `make format-check` | Check Ruff formatting without modifying files |
