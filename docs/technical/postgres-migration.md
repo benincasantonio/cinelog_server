@@ -130,11 +130,68 @@ Migration rules:
 - Idempotent inserts by `tmdb_id` uniqueness
 - Progress reporting (total / inserted / skipped)
 
+## User Collection Migration
+
+`#127` adds PostgreSQL user persistence and data migration scaffolding while keeping Mongo active at runtime.
+
+### Repository split
+
+- Legacy Mongo implementation remains in `app/repository/user_repository.py` as `UserRepository` (deprecated during migration).
+- New PostgreSQL implementation lives in `app/repository/postgres_user_repository.py` as `PostgresUserRepository`.
+- Runtime activation is intentionally blocked by `get_user_repository()` until the user-ID cutover is safe.
+
+### Table shape
+
+Alembic migration creates `users` with canonical account/profile fields and soft-delete metadata:
+
+- `email TEXT NOT NULL`
+- `handle TEXT NOT NULL`
+- `first_name`, `last_name`, `bio`, `profile_visibility`
+- `date_of_birth DATE NULL`
+- `password_hash`, `reset_password_code`, `reset_password_expires`
+
+Case-insensitive email uniqueness is enforced with a functional unique index:
+
+- `CREATE UNIQUE INDEX uq_users_email_lower ON users (LOWER(email))`
+
+Handles remain uniquely indexed with `ix_users_handle`.
+
+### GDPR oblivion behavior
+
+The PostgreSQL user repository mirrors the Mongo oblivion workflow by overwriting or clearing sensitive fields before soft deletion:
+
+- `first_name -> "Deleted"`
+- `last_name -> "User"`
+- `email -> deleted_<uuid>@deleted.local`
+- `handle -> deleted_<uuid>`
+- `bio`, `password_hash`, `reset_password_code`, `reset_password_expires`, `date_of_birth` -> `NULL`
+- `deleted = TRUE`, `deleted_at = now()`
+
+### Data migration script
+
+Use `db_migrations/m002_migrate_users.py` with async session wiring:
+
+- `up(mongo_db, pg_session, dry_run=False)` migrates active (non-deleted) users
+- `down(mongo_db, pg_session)` deletes only PostgreSQL rows whose UUIDs derive from the current Mongo `users` collection
+
+Migration rules:
+
+- Skip `deleted=True` Mongo rows
+- Map Mongo `_id` -> Postgres UUID via `mongo_id_to_uuid(...)`
+- Normalize Mongo `dateOfBirth` into SQL `DATE`
+- Preserve password-reset fields, profile visibility, and timestamps
+- Idempotent inserts via PostgreSQL `ON CONFLICT DO NOTHING`
+- Progress reporting (total / inserted / skipped)
+
 ## Activation Guardrails
 
 PostgreSQL movie activation is intentionally blocked in mixed mode while `LogRepository` and `MovieRatingRepository` still persist/query Mongo ObjectId movie references.
 
 Activation must happen through dependency wiring (`app/dependencies/repository_dependency.py`), not controller imports.
+
+PostgreSQL user activation is also intentionally blocked in mixed mode while JWT subjects, `auth_dependency`, ownership checks, Redis cache keys, and still-active Mongo repositories depend on ObjectId user references.
+
+JWT `sub` values and public response IDs remain Mongo ObjectId strings until the core cutover is complete.
 
 ## Later Tickets
 

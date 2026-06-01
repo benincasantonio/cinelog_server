@@ -10,7 +10,14 @@ from app.utils.object_id_utils import to_object_id
 
 
 class UserRepository:
-    """Repository class for User-related operations."""
+    """MongoDB user repository — active runtime implementation.
+
+    Pending replacement by ``PostgresUserRepository`` (in
+    ``app/repository/postgres_user_repository.py``) once JWT/auth, profile
+    ownership checks, caches, and Mongo repositories no longer depend on
+    ObjectId-based user identifiers. ``PostgresUserRepository`` is
+    intentionally unwired today — do not import it from runtime code paths.
+    """
 
     async def create_user(self, request: UserCreateRequest) -> User:
         """Create a new user in the database."""

@@ -11,12 +11,16 @@ Controllers receive services through FastAPI `Depends(...)`.
 
 ## Repository Provider Guardrails
 
-`get_movie_repository()` is the runtime activation gate for movie persistence:
+`get_movie_repository()` and `get_user_repository()` are the runtime activation gates for mixed-mode persistence:
 
 - `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `MovieRepository`.
+- `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `UserRepository`.
 - `DB_BACKEND=postgres` while mixed-mode is unsafe -> raises `RepositoryActivationError` (fail-fast).
 
-This prevents accidental cutover while Mongo `LogRepository` and `MovieRatingRepository` still depend on ObjectId `movie_id` references.
+This prevents accidental cutover while:
+
+- Mongo `LogRepository` and `MovieRatingRepository` still depend on ObjectId `movie_id` references.
+- JWT `sub` values, `auth_dependency`, profile ownership checks, and user-scoped cache keys still depend on ObjectId `user_id` references.
 
 ## Service Providers
 

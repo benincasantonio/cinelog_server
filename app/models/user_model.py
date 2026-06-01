@@ -1,0 +1,44 @@
+"""PostgreSQL user ORM model."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from uuid import UUID
+
+from sqlalchemy import Date, DateTime, Index, Text, func, text
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.models.base_model import PostgresBaseEntity
+
+
+class PostgresUser(PostgresBaseEntity):
+    """User record stored in PostgreSQL."""
+
+    __tablename__ = "users"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    handle: Mapped[str] = mapped_column(Text, nullable=False)
+    first_name: Mapped[str] = mapped_column(Text, nullable=False)
+    last_name: Mapped[str] = mapped_column(Text, nullable=False)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    profile_visibility: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        server_default=text("'private'"),
+        default="private",
+    )
+    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reset_password_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reset_password_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("uq_users_email_lower", func.lower(email), unique=True),
+        Index("ix_users_handle", handle, unique=True),
+    )

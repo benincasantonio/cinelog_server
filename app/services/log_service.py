@@ -1,6 +1,6 @@
 from beanie import PydanticObjectId
 
-from app.dependencies.repository_dependency import get_movie_repository
+from app.dependencies.repository_dependency import get_movie_repository, get_user_repository
 from app.models.movie import Movie
 from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
@@ -42,7 +42,7 @@ class LogService:
         self.movie_rating_repository = movie_rating_repository or MovieRatingRepository()
         self.movie_repository = resolved_movie_repository
         self.stats_cache_service = stats_cache_service or StatsCacheService()
-        self.user_repository = user_repository or UserRepository()
+        self.user_repository = user_repository or get_user_repository()
 
     def _map_movie_to_response(self, movie: Movie) -> MovieResponse:
         return MovieResponse(
