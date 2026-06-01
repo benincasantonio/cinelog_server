@@ -31,7 +31,7 @@ User-related validators used by `auth_schemas` and `user_schemas`.
 | Type | Description |
 |------|-------------|
 | `NameStr` | Required name (1–50 chars, letters/accents/hyphens only) |
-| `HandleStr` | Required handle (3–20 chars, alphanumeric + underscore, no leading digit) |
+| `HandleStr` | Required handle (3–20 chars, alphanumeric + underscore, no leading digit; casing preserved) |
 | `BioStr` | Optional bio (`None` or up to 500 chars, HTML tags stripped) |
 | `ProfileVisibilityStr` | Required profile visibility (`public`, `friends_only`, or `private`) |
 

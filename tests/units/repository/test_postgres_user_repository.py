@@ -132,10 +132,18 @@ async def test_email_uniqueness_is_case_insensitive(repository: PostgresUserRepo
 
 
 @pytest.mark.asyncio
+async def test_handle_uniqueness_is_case_insensitive(repository: PostgresUserRepository):
+    await repository.create_user(_user_request(email="first-handle@example.com", handle="Antonio"))
+
+    with pytest.raises(IntegrityError):
+        await repository.create_user(_user_request(email="second-handle@example.com", handle="antonio"))
+
+
+@pytest.mark.asyncio
 async def test_find_user_by_handle_returns_active_row(repository: PostgresUserRepository):
     created = await repository.create_user(_user_request(handle="janedoe", email="jane@example.com"))
 
-    found = await repository.find_user_by_handle("janedoe")
+    found = await repository.find_user_by_handle("JANEDOE")
 
     assert found is not None
     assert found.id == created.id
@@ -143,7 +151,7 @@ async def test_find_user_by_handle_returns_active_row(repository: PostgresUserRe
 
 @pytest.mark.asyncio
 async def test_find_user_by_email_or_handle_matches_both_paths(repository: PostgresUserRepository):
-    created = await repository.create_user(_user_request(email="lookup@example.com", handle="lookuphandle"))
+    created = await repository.create_user(_user_request(email="lookup@example.com", handle="LookupHandle"))
 
     found_by_email = await repository.find_user_by_email_or_handle("LOOKUP@example.com")
     found_by_handle = await repository.find_user_by_email_or_handle("lookuphandle")
