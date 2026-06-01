@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # Import all ORM modules so their tables register with ``Base.metadata`` before
 # ``--autogenerate`` snapshots it. Imports are side-effect only.
 from alembic import context, util
-from app.models import movie_model  # noqa: F401
+from app.models import movie_model, user_model  # noqa: F401
 from app.models.base_model import Base
 
 config = context.config
