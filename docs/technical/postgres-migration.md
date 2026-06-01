@@ -185,6 +185,61 @@ Migration rules:
 - Idempotent inserts via PostgreSQL `ON CONFLICT DO NOTHING`
 - Progress reporting (total / inserted / skipped)
 
+## MovieRating Collection Migration
+
+`#128` adds PostgreSQL movie-rating persistence and migration scaffolding while Mongo remains active at runtime.
+
+### Repository split
+
+- Legacy Mongo implementation remains in `app/repository/movie_rating_repository.py` as `MovieRatingRepository` (deprecated during migration).
+- New PostgreSQL implementation lives in `app/repository/postgres_movie_rating_repository.py` as `PostgresMovieRatingRepository`.
+- Runtime activation is intentionally blocked by `get_movie_rating_repository()` until user/movie/log ID dependencies are safe.
+
+### Table shape
+
+Alembic migration creates `movie_ratings` with canonical rating fields and soft-delete metadata:
+
+- `user_id UUID NOT NULL REFERENCES users(id)`
+- `movie_id UUID NOT NULL REFERENCES movies(id)`
+- `tmdb_id INTEGER NOT NULL`
+- `rating INTEGER NULL CHECK (rating BETWEEN 1 AND 10)`
+- `review TEXT NULL`
+
+The current Mongo uniqueness/upsert identity is preserved with:
+
+- `UNIQUE (user_id, tmdb_id)`
+
+The main read path also gets a supporting composite index:
+
+- `CREATE INDEX ix_movie_ratings_user_movie ON movie_ratings (user_id, movie_id)`
+
+### Native upsert behavior
+
+`PostgresMovieRatingRepository.create_update_movie_rating(...)` uses PostgreSQL `INSERT .. ON CONFLICT .. DO UPDATE` keyed by `(user_id, tmdb_id)` instead of Mongo's application-level check-then-save flow.
+
+Conflict updates:
+
+- overwrite `movie_id`, `rating`, and `review`
+- refresh `updated_at`
+- clear `deleted` / `deleted_at` so a matching soft-deleted row is revived
+
+### Data migration script
+
+Use `db_migrations/m003_migrate_movie_ratings.py` with async session wiring:
+
+- `up(mongo_db, pg_session, dry_run=False)` migrates active (non-deleted) movie ratings
+- `down(mongo_db, pg_session)` deletes only PostgreSQL rows whose UUIDs derive from the current Mongo `movie_ratings` collection
+
+Migration rules:
+
+- Skip `deleted=True` Mongo rows
+- Map Mongo `_id`, `userId`, and `movieId` -> Postgres UUID via `mongo_id_to_uuid(...)`
+- Validate that derived `user_id` and `movie_id` already exist in PostgreSQL before insert
+- Skip missing-FK rows with warnings
+- Preserve `tmdbId`, `rating`, `review`, and timestamps
+- Idempotent inserts via PostgreSQL `ON CONFLICT (user_id, tmdb_id) DO NOTHING`
+- Progress reporting (total / inserted / skipped / warnings)
+
 ## Activation Guardrails
 
 PostgreSQL movie activation is intentionally blocked in mixed mode while `LogRepository` and `MovieRatingRepository` still persist/query Mongo ObjectId movie references.
@@ -193,12 +248,14 @@ Activation must happen through dependency wiring (`app/dependencies/repository_d
 
 PostgreSQL user activation is also intentionally blocked in mixed mode while JWT subjects, `auth_dependency`, ownership checks, Redis cache keys, and still-active Mongo repositories depend on ObjectId user references.
 
+PostgreSQL movie-rating activation is intentionally blocked in mixed mode while auth still emits ObjectId user IDs, `LogRepository` still consumes ObjectId movie IDs, and `MovieRepository` cutover remains blocked behind the earlier movie guard.
+
 JWT `sub` values and public response IDs remain Mongo ObjectId strings until the core cutover is complete.
 
 ## Later Tickets
 
 Future migration tickets should add:
 
-- User/movie_rating/log PostgreSQL repository migrations
+- Log PostgreSQL repository migration
 - Safe full backend cutover once ID dependencies are resolved
 - Final MongoDB decommissioning
