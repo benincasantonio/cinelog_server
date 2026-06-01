@@ -9,12 +9,12 @@ Tests can swap a whole service through
 from functools import lru_cache
 
 from app.dependencies.repository_dependency import (
+    get_log_repository,
     get_movie_rating_repository,
     get_movie_repository,
     get_user_repository,
 )
 from app.repository.log_cache_repository import LogCacheRepository
-from app.repository.log_repository import LogRepository
 from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.services.auth_service import AuthService
 from app.services.log_service import LogService
@@ -55,7 +55,7 @@ def get_movie_rating_service() -> MovieRatingService:
 @lru_cache
 def get_log_service() -> LogService:
     return LogService(
-        log_repository=LogCacheRepository(LogRepository()),
+        log_repository=LogCacheRepository(get_log_repository()),
         movie_service=get_movie_service(),
         movie_repository=get_movie_repository(),
         movie_rating_repository=get_movie_rating_repository(),
@@ -66,7 +66,7 @@ def get_log_service() -> LogService:
 @lru_cache
 def get_stats_service() -> StatsService:
     return StatsService(
-        log_repository=LogCacheRepository(LogRepository()),
+        log_repository=LogCacheRepository(get_log_repository()),
         movie_rating_repository=get_movie_rating_repository(),
         movie_repository=get_movie_repository(),
     )
