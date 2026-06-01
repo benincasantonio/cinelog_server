@@ -5,11 +5,12 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import Date, DateTime, Index, Text, func, text
+from sqlalchemy import CheckConstraint, Date, DateTime, Index, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base_model import PostgresBaseEntity
+from app.types import PROFILE_VISIBILITY_CHOICES
 
 
 class PostgresUser(PostgresBaseEntity):
@@ -38,7 +39,13 @@ class PostgresUser(PostgresBaseEntity):
     reset_password_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     reset_password_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    _profile_visibility_sql = ", ".join(f"'{choice}'" for choice in PROFILE_VISIBILITY_CHOICES)
+
     __table_args__ = (
+        CheckConstraint(
+            f"profile_visibility IN ({_profile_visibility_sql})",
+            name="ck_users_profile_visibility",
+        ),
         Index("uq_users_email_lower", func.lower(email), unique=True),
         Index("ix_users_handle", handle, unique=True),
     )

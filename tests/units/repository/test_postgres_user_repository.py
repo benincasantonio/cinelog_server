@@ -306,3 +306,20 @@ def test_mongo_id_to_uuid_is_deterministic_for_user_migration():
     second = mongo_id_to_uuid("507f1f77bcf86cd799439011")
 
     assert first == second
+
+
+@pytest.mark.asyncio
+async def test_profile_visibility_check_constraint_rejects_invalid_value(seed_session: AsyncSession):
+    invalid_user = PostgresUser(
+        email="invalid-visibility@example.com",
+        handle="invalidvisibility",
+        first_name="Invalid",
+        last_name="Visibility",
+        date_of_birth=date(1990, 1, 1),
+        profile_visibility="hidden",
+    )
+
+    seed_session.add(invalid_user)
+
+    with pytest.raises(IntegrityError):
+        await seed_session.commit()

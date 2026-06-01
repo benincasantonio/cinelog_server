@@ -18,6 +18,14 @@ Default is `"private"` for existing users (set via migration 002).
 
 `ProfileVisibilityStr` is a reusable `Annotated` type in `app/types/user_validation.py`. It normalizes input (strip + lowercase) and validates against `PROFILE_VISIBILITY_CHOICES`. For optional fields, use `ProfileVisibilityStr | None` inline — do not create a separate `OptionalProfileVisibilityStr` alias.
 
+`RegisterRequest`, `UpdateProfileRequest`, and `UserCreateRequest` all use this type, so application-level writes are limited to:
+
+- `"public"`
+- `"friends_only"`
+- `"private"`
+
+The PostgreSQL `users` table also enforces the same set with `CHECK (profile_visibility IN (...))`, so invalid values are rejected even if data bypasses Pydantic.
+
 ## API Endpoints
 
 | Endpoint | Method | Visibility Check |

@@ -19,7 +19,10 @@ class UserCreateRequest(BaseSchema):
     bio: BioStr = Field(None, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
     password_hash: str | None = Field(None, description="Hashed password for local auth")
-    profile_visibility: str = Field(default="private", description="Profile visibility setting")
+    profile_visibility: ProfileVisibilityStr = Field(
+        default="private",
+        description="Profile visibility setting (public, friends_only, private)",
+    )
 
 
 class UserCreateResponse(BaseSchema):
