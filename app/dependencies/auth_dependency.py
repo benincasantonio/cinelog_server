@@ -1,11 +1,14 @@
+from uuid import UUID
+
 from beanie import PydanticObjectId
 from fastapi import HTTPException, Request
 
 from app.services.token_service import TokenService
 from app.utils.auth_utils import ACCESS_TOKEN_COOKIE
+from app.utils.id_utils import is_valid_uuid
 
 
-def auth_dependency(request: Request) -> PydanticObjectId:
+def auth_dependency(request: Request) -> PydanticObjectId | UUID:
     """
     Auth dependency check if the user is authenticated via local JWT cookie.
     Returns the user_id (sub) from the token.
@@ -25,6 +28,11 @@ def auth_dependency(request: Request) -> PydanticObjectId:
             raise HTTPException(status_code=401, detail="Invalid token payload")
 
         request.state.user_id = user_id
+
+        print(f"Authenticated user_id: {user_id} from token in auth_dependency")
+
+        if is_valid_uuid(user_id):
+            return UUID(user_id)
 
         return PydanticObjectId(user_id)
 

@@ -10,7 +10,7 @@ from app.models.movie import Movie
 from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
-from app.repository.user_repository import UserRepository
+from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.log_schemas import (
     LogCreateRequest,
     LogCreateResponse,
@@ -36,7 +36,7 @@ class LogService:
         movie_repository: MovieRepository | None = None,
         movie_rating_repository: MovieRatingRepository | None = None,
         stats_cache_service: StatsCacheService | None = None,
-        user_repository: UserRepository | None = None,
+        user_repository: UserRepositoryProtocol | None = None,
     ):
         self.log_repository = log_repository or LogCacheRepository(get_log_repository())
         resolved_movie_repository = movie_repository or get_movie_repository()

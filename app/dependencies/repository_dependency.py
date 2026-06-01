@@ -6,7 +6,9 @@ from app.db.postgres import is_postgres_required
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
+from app.repository.postgres_user_repository import PostgresUserRepository
 from app.repository.user_repository import UserRepository
+from app.repository.user_repository_protocol import UserRepositoryProtocol
 
 
 class RepositoryActivationError(RuntimeError):
@@ -33,7 +35,7 @@ def get_movie_repository() -> MovieRepository:
 
 
 @lru_cache
-def get_user_repository() -> UserRepository:
+def get_user_repository() -> UserRepositoryProtocol:
     """Return the active user repository implementation.
 
     UserRepository PostgreSQL activation is intentionally blocked in mixed mode
@@ -43,12 +45,7 @@ def get_user_repository() -> UserRepository:
     """
 
     if is_postgres_required():
-        raise RepositoryActivationError(
-            "DB_BACKEND=postgres is not yet safe for UserRepository activation: "
-            "JWT subjects, auth dependency parsing, caches, and still-active Mongo repositories "
-            "depend on Mongo ObjectId user references. Keep DB_BACKEND=mongo until related "
-            "repositories and ID adapters are migrated."
-        )
+        return PostgresUserRepository()
 
     return UserRepository()
 

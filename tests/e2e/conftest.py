@@ -11,6 +11,7 @@ import os
 os.environ["MONGODB_HOST"] = "localhost"
 os.environ["MONGODB_PORT"] = "27018"
 os.environ["MONGODB_DB"] = "cinelog_e2e_db"
+os.environ["DB_BACKEND"] = "mongo"
 os.environ.setdefault("REDIS_URL", "redis://localhost:6380/0")
 os.environ.setdefault("RATE_LIMIT_HMAC_SECRET", "test-rate-limit-hmac-secret")
 

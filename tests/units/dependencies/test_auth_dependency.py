@@ -1,3 +1,4 @@
+from uuid import UUID
 from unittest.mock import Mock, patch
 
 import pytest
@@ -25,6 +26,22 @@ class TestAuthDependency:
             result = auth_dependency(mock_request)
 
             assert result == PydanticObjectId(user_id_str)
+            mock_decode.assert_called_once_with("valid_token")
+
+    def test_when_cookie_contains_uuid_sub_returns_uuid(self):
+        """Test that auth_dependency returns UUID when JWT sub is a UUID string."""
+        mock_request = Mock()
+        mock_request.cookies = {"__Host-access_token": "valid_token"}
+        mock_request.headers = {}
+        user_id_str = "3f6f4d8c-c729-4c09-93aa-fbffcd2d1c4f"
+
+        with patch("app.dependencies.auth_dependency.TokenService.decode_token") as mock_decode:
+            mock_decode.return_value = {"sub": user_id_str, "type": "access"}
+
+            result = auth_dependency(mock_request)
+
+            assert result == UUID(user_id_str)
+            assert mock_request.state.user_id == user_id_str
             mock_decode.assert_called_once_with("valid_token")
 
     def test_when_cookie_is_missing(self):

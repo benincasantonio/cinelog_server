@@ -10,6 +10,8 @@ from app.dependencies.repository_dependency import (
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
+from app.repository.postgres_movie_repository import PostgresMovieRepository
+from app.repository.postgres_user_repository import PostgresUserRepository
 from app.repository.user_repository import UserRepository
 
 
@@ -34,11 +36,12 @@ def test_get_movie_repository_defaults_to_mongo(monkeypatch):
     assert isinstance(repository, MovieRepository)
 
 
-def test_get_movie_repository_raises_for_unsafe_postgres_activation(monkeypatch):
+def test_get_movie_repository_returns_postgres_when_backend_is_postgres(monkeypatch):
     monkeypatch.setenv("DB_BACKEND", "postgres")
 
-    with pytest.raises(RepositoryActivationError, match="not yet safe"):
-        get_movie_repository()
+    repository = get_movie_repository()
+
+    assert isinstance(repository, PostgresMovieRepository)
 
 
 def test_get_log_repository_defaults_to_mongo(monkeypatch):
@@ -79,8 +82,9 @@ def test_get_user_repository_defaults_to_mongo(monkeypatch):
     assert isinstance(repository, UserRepository)
 
 
-def test_get_user_repository_raises_for_unsafe_postgres_activation(monkeypatch):
+def test_get_user_repository_returns_postgres_when_backend_is_postgres(monkeypatch):
     monkeypatch.setenv("DB_BACKEND", "postgres")
 
-    with pytest.raises(RepositoryActivationError, match="not yet safe"):
-        get_user_repository()
+    repository = get_user_repository()
+
+    assert isinstance(repository, PostgresUserRepository)

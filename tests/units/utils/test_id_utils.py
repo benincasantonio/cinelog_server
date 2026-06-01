@@ -1,8 +1,9 @@
 from uuid import UUID
 
+import pytest
 from beanie import PydanticObjectId
 
-from app.utils.id_utils import mongo_id_to_uuid
+from app.utils.id_utils import is_valid_uuid, mongo_id_to_uuid
 
 
 def test_mongo_id_to_uuid_is_deterministic():
@@ -41,3 +42,15 @@ def test_mongo_id_to_uuid_accepts_pydantic_object_id():
     mongo_id = PydanticObjectId("507f1f77bcf86cd799439011")
 
     assert mongo_id_to_uuid(mongo_id) == UUID("e340c5bd-a268-5cb5-9e3c-2413648520da")
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("e340c5bd-a268-5cb5-9e3c-2413648520da", True),
+        ("not-a-uuid", False),
+        ("507f1f77bcf86cd799439011", False),
+    ],
+)
+def test_is_valid_uuid(value: str, expected: bool):
+    assert is_valid_uuid(value) is expected
