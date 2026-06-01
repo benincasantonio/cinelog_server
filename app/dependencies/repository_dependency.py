@@ -3,6 +3,7 @@
 from functools import lru_cache
 
 from app.db.postgres import is_postgres_required
+from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
 from app.repository.user_repository import UserRepository
 
@@ -49,3 +50,24 @@ def get_user_repository() -> UserRepository:
         )
 
     return UserRepository()
+
+
+@lru_cache
+def get_movie_rating_repository() -> MovieRatingRepository:
+    """Return the active movie-rating repository implementation.
+
+    MovieRatingRepository PostgreSQL activation is intentionally blocked in
+    mixed mode because auth still provides Mongo ObjectId user identifiers,
+    LogRepository still consumes ObjectId movie references, and MovieRepository
+    activation remains blocked until later cutover work.
+    """
+
+    if is_postgres_required():
+        raise RepositoryActivationError(
+            "DB_BACKEND=postgres is not yet safe for MovieRatingRepository activation: "
+            "auth still provides Mongo ObjectId user IDs, LogRepository still depends on "
+            "Mongo ObjectId movie references, and MovieRepository cutover remains blocked. "
+            "Keep DB_BACKEND=mongo until related repositories and ID adapters are migrated."
+        )
+
+    return MovieRatingRepository()

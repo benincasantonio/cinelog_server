@@ -6,6 +6,16 @@ from app.utils.object_id_utils import to_object_id
 
 
 class MovieRatingRepository:
+    """MongoDB movie-rating repository — active runtime implementation.
+
+    Pending replacement by ``PostgresMovieRatingRepository`` (in
+    ``app/repository/postgres_movie_rating_repository.py``) once auth,
+    movie/log repository dependencies, and mixed-mode ID adapters no longer
+    depend on ObjectId-based user and movie identifiers. The PostgreSQL
+    repository is intentionally unwired today — do not import it from runtime
+    code paths.
+    """
+
     async def find_movie_rating_by_user_and_movie(
         self, user_id: PydanticObjectId, movie_id: PydanticObjectId
     ) -> MovieRating | None:
