@@ -1,7 +1,7 @@
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from app.repository.user_repository import UserRepository
+from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.auth_schemas import (
     RegisterRequest,
     RegisterResponse,
@@ -14,12 +14,12 @@ from app.utils.exceptions_utils import AppException
 
 
 class AuthService:
-    user_repository: UserRepository
+    user_repository: UserRepositoryProtocol
     email_service: EmailService
 
     def __init__(
         self,
-        user_repository: UserRepository,
+        user_repository: UserRepositoryProtocol,
         email_service: EmailService | None = None,
     ):
         self.user_repository = user_repository

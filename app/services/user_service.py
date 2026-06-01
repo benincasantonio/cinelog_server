@@ -2,7 +2,8 @@ from datetime import datetime
 
 from beanie import PydanticObjectId
 
-from app.repository.user_repository import UserRepository
+from app.repository.postgres_user_repository import PostgresUserRepository
+from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.user_schemas import (
     ChangePasswordResponse,
     UpdateProfileRequest,
@@ -15,11 +16,11 @@ from app.utils.exceptions_utils import AppException
 
 
 class UserService:
-    user_repository: UserRepository
+    user_repository: UserRepositoryProtocol
 
     def __init__(
         self,
-        user_repository: UserRepository,
+        user_repository: UserRepositoryProtocol,
     ):
         self.user_repository = user_repository
 
@@ -27,6 +28,9 @@ class UserService:
         """
         Get user information from MongoDB.
         """
+        if(isinstance(self.user_repository, PostgresUserRepository)):
+            print("Using PostgresUserRepository in UserService.get_user_info")
+
         user = await self.user_repository.find_user_by_id(user_id)
         if not user:
             raise AppException(ErrorCodes.USER_NOT_FOUND)
