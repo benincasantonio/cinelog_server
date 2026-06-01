@@ -1,7 +1,7 @@
 """Migration runner for Cinelog database migrations.
 
 This module provides a CLI tool to discover and run database migrations.
-Migrations are numbered Python files in the migrations/ directory.
+Migrations are ``NNN_*`` Python files in the migrations/ directory.
 
 Usage:
     python -m migrations.runner [--dry-run] [--yes] [--rollback <version>]

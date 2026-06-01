@@ -2,6 +2,8 @@
 
 This guide covers the Cinelog database migration system — a lightweight, versioned migration framework for MongoDB.
 
+For PostgreSQL schema/data migration commands and unified cross-backend execution, see [Postgres Migration](postgres-migration.md).
+
 ## Overview
 
 The migration system is a custom Python-based solution that uses PyMongo (sync) to discover and run numbered migration scripts. It tracks applied migrations in the `migration_versions` collection and supports dry-run mode for impact preview before execution.
@@ -126,7 +128,7 @@ Example dry-run output:
 
 ### File Naming
 
-Create a new file in `migrations/` with a 3-digit prefix and descriptive name:
+Create a new file in `migrations/` with a 3-digit version prefix and descriptive name:
 
 ```
 migrations/002_add_user_email_verified.py
