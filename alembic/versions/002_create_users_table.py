@@ -39,6 +39,10 @@ def upgrade() -> None:
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.CheckConstraint(
+            "profile_visibility IN ('public', 'friends_only', 'private')",
+            name="ck_users_profile_visibility",
+        ),
     )
 
     op.create_index("uq_users_email_lower", "users", [sa.text("LOWER(email)")], unique=True)

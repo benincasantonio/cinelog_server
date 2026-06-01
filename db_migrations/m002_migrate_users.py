@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user_model import PostgresUser
+from app.types import PROFILE_VISIBILITY_CHOICES
 from app.utils.id_utils import mongo_id_to_uuid
 
 BATCH_SIZE = 100
@@ -37,6 +38,15 @@ def _parse_date_of_birth(value: str | date | datetime | None) -> date | None:
 
 
 def _normalize_user_doc(mongo_user: dict) -> dict:
+    profile_visibility = mongo_user.get("profileVisibility")
+    if isinstance(profile_visibility, str):
+        normalized_profile_visibility = profile_visibility.strip().lower()
+    else:
+        normalized_profile_visibility = ""
+
+    if normalized_profile_visibility not in PROFILE_VISIBILITY_CHOICES:
+        normalized_profile_visibility = "private"
+
     return {
         "id": mongo_id_to_uuid(str(mongo_user["_id"])),
         "email": mongo_user.get("email") or "",
@@ -44,7 +54,7 @@ def _normalize_user_doc(mongo_user: dict) -> dict:
         "first_name": mongo_user.get("firstName") or "",
         "last_name": mongo_user.get("lastName") or "",
         "bio": mongo_user.get("bio"),
-        "profile_visibility": mongo_user.get("profileVisibility") or "private",
+        "profile_visibility": normalized_profile_visibility,
         "date_of_birth": _parse_date_of_birth(mongo_user.get("dateOfBirth")),
         "password_hash": mongo_user.get("passwordHash"),
         "reset_password_code": mongo_user.get("resetPasswordCode"),

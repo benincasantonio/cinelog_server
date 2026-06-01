@@ -212,6 +212,35 @@ async def test_migrate_users_up_normalizes_datetime_date_of_birth():
 
 
 @pytest.mark.asyncio
+async def test_migrate_users_up_normalizes_invalid_profile_visibility():
+    mongo_db = _FakeMongoDB(
+        [
+            {
+                "_id": "507f1f77bcf86cd799439011",
+                "email": "user@example.com",
+                "handle": "userhandle",
+                "firstName": "Test",
+                "lastName": "User",
+                "profileVisibility": " hidden ",
+                "deleted": False,
+            }
+        ]
+    )
+
+    pg_session = AsyncMock()
+    pg_session.execute.return_value = _mock_scalar_result(["inserted-user-id"])
+
+    await migrate_users.up(mongo_db, pg_session, dry_run=False)
+
+    statement = pg_session.execute.await_args.args[0]
+    compiled_params = statement.compile().params
+    profile_visibility_values = [
+        value for key, value in compiled_params.items() if key.startswith("profile_visibility")
+    ]
+    assert profile_visibility_values == ["private"]
+
+
+@pytest.mark.asyncio
 async def test_migrate_users_up_flushes_in_batches(capsys, monkeypatch):
     monkeypatch.setattr(migrate_users, "BATCH_SIZE", 2)
 
