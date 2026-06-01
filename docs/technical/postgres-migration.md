@@ -7,7 +7,7 @@ The current setup includes:
 - SQLAlchemy asyncio, asyncpg, and Alembic dependencies
 - Async PostgreSQL engine/session helpers in `app/db/postgres.py`
 - Optional application startup initialization driven by `DATABASE_URL`
-- Empty async Alembic scaffolding
+- Async Alembic scaffolding and schema migrations
 - Local and e2e Docker Compose PostgreSQL services
 - Deterministic Mongo ObjectId to PostgreSQL UUID conversion
 
@@ -19,7 +19,14 @@ Set `DATABASE_URL` when you want the app or Alembic to initialize PostgreSQL:
 DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5432/cinelog_db
 ```
 
-The app still starts without `DATABASE_URL` while MongoDB repositories remain active. If the database backend is set to `postgres` through `DB_BACKEND`, startup raises a clear configuration error when `DATABASE_URL` is missing.
+Repository activation is controlled through `DB_BACKEND`:
+
+```bash
+DB_BACKEND=mongo      # default during mixed-mode migration
+# DB_BACKEND=postgres # reserved for later cutover stages
+```
+
+If `DB_BACKEND=postgres` is set while repository dependencies are still unsafe for mixed mode, the app fails fast with a clear activation error.
 
 ## Local Services
 
@@ -43,18 +50,42 @@ The e2e compose file also includes PostgreSQL on host port `5433` with database 
 
 ## Schema Migrations
 
-Alembic is initialized for async SQLAlchemy migrations, but no application table migrations are included in this setup.
-
 Run migrations:
 
 ```bash
 make db-schema-migrate
 ```
 
+Preview schema migration SQL without applying changes:
+
+```bash
+make db-schema-migrate-dry-run
+```
+
 Roll back the latest migration:
 
 ```bash
 make db-schema-rollback
+```
+
+Run pending PostgreSQL data migrations:
+
+```bash
+make db-data-migrate
+```
+
+Preview pending PostgreSQL data migrations:
+
+```bash
+make db-data-migrate-dry-run
+```
+
+The movie data migration dry-run checks current PostgreSQL `tmdb_id` conflicts, so its inserted/skipped totals match a real run.
+
+Run all pending migration systems (Mongo custom runner + Alembic schema + PostgreSQL data):
+
+```bash
+make migrate-all
 ```
 
 ## Deterministic IDs
@@ -67,22 +98,48 @@ from app.utils.id_utils import mongo_id_to_uuid
 postgres_id = mongo_id_to_uuid("507f1f77bcf86cd799439011")
 ```
 
-The helper uses UUID's built-in `NAMESPACE_URL` namespace. It maps only the Mongo ObjectId value, without including the collection name.
+The helper uses UUID's built-in `NAMESPACE_URL` namespace and maps only the Mongo ObjectId value. The same Mongo ObjectId always produces the same UUID.
 
-The same Mongo ObjectId always produces the same UUID, even when that ObjectId is referenced from another collection as a foreign key.
+## Movie Collection Migration
+
+`#126` introduces the first repository/data migration for movies.
+
+### Repository split
+
+- Legacy Mongo implementation lives in `app/repository/movie_repository.py` as `MovieRepository` (deprecated during migration).
+- New PostgreSQL implementation lives in `app/repository/postgres_movie_repository.py` as `PostgresMovieRepository`. It is prepared but intentionally not wired into dependency injection — see [Activation Guardrails](#activation-guardrails).
+
+### Table shape
+
+Alembic migration creates `movies` with canonical fields (`title`, `release_date`, `runtime`, etc.) plus provider cache fields:
+
+- `tmdb_payload JSONB NULL`
+- `tmdb_last_synced_at TIMESTAMPTZ NULL`
+
+### Data migration script
+
+Use `db_migrations/m001_migrate_movies.py` with async session wiring:
+
+- `up(mongo_db, pg_session, dry_run=False)` migrates active (non-deleted) movies
+- `down(mongo_db, pg_session)` clears the PostgreSQL movies table
+
+Migration rules:
+
+- Skip `deleted=True` Mongo rows
+- Map Mongo `_id` -> Postgres UUID via `mongo_id_to_uuid(...)`
+- Idempotent inserts by `tmdb_id` uniqueness
+- Progress reporting (total / inserted / skipped)
 
 ## Activation Guardrails
 
-PostgreSQL repositories should only be activated through dependency wiring once their ID dependencies are ready. Public response IDs and JWT subjects should continue to use Mongo ObjectId strings until the core cutover has an explicit compatibility plan.
+PostgreSQL movie activation is intentionally blocked in mixed mode while `LogRepository` and `MovieRatingRepository` still persist/query Mongo ObjectId movie references.
 
-Do not switch a repository to PostgreSQL if an active MongoDB repository still needs to store or query IDs produced only by PostgreSQL.
+Activation must happen through dependency wiring (`app/dependencies/repository_dependency.py`), not controller imports.
 
 ## Later Tickets
 
 Future migration tickets should add:
 
-- SQLAlchemy table models
-- Alembic migrations that create application tables and indexes
-- PostgreSQL repository implementations
-- Data migration runner and mapping/version tables
-- Repository activation and rollback flags
+- User/movie_rating/log PostgreSQL repository migrations
+- Safe full backend cutover once ID dependencies are resolved
+- Final MongoDB decommissioning

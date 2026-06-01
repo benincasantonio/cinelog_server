@@ -1,3 +1,5 @@
+"""MongoDB movie repository implementation."""
+
 from datetime import UTC, datetime
 
 from beanie import PydanticObjectId
@@ -9,10 +11,17 @@ from app.schemas.tmdb_schemas import TMDBMovieDetails
 
 
 class MovieRepository:
-    """Repository class for movie-related operations."""
+    """MongoDB movie repository — active runtime implementation.
+
+    Pending replacement by ``PostgresMovieRepository`` (in
+    ``app/repository/postgres_movie_repository.py``) once mixed-mode FK
+    dependencies in ``LogRepository`` and ``MovieRatingRepository`` are
+    migrated. ``PostgresMovieRepository`` is intentionally unwired today —
+    do not import it from runtime code paths.
+    """
 
     async def create_movie(self, request: MovieCreateRequest) -> Movie:
-        """Create a new movie in the database."""
+        """Create a new movie in MongoDB."""
 
         movie_data = request.model_dump()
         movie = Movie(**movie_data)
@@ -20,7 +29,7 @@ class MovieRepository:
         return movie
 
     async def update_movie(self, movie_id: PydanticObjectId, request: MovieUpdateRequest) -> None:
-        """Update a movie in the database."""
+        """Update an existing movie in MongoDB."""
 
         movie = await self.find_movie_by_id(movie_id)
 
@@ -40,28 +49,13 @@ class MovieRepository:
         return await Movie.find_one(Movie.active_filter({"tmdbId": tmdb_id}))
 
     async def create_from_tmdb_data(self, tmdb_data: TMDBMovieDetails) -> Movie:
-        """
-        Create a movie from TMDB API response data.
-
-        Expected fields in tmdb_data:
-        - id (tmdbId)
-        - title
-        - release_date
-        - overview
-        - poster_path
-        - vote_average
-        - runtime
-        - original_language
-        """
-        from datetime import datetime
-
-        # Parse release date if present
+        """Create a movie from TMDB details or return existing one on duplicate TMDB ID."""
         release_date = None
         if tmdb_data.release_date:
             try:
                 release_date = datetime.strptime(tmdb_data.release_date, "%Y-%m-%d")
             except ValueError:
-                pass  # Keep as None if parsing fails
+                pass
 
         movie = Movie(
             tmdb_id=tmdb_data.id,
@@ -88,6 +82,7 @@ class MovieRepository:
         return await Movie.find(Movie.active_filter({"_id": {"$in": list(movie_ids)}})).to_list()
 
     async def get_movie_stats(self, movie_ids: set[PydanticObjectId]) -> MovieStats:
+        """Compute movie aggregates for a set of IDs."""
         pipeline = [
             {"$match": {"_id": {"$in": list(movie_ids)}}},
             {

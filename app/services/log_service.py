@@ -1,5 +1,6 @@
 from beanie import PydanticObjectId
 
+from app.dependencies.repository_dependency import get_movie_repository
 from app.models.movie import Movie
 from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
@@ -33,7 +34,7 @@ class LogService:
         user_repository: UserRepository | None = None,
     ):
         self.log_repository = log_repository or LogCacheRepository()
-        resolved_movie_repository = movie_repository or MovieRepository()
+        resolved_movie_repository = movie_repository or get_movie_repository()
         if movie_service is None:
             movie_service = MovieService(resolved_movie_repository)
 
@@ -65,13 +66,10 @@ class LogService:
         If the movie doesn't exist in our database, it will be fetched from TMDB
         and created automatically.
         """
-        # Ensure movie exists (find or create from TMDB)
         movie: Movie = await self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
 
-        # Update the movieId in the request with the actual database ID
         request.movie_id = str(movie.id)
 
-        # Auto-populate posterPath from movie if not provided
         if not request.poster_path and movie.poster_path:
             request.poster_path = movie.poster_path
 
@@ -96,13 +94,10 @@ class LogService:
         log_id: PydanticObjectId,
         request: LogUpdateRequest,
     ) -> LogCreateResponse:
-        """
-        Update an existing log entry.
-        """
+        """Update an existing log entry."""
         log = await self.log_repository.update_log(log_id=log_id, user_id=user_id, update_request=request)
 
         if not log:
-            # Log not found or doesn't belong to user
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
 
         movie = await self.movie_service.get_movie_by_id(log.movie_id)
@@ -123,9 +118,7 @@ class LogService:
         )
 
     async def delete_log(self, user_id: PydanticObjectId, log_id: PydanticObjectId) -> None:
-        """
-        Delete a viewing log entry owned by the given user.
-        """
+        """Delete a viewing log entry owned by the given user."""
         deleted_log = await self.log_repository.delete_log(log_id=log_id, user_id=user_id)
         if deleted_log is None:
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
@@ -133,9 +126,7 @@ class LogService:
         await self.stats_cache_service.invalidate_user_stats(user_id)
 
     async def get_user_logs(self, user_id: PydanticObjectId, request: LogListRequest) -> LogListResponse:
-        """
-        Get list of user's viewing logs with optional filtering and sorting.
-        """
+        """Get list of user's viewing logs with optional filtering and sorting."""
 
         logs_data = await self.log_repository.find_logs_by_user_id(
             user_id=user_id,

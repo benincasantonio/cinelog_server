@@ -3,6 +3,7 @@ from datetime import date
 
 from beanie import PydanticObjectId
 
+from app.dependencies.repository_dependency import get_movie_repository
 from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
@@ -27,7 +28,7 @@ class StatsService:
     ):
         self.log_repository = log_repository or LogCacheRepository()
         self.movie_rating_repository = movie_rating_repository or MovieRatingRepository()
-        self.movie_repository = movie_repository or MovieRepository()
+        self.movie_repository = movie_repository or get_movie_repository()
         self.stats_cache_service = stats_cache_service or StatsCacheService()
 
     async def get_user_stats(

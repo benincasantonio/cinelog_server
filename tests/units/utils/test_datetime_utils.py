@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 
-from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
+from app.utils.datetime_utils import date_end_utc, date_start_utc, parse_iso_date, to_utc_datetime
 
 
 class TestDateTimeUtils:
@@ -32,3 +32,18 @@ class TestDateTimeUtils:
         result = to_utc_datetime(aware_datetime)
 
         assert result is aware_datetime
+
+    def test_parse_iso_date_parses_valid_string(self):
+        assert parse_iso_date("2024-06-15") == datetime(2024, 6, 15)
+
+    def test_parse_iso_date_returns_none_for_malformed_string(self):
+        assert parse_iso_date("not-a-date") is None
+
+    def test_parse_iso_date_returns_none_for_empty_string(self):
+        assert parse_iso_date("") is None
+
+    def test_parse_iso_date_returns_none_for_none(self):
+        assert parse_iso_date(None) is None
+
+    def test_parse_iso_date_accepts_custom_format(self):
+        assert parse_iso_date("15/06/2024", fmt="%d/%m/%Y") == datetime(2024, 6, 15)
