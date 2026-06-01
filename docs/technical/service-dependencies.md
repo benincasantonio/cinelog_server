@@ -11,11 +11,12 @@ Controllers receive services through FastAPI `Depends(...)`.
 
 ## Repository Provider Guardrails
 
-`get_movie_repository()`, `get_user_repository()`, and `get_movie_rating_repository()` are the runtime activation gates for mixed-mode persistence:
+`get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, and `get_log_repository()` are the runtime activation gates for mixed-mode persistence:
 
 - `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `MovieRepository`.
 - `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `UserRepository`.
 - `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `MovieRatingRepository`.
+- `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `LogRepository`.
 - `DB_BACKEND=postgres` while mixed-mode is unsafe -> raises `RepositoryActivationError` (fail-fast).
 
 This prevents accidental cutover while:
@@ -23,6 +24,7 @@ This prevents accidental cutover while:
 - Mongo `LogRepository` and `MovieRatingRepository` still depend on ObjectId `movie_id` references.
 - JWT `sub` values, `auth_dependency`, profile ownership checks, and user-scoped cache keys still depend on ObjectId `user_id` references.
 - `MovieRatingService`, `LogService`, and `StatsService` still rely on mixed Mongo user/movie identifiers for rating lookups.
+- `LogService` and `StatsService` still wrap logs through `LogCacheRepository`, which remains Mongo-shaped until the later repository cutover.
 
 ## Service Providers
 

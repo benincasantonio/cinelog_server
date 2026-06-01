@@ -1,5 +1,6 @@
 from datetime import date
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock
+from uuid import uuid4
 
 import pytest
 from beanie import PydanticObjectId
@@ -181,6 +182,34 @@ class TestStatsService:
         assert result.distribution.by_method.home_video == 1
         assert result.distribution.by_method.tv == 1
         assert result.distribution.by_method.other == 2
+
+    @pytest.mark.asyncio
+    async def test_get_user_stats_accepts_uuid_movie_ids_during_migration(
+        self,
+        stats_service,
+        mock_log_repository,
+        mock_movie_rating_repository,
+        mock_movie_repository,
+    ):
+        movie_id_1 = uuid4()
+        movie_id_2 = uuid4()
+
+        mock_log_repository.get_log_stats.return_value = LogStats(
+            total_watches=2,
+            unique_titles=2,
+            unique_movie_ids=[movie_id_1, movie_id_2],
+            distribution=[],
+        )
+        mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
+        mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
+
+        await stats_service.get_user_stats(PydanticObjectId())
+
+        mock_movie_rating_repository.get_user_movie_ratings_average.assert_awaited_once_with(
+            ANY,
+            {movie_id_1, movie_id_2},
+        )
+        mock_movie_repository.get_movie_stats.assert_awaited_once_with({movie_id_1, movie_id_2})
 
 
 def _sample_stats_response() -> StatsResponse:

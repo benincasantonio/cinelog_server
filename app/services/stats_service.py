@@ -1,9 +1,10 @@
 import asyncio
 from datetime import date
+from typing import cast
 
 from beanie import PydanticObjectId
 
-from app.dependencies.repository_dependency import get_movie_rating_repository, get_movie_repository
+from app.dependencies.repository_dependency import get_log_repository, get_movie_rating_repository, get_movie_repository
 from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
@@ -26,7 +27,7 @@ class StatsService:
         movie_repository: MovieRepository | None = None,
         stats_cache_service: StatsCacheService | None = None,
     ):
-        self.log_repository = log_repository or LogCacheRepository()
+        self.log_repository = log_repository or LogCacheRepository(get_log_repository())
         self.movie_rating_repository = movie_rating_repository or get_movie_rating_repository()
         self.movie_repository = movie_repository or get_movie_repository()
         self.stats_cache_service = stats_cache_service or StatsCacheService()
@@ -51,10 +52,11 @@ class StatsService:
         )
 
         movie_ids = set(log_stats.unique_movie_ids)
+        mongo_movie_ids = cast("set[PydanticObjectId]", movie_ids)
 
         movie_rating_stats, movie_stats = await asyncio.gather(
-            self.movie_rating_repository.get_user_movie_ratings_average(user_id, movie_ids),
-            self.movie_repository.get_movie_stats(movie_ids),
+            self.movie_rating_repository.get_user_movie_ratings_average(user_id, mongo_movie_ids),
+            self.movie_repository.get_movie_stats(mongo_movie_ids),
         )
 
         total_rewatches = max(0, log_stats.total_watches - log_stats.unique_titles)

@@ -240,6 +240,77 @@ Migration rules:
 - Idempotent inserts via PostgreSQL `ON CONFLICT (user_id, tmdb_id) DO NOTHING`
 - Progress reporting (total / inserted / skipped / warnings)
 
+## Log Collection Migration
+
+`#129` adds PostgreSQL log persistence and migration scaffolding while Mongo remains active at runtime.
+
+### Repository split
+
+- Legacy Mongo implementation remains in `app/repository/log_repository.py` as `LogRepository` (deprecated during migration).
+- New PostgreSQL implementation lives in `app/repository/postgres_log_repository.py` as `PostgresLogRepository`.
+- Runtime activation is intentionally blocked by `get_log_repository()` until the later runtime cutover work is complete.
+
+### Table shape
+
+Alembic migration creates `logs` with canonical viewing-log fields plus shared lifecycle metadata:
+
+- `user_id UUID NOT NULL REFERENCES users(id)`
+- `movie_id UUID NOT NULL REFERENCES movies(id)`
+- `tmdb_id INTEGER NOT NULL`
+- `date_watched TIMESTAMPTZ NOT NULL`
+- `viewing_notes TEXT NULL`
+- `poster_path TEXT NULL`
+- `watched_where TEXT NOT NULL DEFAULT 'other'`
+
+`watched_where` is constrained to the same application-level choices:
+
+- `cinema`
+- `streaming`
+- `homeVideo`
+- `tv`
+- `other`
+
+### Hard-delete parity
+
+Unlike the other migrated repositories, logs preserve their current hard-delete behavior.
+
+- reads still filter with `active()` for parity and safety
+- `delete_log(...)` physically deletes the row instead of flipping `deleted=True`
+
+### Stats aggregation port
+
+`PostgresLogRepository.get_log_stats(...)` preserves the current Mongo response shape:
+
+- `total_watches`
+- `unique_titles`
+- `unique_movie_ids`
+- `distribution`
+
+Implementation uses a shared filtered CTE and two PostgreSQL aggregation queries:
+
+- summary query: `COUNT(*)`, `COUNT(DISTINCT movie_id)`, `array_agg(DISTINCT movie_id)`
+- distribution query: `GROUP BY watched_where`
+
+`LogStats.unique_movie_ids` is widened during the migration window so it can safely carry Mongo `PydanticObjectId` values today and PostgreSQL UUIDs after cutover.
+
+### Data migration script
+
+Use `db_migrations/m004_migrate_logs.py` with async session wiring:
+
+- `up(mongo_db, pg_session, dry_run=False)` migrates active (non-deleted) logs
+- `down(mongo_db, pg_session)` deletes only PostgreSQL rows whose UUIDs derive from the current Mongo `logs` collection
+
+Migration rules:
+
+- Skip `deleted=True` Mongo rows
+- Map Mongo `_id`, `userId`, and `movieId` -> Postgres UUID via `mongo_id_to_uuid(...)`
+- Validate that derived `user_id` and `movie_id` already exist in PostgreSQL before insert
+- Normalize invalid or missing `dateWatched` values into warnings/skips
+- Normalize invalid `watchedWhere` values to `other`
+- Preserve `tmdbId`, `viewingNotes`, `posterPath`, and timestamps
+- Idempotent inserts via PostgreSQL `ON CONFLICT (id) DO NOTHING`
+- Progress reporting (total / inserted / skipped / warnings)
+
 ## Activation Guardrails
 
 PostgreSQL movie activation is intentionally blocked in mixed mode while `LogRepository` and `MovieRatingRepository` still persist/query Mongo ObjectId movie references.
@@ -250,12 +321,14 @@ PostgreSQL user activation is also intentionally blocked in mixed mode while JWT
 
 PostgreSQL movie-rating activation is intentionally blocked in mixed mode while auth still emits ObjectId user IDs, `LogRepository` still consumes ObjectId movie IDs, and `MovieRepository` cutover remains blocked behind the earlier movie guard.
 
+PostgreSQL log activation is intentionally blocked in mixed mode while `LogCacheRepository`, service wiring, and runtime ID assumptions still require the later cutover work before PostgreSQL logs can safely back live requests.
+
 JWT `sub` values and public response IDs remain Mongo ObjectId strings until the core cutover is complete.
 
 ## Later Tickets
 
 Future migration tickets should add:
 
-- Log PostgreSQL repository migration
+- Runtime repository cutover and PostgreSQL-safe log caching
 - Safe full backend cutover once ID dependencies are resolved
 - Final MongoDB decommissioning

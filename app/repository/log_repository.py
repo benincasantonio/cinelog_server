@@ -10,6 +10,15 @@ from app.utils.object_id_utils import to_object_id
 
 
 class LogRepository:
+    """MongoDB log repository — active runtime implementation.
+
+    Pending replacement by ``PostgresLogRepository`` (in
+    ``app/repository/postgres_log_repository.py``) once runtime repository
+    cutover, log caching, and UUID/ObjectId mixed-mode concerns are resolved.
+    The PostgreSQL repository is intentionally unwired today — do not import
+    it from runtime code paths.
+    """
+
     async def create_log(self, user_id: PydanticObjectId, create_log_request: LogCreateRequest) -> Log:
         """
         Create a new log entry in the database.
