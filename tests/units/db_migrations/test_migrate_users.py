@@ -183,6 +183,40 @@ async def test_migrate_users_up_dry_run_accounts_for_existing_and_prior_batch_co
 
 
 @pytest.mark.asyncio
+async def test_migrate_users_up_dry_run_treats_handle_conflicts_case_insensitively(capsys):
+    mongo_db = _FakeMongoDB(
+        [
+            {
+                "_id": "507f1f77bcf86cd799439011",
+                "email": "user@example.com",
+                "handle": "Antonio",
+                "firstName": "A",
+                "lastName": "User",
+                "deleted": False,
+            },
+            {
+                "_id": "507f1f77bcf86cd799439012",
+                "email": "other@example.com",
+                "handle": "antonio",
+                "firstName": "B",
+                "lastName": "User",
+                "deleted": False,
+            },
+        ]
+    )
+
+    pg_session = AsyncMock()
+    pg_session.execute.return_value = _mock_query_result([])
+
+    await migrate_users.up(mongo_db, pg_session, dry_run=True)
+
+    captured = capsys.readouterr().out
+    assert "total=2" in captured
+    assert "inserted=1" in captured
+    assert "skipped=1" in captured
+
+
+@pytest.mark.asyncio
 async def test_migrate_users_up_normalizes_datetime_date_of_birth():
     mongo_db = _FakeMongoDB(
         [

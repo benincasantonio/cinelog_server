@@ -46,11 +46,11 @@ def upgrade() -> None:
     )
 
     op.create_index("uq_users_email_lower", "users", [sa.text("LOWER(email)")], unique=True)
-    op.create_index("ix_users_handle", "users", ["handle"], unique=True)
+    op.create_index("uq_users_handle_lower", "users", [sa.text("LOWER(handle)")], unique=True)
 
 
 def downgrade() -> None:
     """Rollback the migration."""
-    op.drop_index("ix_users_handle", table_name="users")
+    op.drop_index("uq_users_handle_lower", table_name="users")
     op.drop_index("uq_users_email_lower", table_name="users")
     op.drop_table("users")

@@ -154,7 +154,9 @@ Case-insensitive email uniqueness is enforced with a functional unique index:
 
 - `CREATE UNIQUE INDEX uq_users_email_lower ON users (LOWER(email))`
 
-Handles remain uniquely indexed with `ix_users_handle`.
+Case-insensitive handle uniqueness is also enforced while preserving the user's chosen casing:
+
+- `CREATE UNIQUE INDEX uq_users_handle_lower ON users (LOWER(handle))`
 
 ### GDPR oblivion behavior
 

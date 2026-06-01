@@ -47,5 +47,5 @@ class PostgresUser(PostgresBaseEntity):
             name="ck_users_profile_visibility",
         ),
         Index("uq_users_email_lower", func.lower(email), unique=True),
-        Index("ix_users_handle", handle, unique=True),
+        Index("uq_users_handle_lower", func.lower(handle), unique=True),
     )

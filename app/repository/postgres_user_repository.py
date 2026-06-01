@@ -58,24 +58,24 @@ class PostgresUserRepository(RepositoryBase):
             return result.scalar_one_or_none()
 
     async def find_user_by_handle(self, handle: str) -> PostgresUser | None:
-        """Find an active user by handle."""
+        """Find an active user by handle, case-insensitively."""
 
         async with self._session_provider() as session:
             statement = select(PostgresUser).where(
-                PostgresUser.handle == handle,
+                func.lower(PostgresUser.handle) == handle.lower(),
                 PostgresUser.active(),
             )
             result = await session.execute(statement)
             return result.scalar_one_or_none()
 
     async def find_user_by_email_or_handle(self, email_or_handle: str) -> PostgresUser | None:
-        """Find an active user by case-insensitive email or exact handle."""
+        """Find an active user by case-insensitive email or handle."""
 
         async with self._session_provider() as session:
             statement = select(PostgresUser).where(
                 or_(
                     func.lower(PostgresUser.email) == email_or_handle.lower(),
-                    PostgresUser.handle == email_or_handle,
+                    func.lower(PostgresUser.handle) == email_or_handle.lower(),
                 ),
                 PostgresUser.active(),
             )

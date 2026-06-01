@@ -75,11 +75,11 @@ async def _count_dry_run_insertable_users(
     """Count dry-run inserts after case-insensitive email and handle conflicts."""
 
     batch_lower_emails = {values["email"].lower() for values in batch}
-    batch_handles = {values["handle"] for values in batch}
-    statement = select(func.lower(PostgresUser.email), PostgresUser.handle).where(
+    batch_lower_handles = {values["handle"].lower() for values in batch}
+    statement = select(func.lower(PostgresUser.email), func.lower(PostgresUser.handle)).where(
         or_(
             func.lower(PostgresUser.email).in_(batch_lower_emails),
-            PostgresUser.handle.in_(batch_handles),
+            func.lower(PostgresUser.handle).in_(batch_lower_handles),
         )
     )
     result = await pg_session.execute(statement)
@@ -96,7 +96,7 @@ async def _count_dry_run_insertable_users(
 
     for values in batch:
         lower_email = values["email"].lower()
-        handle = values["handle"]
+        handle = values["handle"].lower()
         if (
             lower_email in occupied_lower_emails
             or handle in occupied_handles
