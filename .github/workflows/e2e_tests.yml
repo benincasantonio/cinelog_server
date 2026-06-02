@@ -74,6 +74,8 @@ jobs:
         run: |
           uv run alembic upgrade head
         env:
+          JWT_SECRET_KEY: test-jwt-secret-key-for-e2e-1234567890
+          RATE_LIMIT_HMAC_SECRET: test-rate-limit-hmac-secret
           DATABASE_URL: postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db
 
       - name: Run E2E Tests
