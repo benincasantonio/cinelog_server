@@ -84,7 +84,14 @@ uv run pytest tests/e2e/test_auth_e2e.py::TestAuthE2E::test_register_success -v
 
 ## CI/CD
 
-The GitHub workflow (`.github/workflows/e2e_tests.yml`) runs e2e tests automatically.
+The GitHub workflow (`.github/workflows/e2e_tests.yml`) runs e2e tests automatically on pull requests and pushes to `main`.
+
+It uses a backend matrix so every PR now gets two separate e2e checks:
+
+- `E2E Tests (mongo)`
+- `E2E Tests (postgres)`
+
+The PostgreSQL job runs `uv run alembic upgrade head` before pytest so the schema is created from the same Alembic revisions used in development.
 
 **Required secrets:**
 - `TMDB_API_KEY` - For movie data fetching
