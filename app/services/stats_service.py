@@ -1,5 +1,6 @@
 import asyncio
 from datetime import date
+from uuid import UUID
 
 from beanie import PydanticObjectId
 
@@ -33,7 +34,7 @@ class StatsService:
 
     async def get_user_stats(
         self,
-        user_id: PydanticObjectId,
+        user_id: PydanticObjectId | UUID,
         year_from: int | None = None,
         year_to: int | None = None,
     ) -> StatsResponse:

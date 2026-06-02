@@ -14,8 +14,46 @@ test-unit:
 	uv run pytest tests/units/ --cov=app --cov-report=html
 
 test-e2e:
-	docker compose -f docker-compose.e2e.yml up -d
-	uv run pytest tests/e2e/ -v; status=$$?; docker compose -f docker-compose.e2e.yml down; exit $$status
+	backend="$${E2E_BACKEND:-mongo}"; \
+	status=0; \
+	if [ "$$backend" = "postgres" ]; then \
+		docker compose -f docker-compose.e2e.yml up -d redis_e2e postgres_e2e; \
+		ready=0; \
+		for i in $$(seq 1 30); do \
+			if docker compose -f docker-compose.e2e.yml exec -T postgres_e2e pg_isready -U cinelog -d cinelog_e2e_db >/dev/null 2>&1; then \
+				ready=1; \
+				break; \
+			fi; \
+			sleep 1; \
+		done; \
+		if [ "$$ready" -ne 1 ]; then \
+			status=1; \
+		fi; \
+		if [ "$$status" -eq 0 ]; then \
+			JWT_SECRET_KEY=test-jwt-secret-key-for-e2e-1234567890 \
+			RATE_LIMIT_HMAC_SECRET=test-rate-limit-hmac-secret \
+			DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db \
+			E2E_BACKEND=postgres \
+			uv run alembic upgrade head; \
+			status=$$?; \
+		fi; \
+		if [ "$$status" -eq 0 ]; then \
+			JWT_SECRET_KEY=test-jwt-secret-key-for-e2e-1234567890 \
+			RATE_LIMIT_HMAC_SECRET=test-rate-limit-hmac-secret \
+			DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db \
+			E2E_BACKEND=postgres \
+			uv run pytest tests/e2e/ -v; \
+			status=$$?; \
+		fi; \
+	else \
+		docker compose -f docker-compose.e2e.yml up -d redis_e2e mongo_e2e; \
+		JWT_SECRET_KEY=test-jwt-secret-key-for-e2e-1234567890 \
+		RATE_LIMIT_HMAC_SECRET=test-rate-limit-hmac-secret \
+		E2E_BACKEND=mongo uv run pytest tests/e2e/ -v; \
+		status=$$?; \
+	fi; \
+	docker compose -f docker-compose.e2e.yml down; \
+	exit $$status
 
 lint:
 	uv run ruff check .

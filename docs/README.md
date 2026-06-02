@@ -49,7 +49,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | `make dev` | Install runtime + development dependencies and configure git hooks |
 | `make hooks` | Configure git pre-commit hooks (lint, format, typecheck) |
 | `make test-unit` | Run unit tests with coverage report |
-| `make test-e2e` | Start e2e MongoDB, run e2e tests, then stop e2e MongoDB |
+| `make test-e2e` | Run e2e tests against Mongo by default, or Postgres with `E2E_BACKEND=postgres` |
 | `make migrate` | Run pending database migrations with confirmation |
 | `make migrate-dry-run` | Preview pending migrations without applying changes |
 | `make db-data-migrate` | Run pending PostgreSQL data migrations from `db_migrations/` |
