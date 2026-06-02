@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -106,7 +107,7 @@ class PostgresMovieRepository(RepositoryBase):
                     raise
                 return existing_movie
 
-    async def find_movies_by_ids(self, movie_ids: set[UUID]) -> list[PostgresMovie]:
+    async def find_movies_by_ids(self, movie_ids: Iterable[UUID]) -> list[PostgresMovie]:
         """Find active movies by UUID set."""
 
         if not movie_ids:
@@ -120,7 +121,7 @@ class PostgresMovieRepository(RepositoryBase):
             result = await session.execute(statement)
             return list(result.scalars().all())
 
-    async def get_movie_stats(self, movie_ids: set[UUID]) -> MovieStats:
+    async def get_movie_stats(self, movie_ids: Iterable[UUID]) -> MovieStats:
         """Compute runtime stats for active movies in PostgreSQL."""
 
         if not movie_ids:

@@ -9,7 +9,7 @@ from app.dependencies.repository_dependency import (
 from app.models.movie import Movie
 from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
-from app.repository.movie_repository import MovieRepository
+from app.repository.movie_repository_protocol import MovieRepositoryProtocol
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.log_schemas import (
     LogCreateRequest,
@@ -33,7 +33,7 @@ class LogService:
         self,
         log_repository: LogCacheRepository | None = None,
         movie_service: MovieService | None = None,
-        movie_repository: MovieRepository | None = None,
+        movie_repository: MovieRepositoryProtocol | None = None,
         movie_rating_repository: MovieRatingRepository | None = None,
         stats_cache_service: StatsCacheService | None = None,
         user_repository: UserRepositoryProtocol | None = None,

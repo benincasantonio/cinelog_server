@@ -1,9 +1,12 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from beanie import PydanticObjectId
 
 from app.models.movie import Movie
 from app.repository.movie_repository import MovieRepository
-from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
+from app.schemas.movie_schemas import MovieCreateRequest, MovieStats, MovieUpdateRequest
+from app.schemas.tmdb_schemas import TMDBMovieDetails
 
 
 @pytest.fixture
@@ -107,7 +110,6 @@ async def test_find_movie_filters_soft_deleted(beanie_test_db, movie_create_requ
 
 @pytest.mark.asyncio
 async def test_create_from_tmdb_data(beanie_test_db):
-    from app.schemas.tmdb_schemas import TMDBMovieDetails
 
     repository = MovieRepository()
     tmdb_data = TMDBMovieDetails(
@@ -148,7 +150,6 @@ async def test_create_from_tmdb_data(beanie_test_db):
 
 @pytest.mark.asyncio
 async def test_create_from_tmdb_data_without_release_date(beanie_test_db):
-    from app.schemas.tmdb_schemas import TMDBMovieDetails
 
     repository = MovieRepository()
     tmdb_data = TMDBMovieDetails(
@@ -183,7 +184,6 @@ async def test_create_from_tmdb_data_without_release_date(beanie_test_db):
 
 @pytest.mark.asyncio
 async def test_create_from_tmdb_data_with_invalid_date(beanie_test_db):
-    from app.schemas.tmdb_schemas import TMDBMovieDetails
 
     repository = MovieRepository()
     tmdb_data = TMDBMovieDetails(
@@ -218,7 +218,6 @@ async def test_create_from_tmdb_data_with_invalid_date(beanie_test_db):
 
 @pytest.mark.asyncio
 async def test_create_from_tmdb_data_duplicate_key_returns_existing(beanie_test_db):
-    from app.schemas.tmdb_schemas import TMDBMovieDetails
 
     repository = MovieRepository()
     existing = await repository.create_movie(MovieCreateRequest(title="Existing Movie", tmdb_id=98765))
@@ -250,3 +249,31 @@ async def test_create_from_tmdb_data_duplicate_key_returns_existing(beanie_test_
 
     assert returned.id == existing.id
     assert returned.tmdb_id == existing.tmdb_id
+
+
+@pytest.mark.asyncio
+async def test_find_movies_by_ids_accepts_iterable(beanie_test_db):
+    repository = MovieRepository()
+    first = await repository.create_movie(MovieCreateRequest(title="First", tmdb_id=200001))
+    second = await repository.create_movie(MovieCreateRequest(title="Second", tmdb_id=200002))
+
+    found = await repository.find_movies_by_ids([first.id, second.id])
+
+    assert {movie.id for movie in found} == {first.id, second.id}
+
+
+@pytest.mark.asyncio
+async def test_get_movie_stats_accepts_iterable(beanie_test_db):
+    repository = MovieRepository()
+    first_id = PydanticObjectId()
+    second_id = PydanticObjectId()
+    aggregate_result = MagicMock()
+    aggregate_result.to_list = AsyncMock(return_value=[MovieStats(total_runtime=180)])
+
+    with patch.object(Movie, "aggregate", return_value=aggregate_result) as aggregate:
+        stats = await repository.get_movie_stats((first_id, second_id))
+
+    pipeline = aggregate.call_args.args[0]
+    assert pipeline[0]["$match"]["_id"]["$in"] == [first_id, second_id]
+
+    assert stats.total_runtime == 180

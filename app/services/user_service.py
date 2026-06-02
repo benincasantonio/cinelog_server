@@ -20,7 +20,7 @@ class UserService:
 
     def __init__(
         self,
-        user_repository: UserRepositoryProtocol,
+        user_repository: UserRepositoryProtocol[PydanticObjectId, UserResponse],
     ):
         self.user_repository = user_repository
 
@@ -28,7 +28,7 @@ class UserService:
         """
         Get user information from MongoDB.
         """
-        if(isinstance(self.user_repository, PostgresUserRepository)):
+        if isinstance(self.user_repository, PostgresUserRepository):
             print("Using PostgresUserRepository in UserService.get_user_info")
 
         user = await self.user_repository.find_user_by_id(user_id)

@@ -249,6 +249,17 @@ async def test_find_movies_by_ids_with_empty_set_short_circuits(repository: Post
 
 
 @pytest.mark.asyncio
+async def test_find_movies_by_ids_accepts_iterable(repository: PostgresMovieRepository, seed_session: AsyncSession):
+    first = PostgresMovie(tmdb_id=804, title="First")
+    second = PostgresMovie(tmdb_id=805, title="Second")
+    await _add(seed_session, first, second)
+
+    found = await repository.find_movies_by_ids([first.id, second.id])
+
+    assert {movie.id for movie in found} == {first.id, second.id}
+
+
+@pytest.mark.asyncio
 async def test_get_movie_stats_sums_runtime_excluding_deleted(
     repository: PostgresMovieRepository, seed_session: AsyncSession
 ):
@@ -261,6 +272,17 @@ async def test_get_movie_stats_sums_runtime_excluding_deleted(
     stats = await repository.get_movie_stats({a.id, b.id, deleted.id, null_runtime.id})
 
     assert stats.total_runtime == 210
+
+
+@pytest.mark.asyncio
+async def test_get_movie_stats_accepts_iterable(repository: PostgresMovieRepository, seed_session: AsyncSession):
+    first = PostgresMovie(tmdb_id=905, title="First", runtime=100)
+    second = PostgresMovie(tmdb_id=906, title="Second", runtime=80)
+    await _add(seed_session, first, second)
+
+    stats = await repository.get_movie_stats((first.id, second.id))
+
+    assert stats.total_runtime == 180
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,6 @@
 """MongoDB movie repository implementation."""
 
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 from beanie import PydanticObjectId
@@ -77,11 +78,11 @@ class MovieRepository:
                 raise
             return existing_movie
 
-    async def find_movies_by_ids(self, movie_ids: set[PydanticObjectId]) -> list[Movie]:
+    async def find_movies_by_ids(self, movie_ids: Iterable[PydanticObjectId]) -> list[Movie]:
         """Find multiple movies by their IDs."""
         return await Movie.find(Movie.active_filter({"_id": {"$in": list(movie_ids)}})).to_list()
 
-    async def get_movie_stats(self, movie_ids: set[PydanticObjectId]) -> MovieStats:
+    async def get_movie_stats(self, movie_ids: Iterable[PydanticObjectId]) -> MovieStats:
         """Compute movie aggregates for a set of IDs."""
         pipeline = [
             {"$match": {"_id": {"$in": list(movie_ids)}}},
