@@ -91,6 +91,8 @@ It uses a backend matrix so every PR now gets two separate e2e checks:
 - `E2E Tests (mongo)`
 - `E2E Tests (postgres)`
 
+The workflow allows both matrix entries to run in parallel, so Mongo and PostgreSQL e2e coverage do not block each other serially on the same pull request.
+
 The PostgreSQL job runs `uv run alembic upgrade head` before pytest so the schema is created from the same Alembic revisions used in development.
 
 **Required secrets:**
