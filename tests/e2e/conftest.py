@@ -178,9 +178,7 @@ async def clean_db(mongo_client, postgres_engine):
             await db.drop_collection(collection_name)
     else:
         async with postgres_engine.begin() as connection:
-            await connection.execute(
-                text(f"TRUNCATE TABLE {', '.join(POSTGRES_TABLES)} RESTART IDENTITY CASCADE")
-            )
+            await connection.execute(text(f"TRUNCATE TABLE {', '.join(POSTGRES_TABLES)} RESTART IDENTITY CASCADE"))
 
     yield
 
