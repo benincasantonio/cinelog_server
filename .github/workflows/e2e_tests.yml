@@ -9,8 +9,13 @@ on:
 
 jobs:
   e2e_tests:
+    name: E2E Tests (${{ matrix.backend }})
     runs-on: ubuntu-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [mongo, postgres]
+
     services:
       mongo:
         image: mongo:8
@@ -23,11 +28,25 @@ jobs:
           --health-retries=5
 
       redis:
-        image: redis:7
+        image: redis:7-alpine
         ports:
-          - 6379:6379
+          - 6380:6379
         options: >-
           --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      postgres:
+        image: postgres:17-alpine
+        ports:
+          - 5433:5432
+        env:
+          POSTGRES_DB: cinelog_e2e_db
+          POSTGRES_USER: cinelog
+          POSTGRES_PASSWORD: cinelog
+        options: >-
+          --health-cmd="pg_isready -U cinelog -d cinelog_e2e_db"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -49,12 +68,19 @@ jobs:
         run: |
           uv sync --frozen --group dev
 
+      - name: Prepare PostgreSQL schema
+        if: matrix.backend == 'postgres'
+        run: |
+          uv run alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db
+
       - name: Run E2E Tests
         run: |
           uv run pytest tests/e2e -v
         env:
-          MONGODB_HOST: localhost
-          MONGODB_PORT: 27018
-          MONGODB_DB: cinelog_e2e_db
-          REDIS_URL: redis://localhost:6379/0
+          E2E_BACKEND: ${{ matrix.backend }}
+          JWT_SECRET_KEY: test-jwt-secret-key-for-e2e-1234567890
+          RATE_LIMIT_HMAC_SECRET: test-rate-limit-hmac-secret
+          REDIS_URL: redis://localhost:6380/0
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
