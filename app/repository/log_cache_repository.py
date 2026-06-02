@@ -7,6 +7,7 @@ from beanie import PydanticObjectId
 
 from app.models.log import Log
 from app.repository.log_repository import LogRepository
+from app.repository.log_repository_protocol import LogRepositoryProtocol
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 from app.schemas.stats_schemas import LogStats
 from app.services.cache_service import CacheService
@@ -19,7 +20,10 @@ LOG_CACHE_TTL = int(os.getenv("LOG_CACHE_TTL", "86400"))
 class LogCacheRepository:
     """Redis-backed decorator for raw log repository lookups."""
 
-    def __init__(self, repository: LogRepository | None = None):
+    def __init__(
+        self,
+        repository: LogRepositoryProtocol | None = None,
+    ):
         self.repository = repository or LogRepository()
 
     @property
@@ -198,6 +202,7 @@ class LogCacheRepository:
             sort_by=sort_by,
             sort_order=sort_order,
         )
+        logs = list(logs)
         await self._set_logs(key, logs)
         return logs
 
@@ -212,6 +217,7 @@ class LogCacheRepository:
             return cached
 
         logs = await self.repository.find_logs_by_movie_id(movie_id, user_id)
+        logs = list(logs)
         await self._set_logs(key, logs)
         return logs
 

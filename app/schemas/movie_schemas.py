@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from uuid import UUID
 
 from beanie import PydanticObjectId
 from pydantic import Field
@@ -16,7 +17,7 @@ class MovieUpdateRequest(BaseSchema):
 
 
 class MovieResponse(BaseSchema):
-    id: PydanticObjectId = Field(..., description="Unique identifier of the movie")
+    id: PydanticObjectId | UUID = Field(..., description="Unique identifier of the movie")
     title: str = Field(..., min_length=1, max_length=100, description="Title of the movie")
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
     poster_path: str | None = Field(None, description="Path to the movie poster image")

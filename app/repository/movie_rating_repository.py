@@ -1,3 +1,5 @@
+from collections.abc import Iterable, Sequence
+
 from beanie import PydanticObjectId
 
 from app.models.movie_rating import MovieRating
@@ -77,8 +79,8 @@ class MovieRatingRepository:
     async def find_movie_ratings_by_user_and_movie_ids(
         self,
         user_id: PydanticObjectId,
-        movie_ids: set[PydanticObjectId],
-    ) -> list[MovieRating]:
+        movie_ids: Iterable[PydanticObjectId],
+    ) -> Sequence[MovieRating]:
         """
         Find all movie ratings for a specific user and a set of movie IDs.
         """
@@ -92,7 +94,7 @@ class MovieRatingRepository:
     async def get_user_movie_ratings_average(
         self,
         user_id: PydanticObjectId,
-        movie_ids: set[PydanticObjectId],
+        movie_ids: Iterable[PydanticObjectId],
     ) -> MovieRatingStats:
         pipeline = [
             {

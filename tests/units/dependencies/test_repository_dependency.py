@@ -1,7 +1,6 @@
 import pytest
 
 from app.dependencies.repository_dependency import (
-    RepositoryActivationError,
     get_log_repository,
     get_movie_rating_repository,
     get_movie_repository,
@@ -10,6 +9,8 @@ from app.dependencies.repository_dependency import (
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
+from app.repository.postgres_log_repository import PostgresLogRepository
+from app.repository.postgres_movie_rating_repository import PostgresMovieRatingRepository
 from app.repository.postgres_movie_repository import PostgresMovieRepository
 from app.repository.postgres_user_repository import PostgresUserRepository
 from app.repository.user_repository import UserRepository
@@ -52,11 +53,12 @@ def test_get_log_repository_defaults_to_mongo(monkeypatch):
     assert isinstance(repository, LogRepository)
 
 
-def test_get_log_repository_raises_for_unsafe_postgres_activation(monkeypatch):
+def test_get_log_repository_returns_postgres_when_backend_is_postgres(monkeypatch):
     monkeypatch.setenv("DB_BACKEND", "postgres")
 
-    with pytest.raises(RepositoryActivationError, match="not yet safe"):
-        get_log_repository()
+    repository = get_log_repository()
+
+    assert isinstance(repository, PostgresLogRepository)
 
 
 def test_get_movie_rating_repository_defaults_to_mongo(monkeypatch):
@@ -67,11 +69,12 @@ def test_get_movie_rating_repository_defaults_to_mongo(monkeypatch):
     assert isinstance(repository, MovieRatingRepository)
 
 
-def test_get_movie_rating_repository_raises_for_unsafe_postgres_activation(monkeypatch):
+def test_get_movie_rating_repository_returns_postgres_when_backend_is_postgres(monkeypatch):
     monkeypatch.setenv("DB_BACKEND", "postgres")
 
-    with pytest.raises(RepositoryActivationError, match="not yet safe"):
-        get_movie_rating_repository()
+    repository = get_movie_rating_repository()
+
+    assert isinstance(repository, PostgresMovieRatingRepository)
 
 
 def test_get_user_repository_defaults_to_mongo(monkeypatch):
