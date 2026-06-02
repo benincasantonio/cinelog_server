@@ -1,12 +1,16 @@
 from beanie import PydanticObjectId
 
 from app.models.movie import Movie
-from app.repository.movie_repository import MovieRepository
+from app.repository.movie_repository_protocol import MovieRepositoryProtocol
 from app.services.tmdb_service import TMDBService
 
 
 class MovieService:
-    def __init__(self, movie_repository: MovieRepository, tmdb_service: TMDBService | None = None):
+    def __init__(
+        self,
+        movie_repository: MovieRepositoryProtocol[PydanticObjectId, Movie],
+        tmdb_service: TMDBService | None = None,
+    ):
         self.movie_repository = movie_repository
         self.tmdb_service = tmdb_service or TMDBService.get_instance()
 

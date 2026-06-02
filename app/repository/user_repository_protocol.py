@@ -8,6 +8,7 @@ from app.schemas.user_schemas import UserCreateRequest
 IdType = TypeVar("IdType", contravariant=True)
 UserType = TypeVar("UserType", covariant=True)
 
+
 class UserRepositoryProtocol(Protocol[IdType, UserType]):
     """Protocol for user repository implementations."""
 
@@ -23,10 +24,10 @@ class UserRepositoryProtocol(Protocol[IdType, UserType]):
     async def find_user_by_email_or_handle(self, email_or_handle: str) -> UserType | None:
         """Find a user by email or handle."""
 
-    async def find_user_by_id(self, id: IdType) -> UserType | None:
+    async def find_user_by_id(self, user_id: IdType) -> UserType | None:
         """Find a user by ID."""
 
-    async def delete_user(self, id: IdType) -> bool:
+    async def delete_user(self, user_id: IdType) -> bool:
         """Delete a user logically by ID."""
 
     async def delete_user_oblivion(self, user_id: IdType) -> bool:
@@ -43,4 +44,3 @@ class UserRepositoryProtocol(Protocol[IdType, UserType]):
 
     async def update_user_profile(self, user_id: IdType, update_data: dict[str, Any]) -> UserType | None:
         """Update user profile fields."""
-

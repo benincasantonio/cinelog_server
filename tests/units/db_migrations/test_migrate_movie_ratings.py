@@ -143,9 +143,7 @@ async def test_migrate_movie_ratings_up_dry_run_reports_progress(capsys):
 
 
 @pytest.mark.asyncio
-async def test_migrate_movie_ratings_up_dry_run_accounts_for_existing_and_prior_batch_conflicts(
-    capsys, monkeypatch
-):
+async def test_migrate_movie_ratings_up_dry_run_accounts_for_existing_and_prior_batch_conflicts(capsys, monkeypatch):
     from app.utils.id_utils import mongo_id_to_uuid
 
     monkeypatch.setattr(migrate_movie_ratings, "BATCH_SIZE", 2)

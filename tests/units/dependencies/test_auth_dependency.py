@@ -1,5 +1,5 @@
-from uuid import UUID
 from unittest.mock import Mock, patch
+from uuid import UUID
 
 import pytest
 from beanie import PydanticObjectId

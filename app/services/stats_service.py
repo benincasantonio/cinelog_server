@@ -7,7 +7,7 @@ from beanie import PydanticObjectId
 from app.dependencies.repository_dependency import get_log_repository, get_movie_rating_repository, get_movie_repository
 from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
-from app.repository.movie_repository import MovieRepository
+from app.repository.movie_repository_protocol import MovieRepositoryProtocol
 from app.schemas.stats_schemas import (
     LogStats,
     StatsByMethod,
@@ -24,7 +24,7 @@ class StatsService:
         self,
         log_repository: LogCacheRepository | None = None,
         movie_rating_repository: MovieRatingRepository | None = None,
-        movie_repository: MovieRepository | None = None,
+        movie_repository: MovieRepositoryProtocol | None = None,
         stats_cache_service: StatsCacheService | None = None,
     ):
         self.log_repository = log_repository or LogCacheRepository(get_log_repository())

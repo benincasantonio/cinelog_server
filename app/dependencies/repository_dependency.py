@@ -6,6 +6,8 @@ from app.db.postgres import is_postgres_required
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
+from app.repository.movie_repository_protocol import MovieRepositoryProtocol
+from app.repository.postgres_movie_repository import PostgresMovieRepository
 from app.repository.postgres_user_repository import PostgresUserRepository
 from app.repository.user_repository import UserRepository
 from app.repository.user_repository_protocol import UserRepositoryProtocol
@@ -16,7 +18,7 @@ class RepositoryActivationError(RuntimeError):
 
 
 @lru_cache
-def get_movie_repository() -> MovieRepository:
+def get_movie_repository() -> MovieRepositoryProtocol:
     """Return the active movie repository implementation.
 
     MovieRepository PostgreSQL activation is intentionally blocked in mixed mode
@@ -25,11 +27,7 @@ def get_movie_repository() -> MovieRepository:
     """
 
     if is_postgres_required():
-        raise RepositoryActivationError(
-            "DB_BACKEND=postgres is not yet safe for MovieRepository activation: "
-            "LogRepository and MovieRatingRepository still depend on Mongo ObjectId movie references. "
-            "Keep DB_BACKEND=mongo until related repositories are migrated or a compatibility adapter exists."
-        )
+        return PostgresMovieRepository()
 
     return MovieRepository()
 
