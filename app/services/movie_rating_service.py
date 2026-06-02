@@ -1,7 +1,7 @@
 from beanie import PydanticObjectId
 
 from app.models.movie_rating import MovieRating
-from app.repository.movie_rating_repository import MovieRatingRepository
+from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
 from app.schemas.movie_rating_schemas import MovieRatingResponse
 from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
@@ -12,7 +12,7 @@ from app.utils.exceptions_utils import AppException
 class MovieRatingService:
     def __init__(
         self,
-        movie_rating_repository: MovieRatingRepository,
+        movie_rating_repository: MovieRatingRepositoryProtocol[PydanticObjectId, MovieRating],
         movie_service: MovieService,
         stats_cache_service: StatsCacheService | None = None,
     ):

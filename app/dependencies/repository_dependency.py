@@ -1,12 +1,16 @@
-"""Repository dependency providers and backend activation guardrails."""
+"""Repository dependency providers and backend selection."""
 
 from functools import lru_cache
 
 from app.db.postgres import is_postgres_required
 from app.repository.log_repository import LogRepository
+from app.repository.log_repository_protocol import LogRepositoryProtocol
 from app.repository.movie_rating_repository import MovieRatingRepository
+from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
 from app.repository.movie_repository import MovieRepository
 from app.repository.movie_repository_protocol import MovieRepositoryProtocol
+from app.repository.postgres_log_repository import PostgresLogRepository
+from app.repository.postgres_movie_rating_repository import PostgresMovieRatingRepository
 from app.repository.postgres_movie_repository import PostgresMovieRepository
 from app.repository.postgres_user_repository import PostgresUserRepository
 from app.repository.user_repository import UserRepository
@@ -21,9 +25,8 @@ class RepositoryActivationError(RuntimeError):
 def get_movie_repository() -> MovieRepositoryProtocol:
     """Return the active movie repository implementation.
 
-    MovieRepository PostgreSQL activation is intentionally blocked in mixed mode
-    because LogRepository and MovieRatingRepository still persist/query Mongo
-    ObjectId-based movie references.
+    ``DB_BACKEND=postgres`` selects ``PostgresMovieRepository`` during the
+    migration window; otherwise the legacy Mongo implementation stays active.
     """
 
     if is_postgres_required():
@@ -36,10 +39,8 @@ def get_movie_repository() -> MovieRepositoryProtocol:
 def get_user_repository() -> UserRepositoryProtocol:
     """Return the active user repository implementation.
 
-    UserRepository PostgreSQL activation is intentionally blocked in mixed mode
-    because JWT ``sub`` values, auth dependency parsing, user-owned resource
-    checks, Redis keys, and Mongo repositories still depend on ObjectId user
-    identifiers.
+    ``DB_BACKEND=postgres`` selects ``PostgresUserRepository`` during the
+    migration window; otherwise the legacy Mongo implementation stays active.
     """
 
     if is_postgres_required():
@@ -49,41 +50,29 @@ def get_user_repository() -> UserRepositoryProtocol:
 
 
 @lru_cache
-def get_movie_rating_repository() -> MovieRatingRepository:
+def get_movie_rating_repository() -> MovieRatingRepositoryProtocol:
     """Return the active movie-rating repository implementation.
 
-    MovieRatingRepository PostgreSQL activation is intentionally blocked in
-    mixed mode because auth still provides Mongo ObjectId user identifiers,
-    LogRepository still consumes ObjectId movie references, and MovieRepository
-    activation remains blocked until later cutover work.
+    ``DB_BACKEND=postgres`` selects ``PostgresMovieRatingRepository`` during
+    the migration window; otherwise the legacy Mongo implementation stays
+    active.
     """
 
     if is_postgres_required():
-        raise RepositoryActivationError(
-            "DB_BACKEND=postgres is not yet safe for MovieRatingRepository activation: "
-            "auth still provides Mongo ObjectId user IDs, LogRepository still depends on "
-            "Mongo ObjectId movie references, and MovieRepository cutover remains blocked. "
-            "Keep DB_BACKEND=mongo until related repositories and ID adapters are migrated."
-        )
+        return PostgresMovieRatingRepository()
 
     return MovieRatingRepository()
 
 
 @lru_cache
-def get_log_repository() -> LogRepository:
+def get_log_repository() -> LogRepositoryProtocol:
     """Return the active log repository implementation.
 
-    LogRepository PostgreSQL activation is intentionally blocked in mixed mode
-    because log caching, service wiring, and UUID/ObjectId runtime assumptions
-    still require the later cutover work.
+    ``DB_BACKEND=postgres`` selects ``PostgresLogRepository`` during the
+    migration window; otherwise the legacy Mongo implementation stays active.
     """
 
     if is_postgres_required():
-        raise RepositoryActivationError(
-            "DB_BACKEND=postgres is not yet safe for LogRepository activation: "
-            "LogCacheRepository and downstream services still rely on Mongo-shaped log caching "
-            "and mixed UUID/ObjectId runtime assumptions. Keep DB_BACKEND=mongo until the "
-            "repository cutover work is complete."
-        )
+        return PostgresLogRepository()
 
     return LogRepository()

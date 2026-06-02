@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -93,8 +94,8 @@ class PostgresMovieRatingRepository(RepositoryBase):
     async def find_movie_ratings_by_user_and_movie_ids(
         self,
         user_id: UUID,
-        movie_ids: set[UUID],
-    ) -> list[PostgresMovieRating]:
+        movie_ids: Iterable[UUID],
+    ) -> Sequence[PostgresMovieRating]:
         """Find active movie ratings for a user across movie IDs."""
 
         if not movie_ids:
@@ -112,7 +113,7 @@ class PostgresMovieRatingRepository(RepositoryBase):
     async def get_user_movie_ratings_average(
         self,
         user_id: UUID,
-        movie_ids: set[UUID],
+        movie_ids: Iterable[UUID],
     ) -> MovieRatingStats:
         """Compute average movie rating and count for the user's active ratings."""
 

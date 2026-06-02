@@ -7,8 +7,8 @@ from app.dependencies.repository_dependency import (
     get_user_repository,
 )
 from app.models.movie import Movie
-from app.repository.log_cache_repository import LogCacheRepository
-from app.repository.movie_rating_repository import MovieRatingRepository
+from app.repository.log_repository_protocol import LogRepositoryProtocol
+from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
 from app.repository.movie_repository_protocol import MovieRepositoryProtocol
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.log_schemas import (
@@ -31,14 +31,14 @@ class LogService:
 
     def __init__(
         self,
-        log_repository: LogCacheRepository | None = None,
+        log_repository: LogRepositoryProtocol | None = None,
         movie_service: MovieService | None = None,
         movie_repository: MovieRepositoryProtocol | None = None,
-        movie_rating_repository: MovieRatingRepository | None = None,
+        movie_rating_repository: MovieRatingRepositoryProtocol | None = None,
         stats_cache_service: StatsCacheService | None = None,
         user_repository: UserRepositoryProtocol | None = None,
     ):
-        self.log_repository = log_repository or LogCacheRepository(get_log_repository())
+        self.log_repository = log_repository or get_log_repository()
         resolved_movie_repository = movie_repository or get_movie_repository()
         if movie_service is None:
             movie_service = MovieService(resolved_movie_repository)

@@ -1,12 +1,11 @@
 import asyncio
 from datetime import date
-from typing import cast
 
 from beanie import PydanticObjectId
 
 from app.dependencies.repository_dependency import get_log_repository, get_movie_rating_repository, get_movie_repository
-from app.repository.log_cache_repository import LogCacheRepository
-from app.repository.movie_rating_repository import MovieRatingRepository
+from app.repository.log_repository_protocol import LogRepositoryProtocol
+from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
 from app.repository.movie_repository_protocol import MovieRepositoryProtocol
 from app.schemas.stats_schemas import (
     LogStats,
@@ -22,12 +21,12 @@ from app.services.stats_cache_service import StatsCacheService
 class StatsService:
     def __init__(
         self,
-        log_repository: LogCacheRepository | None = None,
-        movie_rating_repository: MovieRatingRepository | None = None,
+        log_repository: LogRepositoryProtocol | None = None,
+        movie_rating_repository: MovieRatingRepositoryProtocol | None = None,
         movie_repository: MovieRepositoryProtocol | None = None,
         stats_cache_service: StatsCacheService | None = None,
     ):
-        self.log_repository = log_repository or LogCacheRepository(get_log_repository())
+        self.log_repository = log_repository or get_log_repository()
         self.movie_rating_repository = movie_rating_repository or get_movie_rating_repository()
         self.movie_repository = movie_repository or get_movie_repository()
         self.stats_cache_service = stats_cache_service or StatsCacheService()
@@ -52,11 +51,10 @@ class StatsService:
         )
 
         movie_ids = set(log_stats.unique_movie_ids)
-        mongo_movie_ids = cast("set[PydanticObjectId]", movie_ids)
 
         movie_rating_stats, movie_stats = await asyncio.gather(
-            self.movie_rating_repository.get_user_movie_ratings_average(user_id, mongo_movie_ids),
-            self.movie_repository.get_movie_stats(mongo_movie_ids),
+            self.movie_rating_repository.get_user_movie_ratings_average(user_id, movie_ids),
+            self.movie_repository.get_movie_stats(movie_ids),
         )
 
         total_rewatches = max(0, log_stats.total_watches - log_stats.unique_titles)

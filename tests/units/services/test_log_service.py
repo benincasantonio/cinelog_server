@@ -1,5 +1,6 @@
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, Mock
+from uuid import uuid4
 
 import pytest
 from beanie import PydanticObjectId
@@ -368,6 +369,55 @@ class TestGetUserLogsByHandle:
 
         assert len(result.logs) == 1
         mock_user_repository.find_user_by_handle.assert_awaited_once_with("johndoe")
+
+    @pytest.mark.asyncio
+    async def test_public_profile_allows_access_with_uuid_backed_logs(self, log_service, mock_user_repository):
+        user_id = uuid4()
+        movie_id = uuid4()
+        log_id = uuid4()
+
+        mock_user = self._create_mock_user(user_id=user_id, handle="johndoe", profile_visibility="public")
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        mock_movie = Mock()
+        mock_movie.id = movie_id
+        mock_movie.title = "Test Movie"
+        mock_movie.tmdb_id = 550
+        mock_movie.poster_path = "/poster.jpg"
+        mock_movie.release_date = None
+        mock_movie.overview = None
+        mock_movie.vote_average = None
+        mock_movie.runtime = None
+        mock_movie.original_language = "en"
+        mock_movie.created_at = None
+        mock_movie.updated_at = None
+
+        mock_rating = Mock()
+        mock_rating.movie_id = movie_id
+        mock_rating.rating = 8
+
+        mock_log = Mock()
+        mock_log.id = log_id
+        mock_log.movie_id = movie_id
+        mock_log.tmdb_id = 550
+        mock_log.date_watched = date(2024, 1, 15)
+        mock_log.viewing_notes = "Great!"
+        mock_log.poster_path = "/poster.jpg"
+        mock_log.watched_where = "cinema"
+
+        log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[mock_log])
+        log_service.movie_repository.find_movies_by_ids = AsyncMock(return_value=[mock_movie])
+        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = AsyncMock(
+            return_value=[mock_rating]
+        )
+
+        request = LogListRequest()
+        result = await log_service.get_user_logs_by_handle(handle="johndoe", requester_id=uuid4(), request=request)
+
+        assert len(result.logs) == 1
+        assert result.logs[0].id == log_id
+        assert result.logs[0].movie_id == movie_id
+        assert result.logs[0].movie_rating == 8
 
     @pytest.mark.asyncio
     async def test_own_profile_allows_access(self, log_service, mock_user_repository):

@@ -1,4 +1,5 @@
 from datetime import date
+from uuid import UUID
 
 from beanie import PydanticObjectId
 from pydantic import Field, field_validator, model_validator
@@ -49,8 +50,8 @@ class LogUpdateRequest(BaseSchema):
 
 
 class LogListItem(BaseSchema):
-    id: PydanticObjectId = Field(..., description="Unique identifier of the log entry")
-    movie_id: PydanticObjectId = Field(..., description="Unique identifier of the movie")
+    id: PydanticObjectId | UUID = Field(..., description="Unique identifier of the log entry")
+    movie_id: PydanticObjectId | UUID = Field(..., description="Unique identifier of the movie")
     movie: MovieResponse | None = Field(None, description="Details of the movie")
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
