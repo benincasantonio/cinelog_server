@@ -1,6 +1,6 @@
 """
 E2E tests for log controller endpoints.
-Tests the full stack: FastAPI -> LogService -> MongoDB.
+Tests the full stack against the selected e2e backend.
 """
 
 from app.utils.error_codes_utils import ErrorCodes

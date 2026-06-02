@@ -1,6 +1,6 @@
 """
 E2E tests for authentication endpoints.
-Tests the full stack: FastAPI -> AuthService -> Firebase + MongoDB.
+Tests the full stack against the selected e2e backend.
 """
 
 from datetime import timedelta
@@ -270,10 +270,11 @@ class TestAuthE2E:
         forgot_resp = await async_client.post("/v1/auth/forgot-password", json={"email": "reset@example.com"})
         assert forgot_resp.status_code == 200
 
-        # Fetch the reset code directly from DB since it was mocked via email
-        from app.models.user import User
+        # Fetch the reset code through the active repository so the test
+        # works for both Mongo and PostgreSQL e2e backends.
+        from app.dependencies.repository_dependency import get_user_repository
 
-        user: User | None = await User.find_one(User.email == "reset@example.com")
+        user = await get_user_repository().find_user_by_email("reset@example.com")
         assert user is not None
         code = user.reset_password_code
 

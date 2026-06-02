@@ -1,12 +1,10 @@
 from datetime import datetime
-from typing import Protocol, TypeVar
-
-from alembic.environment import Any
+from typing import Any, Protocol, TypeVar
 
 from app.schemas.user_schemas import UserCreateRequest
 
 IdType = TypeVar("IdType", contravariant=True)
-UserType = TypeVar("UserType", covariant=True)
+UserType = TypeVar("UserType")
 
 
 class UserRepositoryProtocol(Protocol[IdType, UserType]):
@@ -33,13 +31,13 @@ class UserRepositoryProtocol(Protocol[IdType, UserType]):
     async def delete_user_oblivion(self, user_id: IdType) -> bool:
         """Obscure all the user information and delete the user logically."""
 
-    async def update_password(self, user_id: IdType, new_password_hash: str):
+    async def update_password(self, user: UserType, new_password_hash: str) -> UserType:
         """Update a user's password hash."""
 
-    async def set_reset_password_code(self, user_id: IdType, code: str, expires_at: datetime) -> UserType:
+    async def set_reset_password_code(self, user: UserType, code: str, expires_at: datetime) -> UserType:
         """Set reset password code and expiration for a user."""
 
-    async def clear_reset_password_code(self, user_id: IdType) -> UserType:
+    async def clear_reset_password_code(self, user: UserType) -> UserType:
         """Clear reset password code and expiration for a user."""
 
     async def update_user_profile(self, user_id: IdType, update_data: dict[str, Any]) -> UserType | None:

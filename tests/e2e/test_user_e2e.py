@@ -1,6 +1,6 @@
 """
 E2E tests for user controller endpoints.
-Tests the full stack: FastAPI -> UserService -> MongoDB.
+Tests the full stack against the selected e2e backend.
 """
 
 from tests.e2e.conftest import register_and_login

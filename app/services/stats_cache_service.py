@@ -1,5 +1,6 @@
 import logging
 import os
+from uuid import UUID
 
 from beanie import PydanticObjectId
 
@@ -18,7 +19,7 @@ class StatsCacheService:
 
     @staticmethod
     def build_key(
-        user_id: PydanticObjectId,
+        user_id: PydanticObjectId | UUID,
         year_from: int | None = None,
         year_to: int | None = None,
     ) -> str:
@@ -30,7 +31,7 @@ class StatsCacheService:
 
     async def get_stats(
         self,
-        user_id: PydanticObjectId,
+        user_id: PydanticObjectId | UUID,
         year_from: int | None = None,
         year_to: int | None = None,
     ) -> StatsResponse | None:
@@ -44,7 +45,7 @@ class StatsCacheService:
 
     async def set_stats(
         self,
-        user_id: PydanticObjectId,
+        user_id: PydanticObjectId | UUID,
         year_from: int | None = None,
         year_to: int | None = None,
         *,
@@ -54,6 +55,6 @@ class StatsCacheService:
         await self._cache.set(key, stats.model_dump(mode="json"), ttl=STATS_CACHE_TTL)
         logger.debug("Cache set for key=%s", key)
 
-    async def invalidate_user_stats(self, user_id: PydanticObjectId) -> None:
+    async def invalidate_user_stats(self, user_id: PydanticObjectId | UUID) -> None:
         await self._cache.invalidate_pattern(f"cinelog:stats:{user_id}:*")
         logger.info("Cache invalidated for user_id=%s", user_id)

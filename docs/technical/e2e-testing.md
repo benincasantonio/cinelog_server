@@ -4,7 +4,7 @@ This guide walks through setting up and running end-to-end tests locally.
 
 ## Prerequisites
 
-- **Docker** - For running MongoDB
+- **Docker** - For running MongoDB, PostgreSQL, and Redis
 - **Python 3.12+** - With `uv` installed
 - **.env file** - With `TMDB_API_KEY` configured
 
@@ -14,8 +14,11 @@ This guide walks through setting up and running end-to-end tests locally.
 # 0. Sync dependencies
 uv sync --group dev
 
-# 1. Run e2e tests with Docker MongoDB lifecycle managed automatically
+# 1. Run e2e tests against Mongo (default)
 make test-e2e
+
+# 2. Run the same suite against PostgreSQL
+E2E_BACKEND=postgres make test-e2e
 ```
 
 ## Infrastructure Components
@@ -23,6 +26,8 @@ make test-e2e
 | Service | Container | Port | Purpose |
 |---------|-----------|------|---------|
 | MongoDB | `cinelog_mongo_e2e` | 27018 | Test database |
+| PostgreSQL | `cinelog_postgres_e2e` | 5433 | Test database |
+| Redis | `cinelog_redis_e2e` | 6380 | Rate-limit and cache backend |
 
 ## Configuration Files
 
@@ -34,12 +39,17 @@ make test-e2e
 
 ## Environment Variables
 
-The e2e tests automatically configure these (via `conftest.py`):
+The e2e tests automatically configure these (via `conftest.py`), depending on `E2E_BACKEND`:
 
 ```bash
+# Mongo mode
 MONGODB_HOST=localhost
 MONGODB_PORT=27018
 MONGODB_DB=cinelog_e2e_db
+
+# PostgreSQL mode
+DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db
+DB_BACKEND=postgres
 ```
 
 **Note:** `TMDB_API_KEY` is loaded from `.env` for log tests that fetch movie data.
@@ -48,8 +58,9 @@ MONGODB_DB=cinelog_e2e_db
 
 ```
 tests/e2e/
-├── conftest.py          # Fixtures (MongoDB, Firebase, cleanup)
+├── conftest.py          # Backend-aware fixtures and cleanup
 ├── test_auth_e2e.py     # Registration tests
+├── test_movie_rating_e2e.py # Movie rating tests
 ├── test_user_e2e.py     # User info & logs tests
 └── test_log_e2e.py      # Log CRUD tests
 ```
@@ -59,6 +70,11 @@ tests/e2e/
 ### Connect to MongoDB
 ```bash
 mongosh --port 27018
+```
+
+### Connect to PostgreSQL
+```bash
+docker exec -it cinelog_postgres_e2e psql -U cinelog -d cinelog_e2e_db
 ```
 
 ### Run specific test

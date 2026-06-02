@@ -261,6 +261,16 @@ class TestLogService:
             await log_service.update_log("user123", PydanticObjectId(), request)
 
     @pytest.mark.asyncio
+    async def test_update_log_rejects_mismatched_id_family(self, log_service, mock_log_repository):
+        request = LogUpdateRequest(viewing_notes="Updated notes")
+
+        with pytest.raises(AppException) as exc_info:
+            await log_service.update_log(uuid4(), PydanticObjectId(), request)
+
+        assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
+        mock_log_repository.update_log.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_delete_log_success(self, log_service, mock_log_repository, mock_stats_cache_service):
         """Test successful log deletion invalidates the stats cache."""
         user_id = PydanticObjectId()
@@ -282,6 +292,20 @@ class TestLogService:
             await log_service.delete_log(user_id=user_id, log_id=PydanticObjectId())
 
         assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
+        mock_stats_cache_service.invalidate_user_stats.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_delete_log_rejects_mismatched_id_family(
+        self,
+        log_service,
+        mock_log_repository,
+        mock_stats_cache_service,
+    ):
+        with pytest.raises(AppException) as exc_info:
+            await log_service.delete_log(uuid4(), PydanticObjectId())
+
+        assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
+        mock_log_repository.delete_log.assert_not_awaited()
         mock_stats_cache_service.invalidate_user_stats.assert_not_called()
 
     @pytest.mark.asyncio
