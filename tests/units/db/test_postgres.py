@@ -50,3 +50,26 @@ async def test_get_async_session_yields_async_session(monkeypatch):
 
     async with postgres.get_async_session() as session:
         assert isinstance(session, AsyncSession)
+
+
+@pytest.mark.parametrize(
+    ("database_url", "expected"),
+    [
+        (
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test",
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test",
+        ),
+        (
+            "postgresql://user:password@localhost:5432/cinelog_test",
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test",
+        ),
+        (
+            "postgres://user:password@localhost:5432/cinelog_test",
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test",
+        ),
+    ],
+)
+def test_get_database_url_normalizes_hosted_postgres_urls(monkeypatch, database_url, expected):
+    monkeypatch.setenv("DATABASE_URL", database_url)
+
+    assert postgres.get_database_url(required=True) == expected

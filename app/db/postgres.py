@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 DATABASE_URL_ENV = "DATABASE_URL"
 DB_BACKEND_ENV = "DB_BACKEND"
+ASYNC_POSTGRES_SCHEME = "postgresql+asyncpg://"
+POSTGRES_SCHEME = "postgres://"
+POSTGRESQL_SCHEME = "postgresql://"
 
 
 class PostgresConfigurationError(RuntimeError):
@@ -40,7 +43,7 @@ def get_database_url(*, required: bool = True) -> str | None:
     """Return the configured PostgreSQL database URL."""
     database_url = os.getenv(DATABASE_URL_ENV)
     if database_url:
-        return database_url
+        return normalize_database_url(database_url)
 
     if required:
         raise PostgresConfigurationError(
@@ -49,6 +52,20 @@ def get_database_url(*, required: bool = True) -> str | None:
         )
 
     return None
+
+
+def normalize_database_url(database_url: str) -> str:
+    """Normalize common hosted Postgres URLs for SQLAlchemy asyncpg."""
+    if database_url.startswith(ASYNC_POSTGRES_SCHEME):
+        return database_url
+
+    if database_url.startswith(POSTGRESQL_SCHEME):
+        return f"{ASYNC_POSTGRES_SCHEME}{database_url.removeprefix(POSTGRESQL_SCHEME)}"
+
+    if database_url.startswith(POSTGRES_SCHEME):
+        return f"{ASYNC_POSTGRES_SCHEME}{database_url.removeprefix(POSTGRES_SCHEME)}"
+
+    return database_url
 
 
 @overload

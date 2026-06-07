@@ -1,7 +1,6 @@
 """Alembic environment for async PostgreSQL migrations."""
 
 import asyncio
-import os
 from logging.config import fileConfig
 from typing import Any
 
@@ -10,6 +9,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context, util
+from app.db.postgres import get_database_url
 from app.models.base_model import Base
 from app.models.log_model import PostgresLog  # noqa: F401
 from app.models.movie_model import PostgresMovie  # noqa: F401
@@ -26,13 +26,13 @@ DATABASE_URL_ENV = "DATABASE_URL"
 
 
 def _get_alembic_database_url() -> str:
-    database_url = os.getenv(DATABASE_URL_ENV)
-    if database_url:
+    database_url = get_database_url(required=False)
+    if database_url is not None:
         return database_url
 
     raise util.CommandError(
         f"{DATABASE_URL_ENV} is required to run Alembic migrations. "
-        "Set it to a postgresql+asyncpg:// connection string before running Alembic."
+        "Set it to a PostgreSQL connection string before running Alembic."
     )
 
 

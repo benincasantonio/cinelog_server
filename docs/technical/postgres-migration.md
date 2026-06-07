@@ -19,6 +19,8 @@ Set `DATABASE_URL` when you want the app or Alembic to initialize PostgreSQL:
 DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5432/cinelog_db
 ```
 
+Production deployments may also provide hosted database URLs as `postgresql://...` or `postgres://...`; the app normalizes both forms to SQLAlchemy's asyncpg driver internally.
+
 Repository activation is controlled through `DB_BACKEND`:
 
 ```bash
@@ -110,7 +112,7 @@ Required production Compose settings:
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | External PostgreSQL database URL, required |
+| `DATABASE_URL` | External PostgreSQL database URL, required. Accepts `postgresql+asyncpg://...`, `postgresql://...`, or `postgres://...` |
 | `MONGODB_URI` | Source MongoDB URI for data migration, required |
 | `JWT_SECRET_KEY` | API auth signing secret |
 | `RATE_LIMIT_HMAC_SECRET` | HMAC secret for account-based rate-limit identifiers |
