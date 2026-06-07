@@ -4,7 +4,7 @@
 
 Cinelog Server is a FastAPI application that can run anywhere an ASGI Python service can run. The repository does not require a specific hosting provider.
 
-The recommended production path is a generic VPS or container host where the backend, Redis, and MongoDB connectivity can be managed explicitly. Vercel is also a valid option for developers who want a free or low-friction deployment, but it is optional and self-managed.
+The recommended production path is a generic VPS or container host where the backend, PostgreSQL, Redis, and source MongoDB connectivity can be managed explicitly during the cutover. Vercel is also a valid option for developers who want a free or low-friction deployment, but it is optional and self-managed.
 
 ## Generic VPS
 
@@ -15,10 +15,19 @@ Typical setup:
 - Build and run the API with `Dockerfile.prod`
 - Start the stack with `docker-compose.prod.yml`
 - Provide production environment variables through the host or deployment system
-- Point `MONGODB_URI` at a managed MongoDB instance or an externally managed MongoDB server
+- Point `MONGODB_URI` at the source MongoDB instance until data migration and MongoDB removal are complete
+- Set `POSTGRES_PASSWORD` and optionally `POSTGRES_DB` / `POSTGRES_USER` for the production PostgreSQL service
 - Run Redis either as a container in the stack or as a managed Redis service
 - Put a reverse proxy such as Nginx, Caddy, or a cloud load balancer in front of the API
 - Terminate TLS at the reverse proxy or load balancer
+
+On `docker-compose.prod.yml` startup, Compose runs the `db-migrate` one-shot service before the API:
+
+```bash
+alembic upgrade head && python -m db_migrations.runner --yes
+```
+
+The API waits for that service to complete successfully, so failed PostgreSQL schema or data migrations block startup instead of allowing a partially migrated deployment.
 
 The production container starts Uvicorn directly with the FastAPI app:
 
@@ -65,6 +74,7 @@ Production deployments should configure:
 - `RATE_LIMIT_HMAC_SECRET`
 - `TMDB_API_KEY`
 - `MONGODB_URI`
+- `POSTGRES_PASSWORD`
 - `REDIS_URL`
 - `CORS_ORIGINS`
 - `CORS_ALLOW_CREDENTIALS`
@@ -74,8 +84,14 @@ Optional Redis tuning:
 
 - `REDIS_DEFAULT_TTL`
 
+Optional PostgreSQL settings:
+
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+
 ## See Also
 
 - [CORS Configuration](cors-configuration.md)
+- [Postgres Migration](postgres-migration.md)
 - [Redis Caching](redis-caching.md)
 - [Migrations](migrations.md)
