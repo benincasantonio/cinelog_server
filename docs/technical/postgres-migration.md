@@ -140,6 +140,8 @@ docker network ls
 
 If the declared external network does not exist on the host, Compose fails with `network <name> declared as external, but could not be found`.
 
+Because the `api` service then sits on both the project network and the shared external network, bare service hostnames can collide with other containers on the shared network. The bundled cache is therefore named `cinelog-redis` (not `redis`) so it can never resolve to an unrelated, password-protected Redis on the shared network. Keep `REDIS_URL` pointed at this project-unique hostname.
+
 Alternatively, if the database can be exposed publicly, set `DATABASE_URL` to its public connection string. This avoids the shared network but exposes the database to the internet, so protect it with the host firewall and a strong password.
 
 ## Deterministic IDs
