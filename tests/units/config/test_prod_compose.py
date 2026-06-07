@@ -21,4 +21,6 @@ def test_prod_api_waits_for_successful_migration_job():
     assert "db-migrate:" in compose
     assert "condition: service_completed_successfully" in compose
     assert "DB_BACKEND: postgres" in compose
-    assert "pg_isready" in compose
+    assert "DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the external PostgreSQL database}" in compose
+    assert "image: postgres" not in compose
+    assert "postgres_data:" not in compose
