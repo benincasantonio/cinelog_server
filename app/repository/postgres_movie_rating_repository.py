@@ -98,6 +98,7 @@ class PostgresMovieRatingRepository(RepositoryBase):
     ) -> Sequence[PostgresMovieRating]:
         """Find active movie ratings for a user across movie IDs."""
 
+        movie_ids = list(movie_ids)
         if not movie_ids:
             return []
 
@@ -117,6 +118,7 @@ class PostgresMovieRatingRepository(RepositoryBase):
     ) -> MovieRatingStats:
         """Compute average movie rating and count for the user's active ratings."""
 
+        movie_ids = list(movie_ids)
         if not movie_ids:
             return MovieRatingStats(average_rating=0.0, total_ratings=0)
 

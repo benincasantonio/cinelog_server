@@ -40,7 +40,7 @@ target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "PT"]
+select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "PT", "T20"]
 ignore = [
     # FastAPI dependency injection intentionally uses function calls in defaults.
     "B008",
@@ -62,6 +62,10 @@ known-first-party = ["app"]
     "PT011",
     "S101",
 ]
+# The dev email fallback and the CLI migration scripts print progress to stdout by design.
+"app/services/email_service.py" = ["T20"]
+"db_migrations/**/*.py" = ["T20"]
+"migrations/**/*.py" = ["T20"]
 
 [tool.bandit]
 exclude_dirs = ["tests"]

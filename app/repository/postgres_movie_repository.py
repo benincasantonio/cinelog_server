@@ -110,6 +110,7 @@ class PostgresMovieRepository(RepositoryBase):
     async def find_movies_by_ids(self, movie_ids: Iterable[UUID]) -> list[PostgresMovie]:
         """Find active movies by UUID set."""
 
+        movie_ids = list(movie_ids)
         if not movie_ids:
             return []
 
@@ -124,6 +125,7 @@ class PostgresMovieRepository(RepositoryBase):
     async def get_movie_stats(self, movie_ids: Iterable[UUID]) -> MovieStats:
         """Compute runtime stats for active movies in PostgreSQL."""
 
+        movie_ids = list(movie_ids)
         if not movie_ids:
             return MovieStats(total_runtime=0)
 

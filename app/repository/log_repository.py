@@ -10,13 +10,12 @@ from app.utils.object_id_utils import to_object_id
 
 
 class LogRepository:
-    """MongoDB log repository — active runtime implementation.
+    """MongoDB log repository.
 
-    Pending replacement by ``PostgresLogRepository`` (in
-    ``app/repository/postgres_log_repository.py``) once runtime repository
-    cutover, log caching, and UUID/ObjectId mixed-mode concerns are resolved.
-    The PostgreSQL repository is intentionally unwired today — do not import
-    it from runtime code paths.
+    Selected at runtime when ``DB_BACKEND`` is unset or ``mongo``. Under
+    ``DB_BACKEND=postgres`` the dependency layer activates
+    ``PostgresLogRepository`` (in ``app/repository/postgres_log_repository.py``)
+    instead. PostgreSQL log caching is still pending (tracked in #170).
     """
 
     async def create_log(self, user_id: PydanticObjectId, create_log_request: LogCreateRequest) -> Log:
