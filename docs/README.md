@@ -54,6 +54,8 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | `make migrate-dry-run` | Preview pending migrations without applying changes |
 | `make db-data-migrate` | Run pending PostgreSQL data migrations from `db_migrations/` |
 | `make db-data-migrate-dry-run` | Preview pending PostgreSQL data migrations without applying changes |
+| `make postgres-migrate-all` | Run PostgreSQL schema migrations, then PostgreSQL data migrations |
+| `make postgres-migrate-all-dry-run` | Preview the PostgreSQL schema/data migration path |
 | `make migrate-all` | Run all pending Mongo migrations, PostgreSQL schema migrations, and PostgreSQL data migrations |
 | `make migrate-all-dry-run` | Preview all pending migration systems without applying changes |
 | `make db-schema-migrate` | Run Alembic schema migrations against `DATABASE_URL` |
@@ -67,3 +69,5 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | `make run` | Run API locally via `python main.py` |
 | `make docker-up` | Start local Docker stack (`docker-compose.local.yml`) |
 | `make docker-down` | Stop local Docker stack (`docker-compose.local.yml`) |
+| `make docker-prod-up` | Build and start the production Docker stack (`docker-compose.prod.yml`) |
+| `make docker-prod-down` | Stop the production Docker stack (`docker-compose.prod.yml`) |

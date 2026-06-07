@@ -1,4 +1,4 @@
-.PHONY: install dev hooks test-unit test-e2e lint format format-check typecheck security dependency-audit run docker-up docker-down docker-build-prod docker-prod-up docker-prod-down migrate migrate-dry-run db-data-migrate db-data-migrate-dry-run migrate-all migrate-all-dry-run db-schema-migrate db-schema-migrate-dry-run db-schema-rollback
+.PHONY: install dev hooks test-unit test-e2e lint format format-check typecheck security dependency-audit run docker-up docker-down docker-build-prod docker-prod-up docker-prod-down migrate migrate-dry-run db-data-migrate db-data-migrate-dry-run postgres-migrate-all postgres-migrate-all-dry-run migrate-all migrate-all-dry-run db-schema-migrate db-schema-migrate-dry-run db-schema-rollback
 
 install:
 	uv sync
@@ -102,6 +102,14 @@ db-data-migrate:
 	uv run python -m db_migrations.runner --yes
 
 db-data-migrate-dry-run:
+	uv run python -m db_migrations.runner --dry-run
+
+postgres-migrate-all:
+	uv run alembic upgrade head
+	uv run python -m db_migrations.runner --yes
+
+postgres-migrate-all-dry-run:
+	uv run alembic upgrade head --sql
 	uv run python -m db_migrations.runner --dry-run
 
 migrate-all:

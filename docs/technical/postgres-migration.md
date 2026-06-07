@@ -88,6 +88,44 @@ Run all pending migration systems (Mongo custom runner + Alembic schema + Postgr
 make migrate-all
 ```
 
+Run only the PostgreSQL cutover path, with schema migrations before data migrations:
+
+```bash
+make postgres-migrate-all
+```
+
+This target is the same migration order used by production Compose.
+
+## Production Compose Migration
+
+`docker-compose.prod.yml` includes a one-shot `db-migrate` service that runs before the API starts:
+
+```bash
+alembic upgrade head && python -m db_migrations.runner --yes
+```
+
+The production order is intentionally PostgreSQL schema first, then MongoDB-to-PostgreSQL data migrations. The API service depends on `db-migrate` with `service_completed_successfully`, so a failed schema or data migration prevents the API container from starting.
+
+Required production Compose settings:
+
+| Variable | Purpose |
+| --- | --- |
+| `POSTGRES_DB` | PostgreSQL database name, defaults to `cinelog_db` |
+| `POSTGRES_USER` | PostgreSQL user, defaults to `cinelog` |
+| `POSTGRES_PASSWORD` | PostgreSQL password, required |
+| `MONGODB_URI` | Source MongoDB URI for data migration, required |
+| `JWT_SECRET_KEY` | API auth signing secret |
+| `RATE_LIMIT_HMAC_SECRET` | HMAC secret for account-based rate-limit identifiers |
+| `TMDB_API_KEY` | TMDB API key |
+
+Start production Compose after the required variables are present in the host environment or `.env`:
+
+```bash
+make docker-prod-up
+```
+
+The `db-migrate` service is idempotent: Alembic skips already-applied schema revisions, and `db_migrations.runner` skips data migrations recorded in `data_migration_versions`.
+
 ## Deterministic IDs
 
 During migration, PostgreSQL IDs derived from MongoDB documents must use the shared helper:
