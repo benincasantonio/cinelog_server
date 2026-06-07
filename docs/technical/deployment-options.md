@@ -4,7 +4,7 @@
 
 Cinelog Server is a FastAPI application that can run anywhere an ASGI Python service can run. The repository does not require a specific hosting provider.
 
-The recommended production path is a generic VPS or container host where the backend, PostgreSQL, Redis, and source MongoDB connectivity can be managed explicitly during the cutover. Vercel is also a valid option for developers who want a free or low-friction deployment, but it is optional and self-managed.
+The recommended production path is a generic VPS or container host where the backend, Redis, external PostgreSQL, and source MongoDB connectivity can be managed explicitly during the cutover. Vercel is also a valid option for developers who want a free or low-friction deployment, but it is optional and self-managed.
 
 ## Generic VPS
 
@@ -16,7 +16,7 @@ Typical setup:
 - Start the stack with `docker-compose.prod.yml`
 - Provide production environment variables through the host or deployment system
 - Point `MONGODB_URI` at the source MongoDB instance until data migration and MongoDB removal are complete
-- Set `POSTGRES_PASSWORD` and optionally `POSTGRES_DB` / `POSTGRES_USER` for the production PostgreSQL service
+- Point `DATABASE_URL` at the external PostgreSQL database
 - Run Redis either as a container in the stack or as a managed Redis service
 - Put a reverse proxy such as Nginx, Caddy, or a cloud load balancer in front of the API
 - Terminate TLS at the reverse proxy or load balancer
@@ -74,7 +74,7 @@ Production deployments should configure:
 - `RATE_LIMIT_HMAC_SECRET`
 - `TMDB_API_KEY`
 - `MONGODB_URI`
-- `POSTGRES_PASSWORD`
+- `DATABASE_URL`
 - `REDIS_URL`
 - `CORS_ORIGINS`
 - `CORS_ALLOW_CREDENTIALS`
@@ -83,11 +83,6 @@ Production deployments should configure:
 Optional Redis tuning:
 
 - `REDIS_DEFAULT_TTL`
-
-Optional PostgreSQL settings:
-
-- `POSTGRES_DB`
-- `POSTGRES_USER`
 
 ## See Also
 

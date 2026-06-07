@@ -5,26 +5,11 @@ x-app-env: &app-env
     - .env
   environment:
     DB_BACKEND: postgres
-    DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cinelog}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD for production Compose}@postgres:5432/${POSTGRES_DB:-cinelog_db}
+    DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the external PostgreSQL database}
     MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI to the source MongoDB before production data migration}
     REDIS_URL: redis://redis:6379/0
 
 services:
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-cinelog_db}
-      POSTGRES_USER: ${POSTGRES_USER:-cinelog}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD for production Compose}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cinelog} -d ${POSTGRES_DB:-cinelog_db}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
   db-migrate:
     <<: *app-env
     build:
@@ -33,9 +18,6 @@ services:
     command: >
       sh -c "alembic upgrade head &&
       python -m db_migrations.runner --yes"
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: "no"
 
   api:
@@ -48,8 +30,6 @@ services:
     depends_on:
       db-migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -72,5 +52,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   redis_data:

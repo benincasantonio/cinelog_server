@@ -110,9 +110,7 @@ Required production Compose settings:
 
 | Variable | Purpose |
 | --- | --- |
-| `POSTGRES_DB` | PostgreSQL database name, defaults to `cinelog_db` |
-| `POSTGRES_USER` | PostgreSQL user, defaults to `cinelog` |
-| `POSTGRES_PASSWORD` | PostgreSQL password, required |
+| `DATABASE_URL` | External PostgreSQL database URL, required |
 | `MONGODB_URI` | Source MongoDB URI for data migration, required |
 | `JWT_SECRET_KEY` | API auth signing secret |
 | `RATE_LIMIT_HMAC_SECRET` | HMAC secret for account-based rate-limit identifiers |
