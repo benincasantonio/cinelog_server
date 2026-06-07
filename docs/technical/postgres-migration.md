@@ -124,6 +124,24 @@ make docker-prod-up
 
 The `db-migrate` service is idempotent: Alembic skips already-applied schema revisions, and `db_migrations.runner` skips data migrations recorded in `data_migration_versions`.
 
+### Reaching a managed PostgreSQL on an external Docker network
+
+Some managed PostgreSQL setups expose the database only through an internal container hostname (for example `dddkln2s1wv5ouou7sobil35ob4`) that is **resolvable solely on the platform's shared Docker network**. Running the prod stack on its own isolated bridge network then causes the migration to fail with:
+
+```
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+```
+
+`docker-compose.prod.yml` therefore attaches the `db-migrate` and `api` services to an external network (while keeping `redis` reachable on `default`). Confirm the network name on the host before deploying and update the `networks:` block to match it:
+
+```bash
+docker network ls
+```
+
+If the declared external network does not exist on the host, Compose fails with `network <name> declared as external, but could not be found`.
+
+Alternatively, if the database can be exposed publicly, set `DATABASE_URL` to its public connection string. This avoids the shared network but exposes the database to the internet, so protect it with the host firewall and a strong password.
+
 ## Deterministic IDs
 
 During migration, PostgreSQL IDs derived from MongoDB documents must use the shared helper:
