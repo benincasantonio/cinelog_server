@@ -19,7 +19,7 @@ Set `DATABASE_URL` when you want the app or Alembic to initialize PostgreSQL:
 DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5432/cinelog_db
 ```
 
-Production deployments may also provide hosted database URLs as `postgresql://...` or `postgres://...`; the app normalizes both forms to SQLAlchemy's asyncpg driver internally.
+Production deployments may also provide hosted database URLs as `postgresql://...` or `postgres://...`; the app normalizes both forms to SQLAlchemy's asyncpg driver internally. Hosted URLs that include `sslmode=require` are also translated to asyncpg's `ssl=require` query parameter.
 
 Repository activation is controlled through `DB_BACKEND`:
 

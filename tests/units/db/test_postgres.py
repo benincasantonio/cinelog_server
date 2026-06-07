@@ -67,6 +67,22 @@ async def test_get_async_session_yields_async_session(monkeypatch):
             "postgres://user:password@localhost:5432/cinelog_test",
             "postgresql+asyncpg://user:password@localhost:5432/cinelog_test",
         ),
+        (
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test?sslmode=require",
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test?ssl=require",
+        ),
+        (
+            "postgresql://user:password@localhost:5432/cinelog_test?sslmode=require",
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test?ssl=require",
+        ),
+        (
+            "postgres://user:password@localhost:5432/cinelog_test?sslmode=require",
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test?ssl=require",
+        ),
+        (
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test?ssl=true&sslmode=require",
+            "postgresql+asyncpg://user:password@localhost:5432/cinelog_test?ssl=true",
+        ),
     ],
 )
 def test_get_database_url_normalizes_hosted_postgres_urls(monkeypatch, database_url, expected):

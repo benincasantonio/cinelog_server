@@ -4,6 +4,7 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Literal, cast, overload
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
@@ -57,15 +58,38 @@ def get_database_url(*, required: bool = True) -> str | None:
 def normalize_database_url(database_url: str) -> str:
     """Normalize common hosted Postgres URLs for SQLAlchemy asyncpg."""
     if database_url.startswith(ASYNC_POSTGRES_SCHEME):
-        return database_url
+        return _normalize_asyncpg_query(database_url)
 
     if database_url.startswith(POSTGRESQL_SCHEME):
-        return f"{ASYNC_POSTGRES_SCHEME}{database_url.removeprefix(POSTGRESQL_SCHEME)}"
+        normalized_url = f"{ASYNC_POSTGRES_SCHEME}{database_url.removeprefix(POSTGRESQL_SCHEME)}"
+        return _normalize_asyncpg_query(normalized_url)
 
     if database_url.startswith(POSTGRES_SCHEME):
-        return f"{ASYNC_POSTGRES_SCHEME}{database_url.removeprefix(POSTGRES_SCHEME)}"
+        normalized_url = f"{ASYNC_POSTGRES_SCHEME}{database_url.removeprefix(POSTGRES_SCHEME)}"
+        return _normalize_asyncpg_query(normalized_url)
 
     return database_url
+
+
+def _normalize_asyncpg_query(database_url: str) -> str:
+    """Translate common libpq query params to SQLAlchemy asyncpg params."""
+    parsed = urlsplit(database_url)
+    if not parsed.query:
+        return database_url
+
+    query_params = parse_qsl(parsed.query, keep_blank_values=True)
+    has_ssl = any(key == "ssl" for key, _ in query_params)
+    normalized_params: list[tuple[str, str]] = []
+
+    for key, value in query_params:
+        if key == "sslmode":
+            if not has_ssl:
+                normalized_params.append(("ssl", value))
+            continue
+        normalized_params.append((key, value))
+
+    normalized_query = urlencode(normalized_params)
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, normalized_query, parsed.fragment))
 
 
 @overload
