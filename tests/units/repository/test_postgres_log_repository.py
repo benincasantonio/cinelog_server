@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import UTC, date, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -92,7 +92,7 @@ async def _seed_fk_entities(seed_session: AsyncSession) -> tuple[PostgresUser, P
 
 
 def _create_request(
-    movie_id: str,
+    movie_id: UUID,
     *,
     tmdb_id: int,
     date_watched: date = date(2024, 1, 2),
@@ -116,7 +116,7 @@ async def test_create_log_persists_row(repository: PostgresLogRepository, seed_s
 
     log = await repository.create_log(
         user.id,
-        _create_request(str(movie.id), tmdb_id=movie.tmdb_id),
+        _create_request(movie.id, tmdb_id=movie.tmdb_id),
     )
 
     assert log.id is not None

@@ -73,7 +73,7 @@ class LogService:
         """
         movie: PostgresMovie = await self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
 
-        request.movie_id = str(movie.id)
+        request.movie_id = movie.id
 
         if not request.poster_path and movie.poster_path:
             request.poster_path = movie.poster_path

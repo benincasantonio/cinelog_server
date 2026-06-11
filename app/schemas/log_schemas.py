@@ -9,7 +9,7 @@ from app.types import WatchedWhereStr
 
 
 class LogCreateRequest(BaseSchema):
-    movie_id: str | None = Field(None, description="Unique identifier of the movie (auto-generated from tmdbId)")
+    movie_id: UUID | None = Field(None, description="Unique identifier of the movie (auto-generated from tmdbId)")
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
     viewing_notes: str | None = Field(None, description="Optional notes about this viewing")
