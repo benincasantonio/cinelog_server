@@ -1,4 +1,5 @@
-from beanie import PydanticObjectId
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Request, Response
 
 from app.config.rate_limiter import limiter
@@ -17,7 +18,7 @@ async def search_movies(
     request: Request,
     response: Response,
     query: str,
-    _: PydanticObjectId = Depends(auth_dependency),
+    _: UUID = Depends(auth_dependency),
 ) -> TMDBMovieSearchResult:
     """
     Search for movies using TMDB API.
@@ -26,7 +27,7 @@ async def search_movies(
 
 
 @router.get("/{tmdb_id}")
-async def get_movie_details(tmdb_id: int, _: PydanticObjectId = Depends(auth_dependency)) -> TMDBMovieDetails:
+async def get_movie_details(tmdb_id: int, _: UUID = Depends(auth_dependency)) -> TMDBMovieDetails:
     """
     Get full movie details from TMDB by movie ID.
     """

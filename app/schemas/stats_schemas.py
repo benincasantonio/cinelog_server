@@ -1,8 +1,6 @@
 from typing import Literal
 from uuid import UUID
 
-from beanie import PydanticObjectId
-
 from app.schemas.base_schemas import BaseSchema
 
 
@@ -54,5 +52,5 @@ class LogDistributionEntry(BaseSchema):
 class LogStats(BaseSchema):
     total_watches: int = 0
     unique_titles: int = 0
-    unique_movie_ids: list[PydanticObjectId | UUID] = []
+    unique_movie_ids: list[UUID] = []
     distribution: list[LogDistributionEntry] = []

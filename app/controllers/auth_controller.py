@@ -1,7 +1,7 @@
 import logging
+from uuid import UUID
 
 import jwt
-from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
 
@@ -209,7 +209,7 @@ async def reset_password(
 async def get_csrf_token(
     request: Request,
     response: Response,
-    _: PydanticObjectId = Depends(auth_dependency),
+    _: UUID = Depends(auth_dependency),
 ) -> CsrfTokenResponse:
     """
     Get CSRF token (sets HttpOnly cookie and returns token in body).

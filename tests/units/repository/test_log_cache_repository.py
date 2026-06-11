@@ -1,27 +1,32 @@
 from datetime import UTC, date, datetime
 from unittest.mock import AsyncMock, MagicMock, call, patch
+from uuid import UUID, uuid4
 
 import pytest
-from beanie import PydanticObjectId
 
-from app.models.log import Log
+from app.models.log_model import PostgresLog
 from app.repository.log_cache_repository import LOG_CACHE_TTL, LogCacheRepository
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 from app.schemas.stats_schemas import LogStats
 
 
 def _sample_log(
-    user_id: PydanticObjectId | None = None,
-    movie_id: PydanticObjectId | None = None,
-) -> Log:
-    return Log(
-        userId=user_id or PydanticObjectId(),
-        movieId=movie_id or PydanticObjectId(),
-        tmdbId=550,
-        dateWatched=datetime(2024, 1, 2, tzinfo=UTC),
-        viewingNotes="Cached viewing",
-        posterPath="/poster.jpg",
-        watchedWhere="streaming",
+    user_id: UUID | None = None,
+    movie_id: UUID | None = None,
+) -> PostgresLog:
+    return PostgresLog(
+        id=uuid4(),
+        user_id=user_id or uuid4(),
+        movie_id=movie_id or uuid4(),
+        tmdb_id=550,
+        date_watched=datetime(2024, 1, 2, tzinfo=UTC),
+        viewing_notes="Cached viewing",
+        poster_path="/poster.jpg",
+        watched_where="streaming",
+        deleted=False,
+        deleted_at=None,
+        created_at=datetime(2024, 1, 2, tzinfo=UTC),
+        updated_at=datetime(2024, 1, 2, tzinfo=UTC),
     )
 
 
@@ -47,7 +52,7 @@ def _mock_log_repository() -> MagicMock:
 
 
 def test_build_user_logs_key_includes_filters():
-    user_id = PydanticObjectId()
+    user_id = uuid4()
     repository = LogCacheRepository(_mock_log_repository())
 
     key = repository.build_user_logs_key(
@@ -62,8 +67,30 @@ def test_build_user_logs_key_includes_filters():
     assert key == (f"cinelog:logs:user:{user_id}:where:cinema:from:2024-01-01:to:2024-12-31:sort:watchedWhere:asc")
 
 
+def test_serialize_deserialize_round_trip_preserves_log_fields():
+    log = _sample_log()
+    repository = LogCacheRepository(_mock_log_repository())
+
+    payload = repository._serialize_log(log)
+    restored = repository._deserialize_log(payload)
+
+    assert isinstance(payload["id"], str)
+    assert restored.id == log.id
+    assert restored.user_id == log.user_id
+    assert restored.movie_id == log.movie_id
+    assert restored.tmdb_id == log.tmdb_id
+    assert restored.date_watched == log.date_watched
+    assert restored.viewing_notes == log.viewing_notes
+    assert restored.poster_path == log.poster_path
+    assert restored.watched_where == log.watched_where
+    assert restored.deleted == log.deleted
+    assert restored.deleted_at == log.deleted_at
+    assert restored.created_at == log.created_at
+    assert restored.updated_at == log.updated_at
+
+
 @pytest.mark.asyncio
-async def test_find_log_by_id_cache_hit_skips_repository(beanie_test_db):
+async def test_find_log_by_id_cache_hit_skips_repository():
     log = _sample_log()
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
@@ -80,7 +107,7 @@ async def test_find_log_by_id_cache_hit_skips_repository(beanie_test_db):
 
 
 @pytest.mark.asyncio
-async def test_find_log_by_id_cache_miss_queries_repository_and_sets_cache(beanie_test_db):
+async def test_find_log_by_id_cache_miss_queries_repository_and_sets_cache():
     log = _sample_log()
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
@@ -97,8 +124,8 @@ async def test_find_log_by_id_cache_miss_queries_repository_and_sets_cache(beani
 
 
 @pytest.mark.asyncio
-async def test_find_logs_by_user_id_cache_miss_uses_filter_specific_key(beanie_test_db):
-    user_id = PydanticObjectId()
+async def test_find_logs_by_user_id_cache_miss_uses_filter_specific_key():
+    user_id = uuid4()
     log = _sample_log(user_id=user_id)
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
@@ -136,8 +163,8 @@ async def test_find_logs_by_user_id_cache_miss_uses_filter_specific_key(beanie_t
 
 
 @pytest.mark.asyncio
-async def test_find_logs_by_user_id_cache_hit_skips_repository(beanie_test_db):
-    user_id = PydanticObjectId()
+async def test_find_logs_by_user_id_cache_hit_skips_repository():
+    user_id = uuid4()
     log = _sample_log(user_id=user_id)
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
@@ -154,7 +181,7 @@ async def test_find_logs_by_user_id_cache_hit_skips_repository(beanie_test_db):
 
 
 @pytest.mark.asyncio
-async def test_find_logs_by_movie_id_cache_hit_skips_repository(beanie_test_db):
+async def test_find_logs_by_movie_id_cache_hit_skips_repository():
     log = _sample_log()
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
@@ -171,7 +198,7 @@ async def test_find_logs_by_movie_id_cache_hit_skips_repository(beanie_test_db):
 
 
 @pytest.mark.asyncio
-async def test_find_logs_by_movie_id_cache_miss_queries_repository_and_sets_cache(beanie_test_db):
+async def test_find_logs_by_movie_id_cache_miss_queries_repository_and_sets_cache():
     log = _sample_log()
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
@@ -188,7 +215,7 @@ async def test_find_logs_by_movie_id_cache_miss_queries_repository_and_sets_cach
 
 
 @pytest.mark.asyncio
-async def test_cache_get_and_set_failures_fall_back_to_repository(beanie_test_db):
+async def test_cache_get_and_set_failures_fall_back_to_repository():
     log = _sample_log()
     cache = _mock_cache()
     cache.get.side_effect = RuntimeError("redis down")
@@ -208,7 +235,7 @@ async def test_cache_get_and_set_failures_fall_back_to_repository(beanie_test_db
 
 
 @pytest.mark.asyncio
-async def test_create_log_invalidates_user_and_movie_lists(beanie_test_db):
+async def test_create_log_invalidates_user_and_movie_lists():
     log = _sample_log()
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
@@ -235,7 +262,7 @@ async def test_create_log_invalidates_user_and_movie_lists(beanie_test_db):
 
 
 @pytest.mark.asyncio
-async def test_update_log_invalidates_id_user_and_movie_cache(beanie_test_db):
+async def test_update_log_invalidates_id_user_and_movie_cache():
     log = _sample_log()
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
@@ -258,11 +285,12 @@ async def test_update_log_invalidates_id_user_and_movie_cache(beanie_test_db):
 
 
 @pytest.mark.asyncio
-async def test_update_log_uses_database_lookup_without_reading_cache(beanie_test_db):
+async def test_update_log_uses_repository_lookup_without_reading_cache():
     log = _sample_log()
-    await log.insert()
     cache = _mock_cache()
-    repository = LogCacheRepository()
+    inner_repository = _mock_log_repository()
+    inner_repository.update_log.return_value = log
+    repository = LogCacheRepository(inner_repository)
     cache.get.return_value = repository._serialize_log(log)
     request = LogUpdateRequest(viewing_notes="Updated from DB")
 
@@ -270,13 +298,13 @@ async def test_update_log_uses_database_lookup_without_reading_cache(beanie_test
         result = await repository.update_log(log.id, log.user_id, request)
 
     assert result is not None
-    assert result.viewing_notes == "Updated from DB"
+    inner_repository.update_log.assert_awaited_once_with(log.id, log.user_id, request)
     cache.get.assert_not_awaited()
     cache.delete.assert_awaited_once_with(repository.build_log_key(log.id, log.user_id))
 
 
 @pytest.mark.asyncio
-async def test_delete_log_invalidates_only_after_successful_delete(beanie_test_db):
+async def test_delete_log_invalidates_only_after_successful_delete():
     log = _sample_log()
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
@@ -300,26 +328,27 @@ async def test_delete_log_invalidates_only_after_successful_delete(beanie_test_d
 
 
 @pytest.mark.asyncio
-async def test_delete_log_uses_database_lookup_without_reading_cache(beanie_test_db):
+async def test_delete_log_uses_repository_lookup_without_reading_cache():
     log = _sample_log()
-    await log.insert()
     cache = _mock_cache()
-    repository = LogCacheRepository()
+    inner_repository = _mock_log_repository()
+    inner_repository.delete_log.return_value = log
+    repository = LogCacheRepository(inner_repository)
     cache.get.return_value = repository._serialize_log(log)
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
         result = await repository.delete_log(log.id, log.user_id)
 
     assert result is not None
-    assert await Log.get(log.id) is None
+    inner_repository.delete_log.assert_awaited_once_with(log.id, log.user_id)
     cache.get.assert_not_awaited()
     cache.delete.assert_awaited_once_with(repository.build_log_key(log.id, log.user_id))
 
 
 @pytest.mark.asyncio
-async def test_delete_log_not_found_skips_invalidation(beanie_test_db):
-    user_id = PydanticObjectId()
-    log_id = PydanticObjectId()
+async def test_delete_log_not_found_skips_invalidation():
+    user_id = uuid4()
+    log_id = uuid4()
     cache = _mock_cache()
     inner_repository = _mock_log_repository()
     inner_repository.delete_log.return_value = None
@@ -335,8 +364,8 @@ async def test_delete_log_not_found_skips_invalidation(beanie_test_db):
 
 
 @pytest.mark.asyncio
-async def test_get_log_stats_delegates_to_inner_repository(beanie_test_db):
-    user_id = PydanticObjectId()
+async def test_get_log_stats_delegates_to_inner_repository():
+    user_id = uuid4()
     stats = LogStats()
     inner_repository = _mock_log_repository()
     inner_repository.get_log_stats.return_value = stats
@@ -353,7 +382,7 @@ async def test_get_log_stats_delegates_to_inner_repository(beanie_test_db):
 
 
 @pytest.mark.asyncio
-async def test_invalidation_failure_does_not_raise(beanie_test_db):
+async def test_invalidation_failure_does_not_raise():
     log = _sample_log()
     cache = _mock_cache()
     cache.invalidate_pattern.side_effect = RuntimeError("redis down")

@@ -1,28 +1,16 @@
 """
 E2E test fixtures for the cinelog_server application.
-Uses httpx ASGITransport for direct FastAPI testing against the selected backend.
+Uses httpx ASGITransport for direct FastAPI testing against PostgreSQL.
 """
 
 import os
-
-E2E_BACKEND = os.environ.get("E2E_BACKEND", "mongo").strip().lower()
-if E2E_BACKEND not in {"mongo", "postgres"}:
-    raise RuntimeError(f"Unsupported E2E_BACKEND={E2E_BACKEND!r}. Expected 'mongo' or 'postgres'.")
 
 # Set e2e environment variables BEFORE load_dotenv and any app imports.
 # app.config.rate_limiter reads REDIS_URL at import time, so the override
 # must be in place before any app module is imported.
 os.environ.setdefault("REDIS_URL", "redis://localhost:6380/0")
 os.environ.setdefault("RATE_LIMIT_HMAC_SECRET", "test-rate-limit-hmac-secret")
-
-if E2E_BACKEND == "postgres":
-    os.environ["DB_BACKEND"] = "postgres"
-    os.environ["DATABASE_URL"] = "postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db"
-else:
-    os.environ["MONGODB_HOST"] = "localhost"
-    os.environ["MONGODB_PORT"] = "27018"
-    os.environ["MONGODB_DB"] = "cinelog_e2e_db"
-    os.environ["DB_BACKEND"] = "mongo"
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db"
 
 import asyncio  # noqa: E402
 from unittest.mock import patch  # noqa: E402
@@ -31,16 +19,10 @@ import httpx  # noqa: E402
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 import redis.asyncio as aioredis  # noqa: E402
-from beanie import init_beanie  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
-from pymongo import AsyncMongoClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
 from app.db.postgres import close_postgres_engine, init_postgres_engine  # noqa: E402
-from app.models.log import Log  # noqa: E402
-from app.models.movie import Movie  # noqa: E402
-from app.models.movie_rating import MovieRating  # noqa: E402
-from app.models.user import User  # noqa: E402
 from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult  # noqa: E402
 from app.services.cache_service import CacheService  # noqa: E402
 from app.services.tmdb_service import TMDBService  # noqa: E402
@@ -50,7 +32,6 @@ from app.services.tmdb_service import TMDBService  # noqa: E402
 # existing environment variables by default.
 load_dotenv()
 
-MONGO_DB = "cinelog_e2e_db"
 POSTGRES_TABLES = ("logs", "movie_ratings", "movies", "users")
 
 
@@ -95,35 +76,8 @@ async def flush_redis():
 
 
 @pytest_asyncio.fixture
-async def mongo_client():
-    if E2E_BACKEND != "mongo":
-        yield None
-        return
-
-    client: AsyncMongoClient = AsyncMongoClient(
-        f"mongodb://{os.environ['MONGODB_HOST']}:{os.environ['MONGODB_PORT']}",
-        uuidRepresentation="standard",
-    )
-    for _ in range(30):
-        try:
-            await client.admin.command("ping")
-            break
-        except Exception:
-            await asyncio.sleep(0.25)
-    else:
-        raise RuntimeError("MongoDB for E2E tests is not reachable on port 27018")
-
-    yield client
-    await client.close()
-
-
-@pytest_asyncio.fixture
 async def postgres_engine():
-    if E2E_BACKEND != "postgres":
-        yield None
-        return
-
-    engine = init_postgres_engine(required=True)
+    engine = init_postgres_engine()
     if engine is None:
         raise RuntimeError("PostgreSQL engine failed to initialize for e2e tests.")
 
@@ -142,20 +96,12 @@ async def postgres_engine():
 
 
 @pytest_asyncio.fixture
-async def async_client(mongo_client, postgres_engine):
+async def async_client(postgres_engine):
     """Async HTTP client using ASGITransport for direct app testing."""
     from app import app
     from app.config.redis import get_redis_config
 
     _clear_dependency_caches()
-
-    if E2E_BACKEND == "mongo":
-        await init_beanie(
-            database=mongo_client[MONGO_DB],
-            document_models=[User, Log, Movie, MovieRating],
-        )
-    else:
-        init_postgres_engine(required=True)
 
     CacheService.initialize(get_redis_config())
 
@@ -169,16 +115,10 @@ async def async_client(mongo_client, postgres_engine):
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def clean_db(mongo_client, postgres_engine):
-    """Clean the active database before each test."""
-    if E2E_BACKEND == "mongo":
-        db = mongo_client[MONGO_DB]
-        collection_names = await db.list_collection_names()
-        for collection_name in collection_names:
-            await db.drop_collection(collection_name)
-    else:
-        async with postgres_engine.begin() as connection:
-            await connection.execute(text(f"TRUNCATE TABLE {', '.join(POSTGRES_TABLES)} RESTART IDENTITY CASCADE"))
+async def clean_db(postgres_engine):
+    """Clean the database before each test."""
+    async with postgres_engine.begin() as connection:
+        await connection.execute(text(f"TRUNCATE TABLE {', '.join(POSTGRES_TABLES)} RESTART IDENTITY CASCADE"))
 
     yield
 

@@ -1,7 +1,6 @@
 from typing import Annotated
 from uuid import UUID
 
-from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.dependencies.auth_dependency import auth_dependency
@@ -19,7 +18,7 @@ router = APIRouter()
 async def create_movie_rating(
     request_body: MovieRatingCreateUpdateRequest,
     request: Request,
-    user_id: Annotated[PydanticObjectId | UUID, Depends(auth_dependency)],
+    user_id: Annotated[UUID, Depends(auth_dependency)],
     movie_rating_service: Annotated[MovieRatingService, Depends(get_movie_rating_service)],
 ) -> MovieRatingResponse:
     """
@@ -38,7 +37,7 @@ async def create_movie_rating(
 @router.get("/{tmdb_id}", response_model=None)
 async def get_movie_rating(
     tmdb_id: int,
-    current_user_id: Annotated[PydanticObjectId | UUID, Depends(auth_dependency)],
+    current_user_id: Annotated[UUID, Depends(auth_dependency)],
     movie_rating_service: Annotated[MovieRatingService, Depends(get_movie_rating_service)],
 ) -> MovieRatingResponse | Response:
     """

@@ -8,13 +8,13 @@ The codebase follows a clean layered architecture:
 
 1. **Controllers** (`app/controllers/`) — FastAPI route handlers that define API endpoints
 2. **Services** (`app/services/`) — Business logic layer that orchestrates repository operations and external integrations
-3. **Repositories** (`app/repository/`) — Data access layer using Beanie ODM
-4. **Models** (`app/models/`) — Beanie document models representing database entities
+3. **Repositories** (`app/repository/`) — Data access layer using async SQLAlchemy
+4. **Models** (`app/models/`) — SQLAlchemy ORM models representing database tables
 5. **Schemas** (`app/schemas/`) — Pydantic models for request/response validation
 6. **Dependencies** (`app/dependencies/`) — FastAPI dependency injection (e.g., JWT auth)
 7. **Middleware** (`app/middleware/`) — Request processing middleware (e.g., CSRF protection)
 8. **Config** (`app/config/`) — Application configuration (e.g., CORS)
-9. **Utils** (`app/utils/`) — Shared utilities (exceptions, error codes, cookie management, sanitization, datetime, ObjectId)
+9. **Utils** (`app/utils/`) — Shared utilities (exceptions, error codes, cookie management, sanitization, datetime, ID validation)
 
 ## API Versioning
 
@@ -34,15 +34,13 @@ All routes are registered under the `/v1/` prefix:
 `app/__init__.py` uses a FastAPI lifespan context manager:
 
 **Startup:**
-1. Parse MongoDB connection from `MONGODB_URI` or `MONGODB_HOST`/`MONGODB_PORT`/`MONGODB_DB`
-2. Initialize `AsyncMongoClient` with `uuidRepresentation="standard"`
-3. Initialize Beanie with `[User, Log, Movie, MovieRating]` models
-4. Initialize `CacheService` from Redis config
+1. Initialize the async SQLAlchemy engine from `DATABASE_URL` (`init_postgres_engine()` in `app/db/postgres.py`)
+2. Initialize `CacheService` from Redis config and fail fast if Redis is unreachable
 
 **Shutdown:**
 1. Close cache service connections (`CacheService.aclose_all()`)
 2. Close TMDB service connections (`TMDBService.aclose_all()`)
-3. Close MongoDB client
+3. Dispose the PostgreSQL engine (`close_postgres_engine()`)
 
 **Middleware stack** (in order): RateLimitSessionMiddleware → CSRFMiddleware → CORSMiddleware
 
@@ -53,15 +51,16 @@ All routes are registered under the `/v1/` prefix:
 **Dependency Flow:**
 
 - Controllers depend on services via `Depends(get_*_service)` from `app/dependencies/service_dependency.py`
-- Each `get_*_service` provider is `@lru_cache`-d and constructs the service with its repositories directly
-- Services own their repositories — no separate repository dependency layer
-- Repositories handle direct database operations using Beanie models
-- `LogCacheRepository` is a composition-based decorator over `LogRepository` and is wired in `get_log_service()` / `get_stats_service()`
+- Each `get_*_service` provider is `@lru_cache`-d and constructs the service with its repositories from `app/dependencies/repository_dependency.py`
+- Repositories handle direct database operations through async SQLAlchemy sessions
+- `LogCacheRepository` is a composition-based Redis decorator over the log repository and is wired in `get_log_service()` / `get_stats_service()`
 
 **Repository Conventions:**
 
+- Repositories extend `RepositoryBase` (`app/repository/repository_base.py`), which accepts a `session_provider` (defaults to `get_async_session` from `app/db/postgres.py`); tests inject their own provider
+- Each repository has a `Protocol` interface in `app/repository/*_repository_protocol.py` that services type-hint against
 - Repository methods are instance methods; services should not call repository classes statically
-- Storage abstraction (protocols, alternative backends) is intentionally deferred until a second backend exists, which would also require splitting domain models from Beanie `Document` return types
+- The current implementations are named `Postgres*Repository` / `Postgres*` models (a leftover of the MongoDB → PostgreSQL migration); renaming them to canonical names is tracked as follow-up work
 
 **Error Handling:**
 
@@ -76,78 +75,80 @@ All routes are registered under the `/v1/` prefix:
 
 **Soft Delete:**
 
-- `BaseEntity.active_filter()` returns `{"deleted": {"$ne": True}}` — used by all repository queries to exclude soft-deleted records
+- `PostgresBaseEntity.active()` returns a SQLAlchemy criterion (`deleted IS FALSE`) — used by repository queries to exclude soft-deleted records
 
 ## Base Entity Pattern
 
-All database models inherit from `BaseEntity` (`app/models/base_entity.py`) which provides:
+All ORM models inherit from `PostgresBaseEntity` (`app/models/base_model.py`), which provides:
 
-- Soft delete support (`deleted`, `deletedAt`)
-- Automatic timestamps (`createdAt`, `updatedAt`) via `@before_event` hooks
-- `active_filter(extra)` static method for soft-delete-aware queries
-- `model_config` with `populate_by_name=True` for snake_case/camelCase interop
+- Soft delete support (`deleted`, `deleted_at`)
+- Automatic timestamps (`created_at`, `updated_at`) via column defaults and `onupdate`
+- `active()` class method returning a soft-delete-aware WHERE criterion
+
+All primary keys are PostgreSQL UUIDs generated by `gen_random_uuid()`.
 
 ## Data Models
 
-### User (`users` collection)
+### User (`users` table — `PostgresUser`)
 
-| Field | Type | Notes |
+| Column | Type | Notes |
 |---|---|---|
-| `email` | `str` | Unique |
-| `handle` | `str` | Unique |
-| `first_name`, `last_name` | `str` | |
-| `bio` | `str \| None` | |
-| `date_of_birth` | `datetime \| None` | |
-| `password_hash` | `str \| None` | Nullable for legacy accounts |
-| `reset_password_code` | `str \| None` | Password reset flow |
-| `reset_password_expires` | `datetime \| None` | Password reset expiry |
+| `email` | `text` | Unique (case-insensitive index) |
+| `handle` | `text` | Unique (case-insensitive index) |
+| `first_name`, `last_name` | `text` | |
+| `bio` | `text \| null` | |
+| `profile_visibility` | `text` | `private` (default) or `public`, CHECK constraint |
+| `date_of_birth` | `date \| null` | |
+| `password_hash` | `text \| null` | Nullable for legacy accounts |
+| `reset_password_code` | `text \| null` | Password reset flow |
+| `reset_password_expires` | `timestamptz \| null` | Password reset expiry |
 
-**Indexes:** `createdAt` (DESC), `deleted` (ASC), `email` (unique), `handle` (unique)
+**Indexes:** `uq_users_email_lower` (unique on `lower(email)`), `uq_users_handle_lower` (unique on `lower(handle)`)
 
-### Movie (`movies` collection)
+### Movie (`movies` table — `PostgresMovie`)
 
-| Field | Type | Notes |
+| Column | Type | Notes |
 |---|---|---|
-| `tmdb_id` | `int` | Unique — links to TMDB |
-| `title` | `str` | |
-| `release_date` | `datetime \| None` | |
-| `overview` | `str \| None` | |
-| `poster_path` | `str \| None` | |
-| `vote_average` | `float \| None` | |
-| `runtime` | `int \| None` | Minutes |
-| `original_language` | `str \| None` | |
+| `tmdb_id` | `integer` | Unique, indexed — links to TMDB |
+| `title` | `text` | |
+| `release_date` | `timestamp \| null` | |
+| `overview` | `text \| null` | |
+| `poster_path` | `text \| null` | |
+| `vote_average` | `float \| null` | |
+| `runtime` | `integer \| null` | Minutes |
+| `original_language` | `text \| null` | |
+| `tmdb_payload` | `jsonb \| null` | Raw TMDB response |
+| `tmdb_last_synced_at` | `timestamptz \| null` | |
 
-**Indexes:** `createdAt` (DESC), `deleted` (ASC), `tmdbId` (unique)
+### Log (`logs` table — `PostgresLog`)
 
-### Log (`logs` collection)
-
-| Field | Type | Notes |
+| Column | Type | Notes |
 |---|---|---|
-| `user_id` | `PydanticObjectId` | FK to User |
-| `movie_id` | `PydanticObjectId` | FK to Movie |
-| `tmdb_id` | `int` | Denormalized TMDB ID |
-| `date_watched` | `datetime` | |
-| `viewing_notes` | `str \| None` | |
-| `poster_path` | `str \| None` | Denormalized |
-| `watched_where` | `Literal` | `cinema`, `streaming`, `homeVideo`, `tv`, `other` |
+| `user_id` | `uuid` | FK to `users.id` |
+| `movie_id` | `uuid` | FK to `movies.id` |
+| `tmdb_id` | `integer` | Denormalized TMDB ID |
+| `date_watched` | `timestamptz` | |
+| `viewing_notes` | `text \| null` | |
+| `poster_path` | `text \| null` | Denormalized |
+| `watched_where` | `text` | `cinema`, `streaming`, `homeVideo`, `tv`, `other` (CHECK constraint) |
 
-**Indexes:** `createdAt` (DESC), `deleted` (ASC), `userId` (ASC), `dateWatched` (ASC), `watchedWhere` (ASC), composites: `(userId, dateWatched DESC)`, `(userId, dateWatched DESC, createdAt DESC)`, `(userId, movieId)`, `(tmdbId, dateWatched DESC)`, `(userId, watchedWhere, createdAt)`
+**Indexes:** `(user_id, date_watched DESC)`, `(user_id, date_watched DESC, created_at DESC)`, `(user_id, movie_id)`, `(tmdb_id, date_watched DESC)`, `(user_id, watched_where, created_at)`
 
-### MovieRating (`movie_ratings` collection)
+### MovieRating (`movie_ratings` table — `PostgresMovieRating`)
 
-| Field | Type | Notes |
+| Column | Type | Notes |
 |---|---|---|
-| `movie_id` | `PydanticObjectId` | FK to Movie |
-| `user_id` | `PydanticObjectId` | FK to User |
-| `tmdb_id` | `int` | Denormalized |
-| `rating` | `int \| None` | 1–10 validated range |
-| `review` | `str \| None` | |
+| `user_id` | `uuid` | FK to `users.id` |
+| `movie_id` | `uuid` | FK to `movies.id` |
+| `tmdb_id` | `integer` | Denormalized |
+| `rating` | `integer \| null` | CHECK constraint 1–10 |
+| `review` | `text \| null` | |
 
-**Indexes:** `createdAt` (DESC), `deleted` (ASC), `movieId` (ASC), `rating` (ASC), `tmdbId` (ASC), `(userId, tmdbId)` (unique composite)
+**Constraints/Indexes:** unique `(user_id, tmdb_id)`, index `(user_id, movie_id)`
 
 ## Authentication Flow
 
-Cookie-based JWT authentication with CSRF double-submit protection.
+Cookie-based JWT authentication with CSRF double-submit protection. User IDs are UUIDs.
 
 ### Login (`POST /v1/auth/login`)
 
@@ -162,7 +163,7 @@ Cookie-based JWT authentication with CSRF double-submit protection.
 ### Protected Requests
 
 1. Client sends `__Host-access_token` cookie + `X-CSRF-Token` header
-2. `auth_dependency` extracts JWT from cookie, validates signature/expiry, returns `user_id`
+2. `auth_dependency` extracts JWT from cookie, validates signature/expiry, returns the `user_id` as a `UUID` (a non-UUID `sub` — e.g. a stale pre-migration token — is rejected with 401)
 3. `CSRFMiddleware` validates `X-CSRF-Token` header matches `__Host-csrf_token` cookie (double-submit pattern)
 
 ### Token Refresh (`POST /v1/auth/refresh`)
@@ -233,11 +234,11 @@ All schemas inherit from `BaseSchema` which enables camelCase alias generation (
 | `error_codes_utils.py` | `ErrorCodes` class with predefined error schemas |
 | `sanitize_utils.py` | HTML tag stripping, name/handle pattern validation |
 | `datetime_utils.py` | UTC date/datetime conversion helpers |
-| `object_id_utils.py` | Safe `to_object_id()` conversion with error handling |
+| `id_utils.py` | `is_valid_uuid()` string validation |
 
 ## User Repository Deletion Methods
 
-The `UserRepository` provides two deletion strategies:
+The user repository provides two deletion strategies:
 
 - `delete_user()`: Soft delete (sets `deleted=True`)
 - `delete_user_oblivion()`: GDPR-compliant deletion that obscures all user information
@@ -258,70 +259,40 @@ The `UserRepository` provides two deletion strategies:
 
 - **Toggle:** `REDIS_ENABLED` env var (default `false`) — when disabled, all methods return None/False immediately
 - **Graceful degradation:** All Redis calls are wrapped in try/except — the app never fails due to Redis unavailability
-- **Serialization:** Callers pass `model.model_dump(mode="json")` to `set()` and call `Model.model_validate()` after `get()` — keeps CacheService model-agnostic
+- **Serialization:** Callers pass JSON-ready dicts to `set()` and revalidate after `get()` — keeps CacheService model-agnostic. `LogCacheRepository` serializes ORM rows through an internal Pydantic mirror model.
 - **Key naming:** `cinelog:{entity}:{identifier}` — key construction is the caller's responsibility
 - **Default TTL:** 300 seconds (5 minutes), configurable via `REDIS_DEFAULT_TTL`
 - **Pattern invalidation:** Uses `SCAN` (not `KEYS`) for production-safe pattern-based cache invalidation
 - **Lifecycle:** Initialized during app startup in `app/__init__.py`, closed during shutdown
 
-## MongoDB Connection
+## PostgreSQL Connection
 
-Connection is established in `app/__init__.py`:
+Connection management lives in `app/db/postgres.py`:
 
-- Uses environment variables for configuration (`MONGODB_URI` or `MONGODB_HOST`/`MONGODB_PORT`/`MONGODB_DB`)
-- Creates an async PyMongo `AsyncMongoClient` for Beanie ODM operations
-- Beanie 2.0.1 provides async ODM functionality using Pydantic v2 models
-- `directConnection=True` is used for single-node replica sets in local development
+- `DATABASE_URL` env var (a `postgresql+asyncpg://` connection string) is required; startup fails without it
+- `init_postgres_engine()` creates a process-wide async engine (`pool_pre_ping=True`) and session factory
+- `get_async_session()` yields `AsyncSession` instances for repositories
+- `close_postgres_engine()` disposes the engine during app shutdown
 
 ## Testing Approach
 
 Tests use:
 
 - `pytest` for test framework
-- `mongomock` for mocking MongoDB in unit tests
+- `pytest-postgresql` for repository tests against a real ephemeral PostgreSQL instance (per-test databases via `DatabaseJanitor`)
 - `freezegun` for time-based testing
 - Mock pattern for isolating services from repositories
 
 ## Migrations
 
-The project includes a lightweight database migration system:
-
-**Location:** `migrations/` directory
-
-**Components:**
-
-- `migrations/runner.py` — CLI tool for discovering and running migrations
-- `migrations/NNN_name.py` — Individual migration scripts (e.g., `001_movie_ids_to_objectid.py`)
-
-**How it works:**
-
-- Migrations are numbered (`001`, `002`, etc.) and run in order
-- Applied migrations are tracked in the `migration_versions` collection
-- Uses sync PyMongo (not the async Beanie connection) for direct database operations
-- Supports dry-run mode (`--dry-run`) to preview impact before applying
-
-**Running migrations:**
+Database schema migrations are managed with **Alembic** (`alembic/` directory):
 
 ```bash
-make migrate           # Run pending migrations with confirmation
-make migrate-dry-run   # Preview what would change
-uv run python -m migrations.runner --yes  # CI/CD mode (no prompts)
+make db-schema-migrate          # Apply pending migrations (alembic upgrade head)
+make db-schema-migrate-dry-run  # Preview SQL without applying (alembic upgrade head --sql)
+make db-schema-rollback         # Roll back one revision (alembic downgrade -1)
 ```
 
-**Writing a migration:**
+In production, the `db-migrate` service in `docker-compose.prod.yml` runs `alembic upgrade head` before the API starts.
 
-Each migration file must define `up(db, dry_run=False)` and `down(db)` functions:
-
-```python
-from pymongo.database import Database
-
-def up(db: Database, dry_run: bool = False) -> None:
-    """Apply the migration."""
-    pass
-
-def down(db: Database) -> None:
-    """Rollback the migration (optional, may be no-op)."""
-    pass
-```
-
-See `docs/technical/migrations.md` for full documentation.
+See `docs/technical/postgres-migration.md` for the history of the MongoDB → PostgreSQL migration.

@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
 
 import pytest
-from beanie import PydanticObjectId
 
 from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogUpdateRequest
 from app.services.log_service import LogService
@@ -54,7 +53,7 @@ class TestLogService:
         """Test successful log creation."""
         # Setup mocks
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/poster.jpg"
@@ -104,9 +103,9 @@ class TestLogService:
         mock_stats_cache_service,
     ):
         """Test that creating a log invalidates the stats cache."""
-        user_id = PydanticObjectId()
+        user_id = uuid4()
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/poster.jpg"
@@ -138,7 +137,7 @@ class TestLogService:
     async def test_create_log_auto_populate_poster(self, log_service, mock_log_repository, mock_movie_service):
         """Test that posterPath is auto-populated from movie if not provided."""
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/movie_poster.jpg"
@@ -189,7 +188,7 @@ class TestLogService:
         mock_log_repository.update_log.return_value = mock_log
 
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/poster.jpg"
@@ -204,7 +203,7 @@ class TestLogService:
         mock_movie_service.get_movie_by_id.return_value = mock_movie
 
         request = LogUpdateRequest(viewing_notes="Updated notes")
-        log_id = PydanticObjectId()
+        log_id = uuid4()
         result = await log_service.update_log("user123", log_id, request)
 
         assert result.viewing_notes == "Updated notes"
@@ -219,7 +218,7 @@ class TestLogService:
         mock_stats_cache_service,
     ):
         """Test that updating a log invalidates the stats cache."""
-        user_id = PydanticObjectId()
+        user_id = uuid4()
         mock_log = Mock()
         mock_log.id = "log123"
         mock_log.movie_id = "movie123"
@@ -231,7 +230,7 @@ class TestLogService:
         mock_log_repository.update_log.return_value = mock_log
 
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/poster.jpg"
@@ -245,7 +244,7 @@ class TestLogService:
         mock_movie_service.get_movie_by_id.return_value = mock_movie
 
         request = LogUpdateRequest(viewing_notes="Updated notes")
-        log_id = PydanticObjectId()
+        log_id = uuid4()
         await log_service.update_log(user_id, log_id, request)
 
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
@@ -258,23 +257,13 @@ class TestLogService:
         request = LogUpdateRequest(viewing_notes="Updated notes")
 
         with pytest.raises(AppException):
-            await log_service.update_log("user123", PydanticObjectId(), request)
-
-    @pytest.mark.asyncio
-    async def test_update_log_rejects_mismatched_id_family(self, log_service, mock_log_repository):
-        request = LogUpdateRequest(viewing_notes="Updated notes")
-
-        with pytest.raises(AppException) as exc_info:
-            await log_service.update_log(uuid4(), PydanticObjectId(), request)
-
-        assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
-        mock_log_repository.update_log.assert_not_awaited()
+            await log_service.update_log("user123", uuid4(), request)
 
     @pytest.mark.asyncio
     async def test_delete_log_success(self, log_service, mock_log_repository, mock_stats_cache_service):
         """Test successful log deletion invalidates the stats cache."""
-        user_id = PydanticObjectId()
-        log_id = PydanticObjectId()
+        user_id = uuid4()
+        log_id = uuid4()
         mock_log_repository.delete_log.return_value = MagicMock()
 
         await log_service.delete_log(user_id=user_id, log_id=log_id)
@@ -285,34 +274,20 @@ class TestLogService:
     @pytest.mark.asyncio
     async def test_delete_log_not_found_raises(self, log_service, mock_log_repository, mock_stats_cache_service):
         """Test deleting a missing log raises LOG_NOT_FOUND and does not invalidate cache."""
-        user_id = PydanticObjectId()
+        user_id = uuid4()
         mock_log_repository.delete_log.return_value = None
 
         with pytest.raises(AppException) as exc_info:
-            await log_service.delete_log(user_id=user_id, log_id=PydanticObjectId())
+            await log_service.delete_log(user_id=user_id, log_id=uuid4())
 
         assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
-        mock_stats_cache_service.invalidate_user_stats.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_delete_log_rejects_mismatched_id_family(
-        self,
-        log_service,
-        mock_log_repository,
-        mock_stats_cache_service,
-    ):
-        with pytest.raises(AppException) as exc_info:
-            await log_service.delete_log(uuid4(), PydanticObjectId())
-
-        assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
-        mock_log_repository.delete_log.assert_not_awaited()
         mock_stats_cache_service.invalidate_user_stats.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_get_user_logs(self, log_service, mock_log_repository, mock_movie_service):
         """Test getting user logs."""
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
         mock_movie.tmdb_id = 550
         mock_movie.poster_path = "/poster.jpg"
@@ -325,8 +300,8 @@ class TestLogService:
         mock_movie.updated_at = None
 
         mock_log = Mock()
-        mock_log.id = PydanticObjectId()
-        mock_log.movie_id = PydanticObjectId()
+        mock_log.id = uuid4()
+        mock_log.movie_id = uuid4()
         mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = "Great!"
@@ -351,7 +326,7 @@ class TestLogService:
         log_service.movie_rating_repository = mock_movie_rating_repository
 
         request = LogListRequest(sort_by="dateWatched", sort_order="desc")
-        result = await log_service.get_user_logs(PydanticObjectId(), request)
+        result = await log_service.get_user_logs(uuid4(), request)
 
         assert len(result.logs) == 1
         assert result.logs[0].movie_rating == 8
@@ -376,8 +351,8 @@ class TestGetUserLogsByHandle:
         mock_user_repository.find_user_by_handle.return_value = mock_user
 
         mock_log = Mock()
-        mock_log.id = PydanticObjectId()
-        mock_log.movie_id = PydanticObjectId()
+        mock_log.id = uuid4()
+        mock_log.movie_id = uuid4()
         mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = "Great!"

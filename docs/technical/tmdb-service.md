@@ -161,14 +161,14 @@ No retry logic is currently implemented. Failed requests are not cached.
 `MovieService.find_or_create_movie(tmdb_id)` is the primary internal consumer of `TMDBService`. It implements a lazy-persistence pattern:
 
 ```
-1. Query MongoDB for an existing Movie document with the given tmdb_id
+1. Query PostgreSQL for an existing movie row with the given tmdb_id
 2. If found → return it immediately (no TMDB call)
 3. If not found → call TMDBService.get_movie_details(tmdb_id)
 4. Pass the TMDBMovieDetails to MovieRepository.create_from_tmdb_data()
-5. Return the newly created Movie document
+5. Return the newly created movie record
 ```
 
-This means a movie is written to MongoDB exactly once — on first access. All subsequent lookups for the same `tmdb_id` are served from the local database. Callers within the application (e.g. `LogService`) use `find_or_create_movie` rather than calling `TMDBService` directly.
+This means a movie is written to PostgreSQL exactly once — on first access. All subsequent lookups for the same `tmdb_id` are served from the local database. Callers within the application (e.g. `LogService`) use `find_or_create_movie` rather than calling `TMDBService` directly.
 
 ---
 

@@ -9,22 +9,9 @@ Controllers receive services through FastAPI `Depends(...)`.
 - Each provider is `@lru_cache`-d, so it returns the same process-wide instance.
 - Controllers use `Depends(get_*_service)` exclusively.
 
-## Repository Provider Guardrails
+## Repository Providers
 
-`get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, and `get_log_repository()` are the runtime activation gates for mixed-mode persistence:
-
-- `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `MovieRepository`.
-- `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `UserRepository`.
-- `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `MovieRatingRepository`.
-- `DB_BACKEND` unset or `mongo` -> returns Mongo-backed `LogRepository`.
-- `DB_BACKEND=postgres` while mixed-mode is unsafe -> raises `RepositoryActivationError` (fail-fast).
-
-This prevents accidental cutover while:
-
-- Mongo `LogRepository` and `MovieRatingRepository` still depend on ObjectId `movie_id` references.
-- JWT `sub` values, `auth_dependency`, profile ownership checks, and user-scoped cache keys still depend on ObjectId `user_id` references.
-- `MovieRatingService`, `LogService`, and `StatsService` still rely on mixed Mongo user/movie identifiers for rating lookups.
-- `LogService` and `StatsService` still wrap logs through `LogCacheRepository`, which remains Mongo-shaped until the later repository cutover.
+`get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, and `get_log_repository()` return the PostgreSQL repository implementations (`PostgresMovieRepository`, `PostgresUserRepository`, `PostgresMovieRatingRepository`, `PostgresLogRepository`). Services type-hint against the `*RepositoryProtocol` interfaces in `app/repository/`.
 
 ## Service Providers
 
@@ -35,12 +22,14 @@ This prevents accidental cutover while:
 | `get_user_service()` | `UserService` |
 | `get_movie_service()` | `MovieService` |
 | `get_movie_rating_service()` | `MovieRatingService` |
-| `get_log_service()` | `LogService` (wraps `LogRepository` with `LogCacheRepository`) |
-| `get_stats_service()` | `StatsService` (wraps `LogRepository` with `LogCacheRepository`) |
+| `get_log_service()` | `LogService` (wraps the log repository with `LogCacheRepository`) |
+| `get_stats_service()` | `StatsService` (wraps the log repository with `LogCacheRepository`) |
 
 ## Endpoint Usage
 
 ```python
+from uuid import UUID
+
 from app.dependencies.service_dependency import get_log_service
 from app.services.log_service import LogService
 
@@ -48,7 +37,7 @@ from app.services.log_service import LogService
 @router.post("/")
 async def create_log(
     body: LogCreateRequest,
-    user_id: PydanticObjectId = Depends(auth_dependency),
+    user_id: UUID = Depends(auth_dependency),
     log_service: LogService = Depends(get_log_service),
 ) -> LogCreateResponse:
     return await log_service.create_log(user_id=user_id, request=body)

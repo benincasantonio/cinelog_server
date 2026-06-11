@@ -3,9 +3,9 @@ Unit tests for auth controller endpoints.
 """
 
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
-from beanie import PydanticObjectId
 from fastapi.testclient import TestClient
 
 from app import app
@@ -123,7 +123,7 @@ class TestAuthController:
 
     def test_get_csrf_token_success(self, client):
         """Test csrf token endpoint returns a token and sets the cookie."""
-        app.dependency_overrides[auth_dependency] = lambda: PydanticObjectId()
+        app.dependency_overrides[auth_dependency] = lambda: uuid4()
         client.cookies.set("__Host-access_token", "token")
 
         try:

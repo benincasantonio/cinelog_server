@@ -1,7 +1,5 @@
 from uuid import UUID
 
-from beanie import PydanticObjectId
-
 from app.repository.movie_repository_protocol import MovieRepositoryProtocol
 from app.services.tmdb_service import TMDBService
 
@@ -15,7 +13,7 @@ class MovieService:
         self.movie_repository = movie_repository
         self.tmdb_service = tmdb_service or TMDBService.get_instance()
 
-    async def get_movie_by_id(self, movie_id: PydanticObjectId | UUID):
+    async def get_movie_by_id(self, movie_id: UUID):
         """Find a movie by its ID."""
         return await self.movie_repository.find_movie_by_id(movie_id)
 

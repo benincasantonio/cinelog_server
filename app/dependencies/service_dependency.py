@@ -8,7 +8,6 @@ Tests can swap a whole service through
 
 from functools import lru_cache
 
-from app.db.postgres import is_postgres_required
 from app.dependencies.repository_dependency import (
     get_log_repository,
     get_movie_rating_repository,
@@ -26,10 +25,7 @@ from app.services.user_service import UserService
 
 
 def _get_runtime_log_repository():
-    log_repository = get_log_repository()
-    if is_postgres_required():
-        return log_repository
-    return LogCacheRepository(log_repository)
+    return LogCacheRepository(get_log_repository())
 
 
 @lru_cache

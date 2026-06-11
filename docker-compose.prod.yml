@@ -4,9 +4,7 @@ x-app-env: &app-env
   env_file:
     - .env
   environment:
-    DB_BACKEND: postgres
     DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the external PostgreSQL database}
-    MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI to the source MongoDB before production data migration}
     REDIS_URL: redis://cinelog-redis:6379/0
   networks:
     - default
@@ -18,9 +16,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
-    command: >
-      sh -c "alembic upgrade head &&
-      python -m db_migrations.runner --yes"
+    command: ["alembic", "upgrade", "head"]
     restart: "no"
 
   api:

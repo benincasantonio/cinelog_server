@@ -1,7 +1,5 @@
 from uuid import UUID
 
-from beanie import PydanticObjectId
-
 from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
 from app.schemas.movie_rating_schemas import MovieRatingResponse
 from app.services.movie_service import MovieService
@@ -23,7 +21,7 @@ class MovieRatingService:
 
     async def create_update_movie_rating(
         self,
-        user_id: PydanticObjectId | UUID,
+        user_id: UUID,
         tmdb_id: int,
         rating: int,
         comment: str | None = None,
@@ -46,9 +44,7 @@ class MovieRatingService:
 
         return self._get_movie_rating_response(movie_rating)
 
-    async def get_movie_rating(
-        self, user_id: PydanticObjectId | UUID, movie_id: PydanticObjectId | UUID
-    ) -> MovieRatingResponse | None:
+    async def get_movie_rating(self, user_id: UUID, movie_id: UUID) -> MovieRatingResponse | None:
         """
         Get a movie rating for a specific user and movie.
         """
@@ -74,9 +70,7 @@ class MovieRatingService:
             updated_at=movie_rating.updated_at,
         )
 
-    async def get_movie_ratings_by_tmdb_id(
-        self, tmdb_id: int, user_id: PydanticObjectId | UUID
-    ) -> MovieRatingResponse | None:
+    async def get_movie_ratings_by_tmdb_id(self, tmdb_id: int, user_id: UUID) -> MovieRatingResponse | None:
         """
         Get the caller's rating for a specific TMDB ID. Returns None if no rating exists.
         """

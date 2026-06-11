@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
 import pytest
-from beanie import PydanticObjectId
 
 from app.services.movie_service import MovieService
 
@@ -25,7 +25,7 @@ class TestMovieService:
     async def test_get_movie_by_id(self, movie_service, mock_movie_repository):
         """Test getting a movie by ID."""
         mock_movie = Mock()
-        movie_id = PydanticObjectId()
+        movie_id = uuid4()
         mock_movie.id = movie_id
         mock_movie.title = "Test Movie"
         mock_movie_repository.find_movie_by_id.return_value = mock_movie
@@ -40,7 +40,7 @@ class TestMovieService:
         """Test getting a movie by ID when not found."""
         mock_movie_repository.find_movie_by_id.return_value = None
 
-        result = await movie_service.get_movie_by_id(PydanticObjectId())
+        result = await movie_service.get_movie_by_id(uuid4())
 
         assert result is None
 
@@ -48,7 +48,7 @@ class TestMovieService:
     async def test_get_movie_by_tmdb_id(self, movie_service, mock_movie_repository):
         """Test getting a movie by TMDB ID."""
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie.tmdb_id = 550
         mock_movie_repository.find_movie_by_tmdb_id.return_value = mock_movie
 
@@ -61,7 +61,7 @@ class TestMovieService:
     async def test_find_or_create_movie_exists(self, movie_service, mock_movie_repository, mock_tmdb_service):
         """Test find_or_create when movie already exists."""
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie_repository.find_movie_by_tmdb_id.return_value = mock_movie
 
         result = await movie_service.find_or_create_movie(550)

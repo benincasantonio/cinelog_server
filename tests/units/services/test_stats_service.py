@@ -3,7 +3,6 @@ from unittest.mock import ANY, AsyncMock
 from uuid import uuid4
 
 import pytest
-from beanie import PydanticObjectId
 
 from app.schemas.movie_rating_schemas import MovieRatingStats
 from app.schemas.movie_schemas import MovieStats
@@ -84,7 +83,7 @@ class TestStatsService:
         mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
-        result = await stats_service.get_user_stats(PydanticObjectId())
+        result = await stats_service.get_user_stats(uuid4())
 
         assert result.summary.total_watches == 0
         assert result.summary.unique_titles == 0
@@ -103,8 +102,8 @@ class TestStatsService:
         mock_movie_repository,
     ):
         """Test stats with logs."""
-        movie_id_1 = PydanticObjectId()
-        movie_id_2 = PydanticObjectId()
+        movie_id_1 = uuid4()
+        movie_id_2 = uuid4()
 
         mock_log_repository.get_log_stats.return_value = LogStats(
             total_watches=3,
@@ -121,7 +120,7 @@ class TestStatsService:
         )
         mock_movie_repository.get_movie_stats.return_value = MovieStats(total_runtime=360)
 
-        result = await stats_service.get_user_stats(PydanticObjectId())
+        result = await stats_service.get_user_stats(uuid4())
 
         assert result.summary.total_watches == 3
         assert result.summary.unique_titles == 2
@@ -142,7 +141,7 @@ class TestStatsService:
         mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
-        user_id = PydanticObjectId()
+        user_id = uuid4()
         await stats_service.get_user_stats(user_id, year_from=2023, year_to=2024)
 
         mock_log_repository.get_log_stats.assert_awaited_once_with(
@@ -163,7 +162,7 @@ class TestStatsService:
         mock_log_repository.get_log_stats.return_value = LogStats(
             total_watches=7,
             unique_titles=7,
-            unique_movie_ids=[PydanticObjectId() for _ in range(7)],
+            unique_movie_ids=[uuid4() for _ in range(7)],
             distribution=[
                 LogDistributionEntry(watched_where="cinema", count=2),
                 LogDistributionEntry(watched_where="streaming", count=1),
@@ -175,7 +174,7 @@ class TestStatsService:
         mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
-        result = await stats_service.get_user_stats(PydanticObjectId())
+        result = await stats_service.get_user_stats(uuid4())
 
         assert result.distribution.by_method.cinema == 2
         assert result.distribution.by_method.streaming == 1
@@ -203,7 +202,7 @@ class TestStatsService:
         mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
-        await stats_service.get_user_stats(PydanticObjectId())
+        await stats_service.get_user_stats(uuid4())
 
         mock_movie_rating_repository.get_user_movie_ratings_average.assert_awaited_once_with(
             ANY,
@@ -240,7 +239,7 @@ class TestStatsServiceCache:
         cached = _sample_stats_response()
         mock_stats_cache_service.get_stats.return_value = cached
 
-        result = await stats_service.get_user_stats(PydanticObjectId())
+        result = await stats_service.get_user_stats(uuid4())
 
         assert result is cached
         mock_log_repository.get_log_stats.assert_not_awaited()
@@ -259,7 +258,7 @@ class TestStatsServiceCache:
         mock_movie_rating_repository.get_user_movie_ratings_average.return_value = _empty_movie_rating_stats()
         mock_movie_repository.get_movie_stats.return_value = _empty_movie_stats()
 
-        user_id = PydanticObjectId()
+        user_id = uuid4()
 
         result = await stats_service.get_user_stats(user_id)
 

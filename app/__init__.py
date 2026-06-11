@@ -1,12 +1,8 @@
-import os
-import urllib.parse
 from contextlib import asynccontextmanager
 
-from beanie import init_beanie
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pymongo import AsyncMongoClient
 from slowapi.errors import RateLimitExceeded
 
 import app.controllers.auth_controller as auth_controller
@@ -22,48 +18,15 @@ from app.config.redis import get_redis_config
 from app.db.postgres import close_postgres_engine, init_postgres_engine
 from app.middleware.csrf_middleware import CSRFMiddleware
 from app.middleware.rate_limit_session_middleware import RateLimitSessionMiddleware
-from app.models.log import Log
-from app.models.movie import Movie
-from app.models.movie_rating import MovieRating
-from app.models.user import User
 from app.services.cache_service import CacheService
 from app.services.tmdb_service import TMDBService
 from app.utils.exceptions_utils import AppException
 from app.utils.rate_limit_utils import rate_limit_exceeded_handler
 
 
-def _get_mongodb_settings() -> tuple[str, str]:
-    mongodb_uri = os.getenv("MONGODB_URI")
-
-    if mongodb_uri:
-        # Parse the database name from the URI path
-        parsed = urllib.parse.urlparse(mongodb_uri)
-        db_name_from_uri = parsed.path.lstrip("/") if parsed.path else None
-
-        if db_name_from_uri:
-            return mongodb_uri, db_name_from_uri
-
-        # If no DB name in URI, fall back to MONGODB_DB env var
-        mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
-        return mongodb_uri, mongodb_db
-
-    # Fallback: Use MONGODB_HOST/MONGODB_PORT/MONGODB_DB
-    mongodb_host = os.getenv("MONGODB_HOST", "localhost")
-    mongodb_port = int(os.getenv("MONGODB_PORT", "27017"))
-    mongodb_db = os.getenv("MONGODB_DB", "cinelog_db")
-
-    return f"mongodb://{mongodb_host}:{mongodb_port}/?directConnection=true", mongodb_db
-
-
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    mongodb_uri, mongodb_db = _get_mongodb_settings()
-    mongo_client: AsyncMongoClient = AsyncMongoClient(mongodb_uri, uuidRepresentation="standard")
-    await init_beanie(
-        database=mongo_client[mongodb_db],
-        document_models=[User, Log, Movie, MovieRating],
-    )
-    init_postgres_engine(required=None)
+    init_postgres_engine()
     CacheService.initialize(get_redis_config())
     cache = CacheService.get_instance()
     if not await cache.health_check():
@@ -74,7 +37,6 @@ async def lifespan(_: FastAPI):
         await CacheService.aclose_all()
         await TMDBService.aclose_all()
         await close_postgres_engine()
-        await mongo_client.close()
 
 
 app = FastAPI(title="Cinelog API", lifespan=lifespan)

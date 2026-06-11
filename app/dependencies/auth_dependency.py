@@ -1,15 +1,13 @@
 from uuid import UUID
 
-from beanie import PydanticObjectId
 from fastapi import HTTPException, Request
 
-from app.db.postgres import is_postgres_required
 from app.services.token_service import TokenService
 from app.utils.auth_utils import ACCESS_TOKEN_COOKIE
 from app.utils.id_utils import is_valid_uuid
 
 
-def auth_dependency(request: Request) -> PydanticObjectId | UUID:
+def auth_dependency(request: Request) -> UUID:
     """
     Auth dependency check if the user is authenticated via local JWT cookie.
     Returns the user_id (sub) from the token.
@@ -28,18 +26,14 @@ def auth_dependency(request: Request) -> PydanticObjectId | UUID:
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token payload")
 
-        request.state.user_id = user_id
-
-        if is_valid_uuid(user_id):
-            return UUID(user_id)
-
-        # Under the PostgreSQL backend, user IDs are UUIDs. A non-UUID ``sub``
-        # is a stale pre-cutover (Mongo ObjectId) token, so reject it cleanly
-        # instead of letting an ObjectId reach a UUID-typed query.
-        if is_postgres_required():
+        # User IDs are UUIDs. A non-UUID ``sub`` is a stale pre-cutover
+        # (Mongo ObjectId) token, so reject it cleanly.
+        if not is_valid_uuid(user_id):
             raise HTTPException(status_code=401, detail="Unauthorized")
 
-        return PydanticObjectId(user_id)
+        request.state.user_id = user_id
+
+        return UUID(user_id)
 
     except HTTPException:
         raise

@@ -1,6 +1,5 @@
 from uuid import UUID
 
-from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request
 
 from app.dependencies.auth_dependency import auth_dependency
@@ -20,7 +19,7 @@ router = APIRouter()
 @router.get("/info", response_model=UserResponse)
 async def get_user_info(
     request: Request,
-    user_id: PydanticObjectId | UUID = Depends(auth_dependency),
+    user_id: UUID = Depends(auth_dependency),
     user_service: UserService = Depends(get_user_service),
 ) -> UserResponse:
     return await user_service.get_user_info(user_id)
@@ -30,7 +29,7 @@ async def get_user_info(
 async def get_public_profile(
     handle: str,
     request: Request,
-    user_id: PydanticObjectId | UUID = Depends(auth_dependency),
+    user_id: UUID = Depends(auth_dependency),
     user_service: UserService = Depends(get_user_service),
 ) -> UserProfileResponse:
     return await user_service.get_visible_profile(handle=handle, requester_id=user_id)
@@ -40,7 +39,7 @@ async def get_public_profile(
 async def update_profile(
     request_body: UpdateProfileRequest,
     request: Request,
-    user_id: PydanticObjectId | UUID = Depends(auth_dependency),
+    user_id: UUID = Depends(auth_dependency),
     user_service: UserService = Depends(get_user_service),
 ) -> UserResponse:
     return await user_service.update_profile(user_id, request_body)
@@ -50,7 +49,7 @@ async def update_profile(
 async def change_password(
     request_body: ChangePasswordRequest,
     request: Request,
-    user_id: PydanticObjectId | UUID = Depends(auth_dependency),
+    user_id: UUID = Depends(auth_dependency),
     user_service: UserService = Depends(get_user_service),
 ) -> ChangePasswordResponse:
     return await user_service.change_password(

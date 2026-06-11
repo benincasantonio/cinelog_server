@@ -4,7 +4,7 @@ This guide walks through setting up and running end-to-end tests locally.
 
 ## Prerequisites
 
-- **Docker** - For running MongoDB, PostgreSQL, and Redis
+- **Docker** - For running PostgreSQL and Redis
 - **Python 3.12+** - With `uv` installed
 - **.env file** - With `TMDB_API_KEY` configured
 
@@ -14,18 +14,14 @@ This guide walks through setting up and running end-to-end tests locally.
 # 0. Sync dependencies
 uv sync --group dev
 
-# 1. Run e2e tests against Mongo (default)
+# 1. Run e2e tests (starts Docker services, applies Alembic migrations, runs pytest)
 make test-e2e
-
-# 2. Run the same suite against PostgreSQL
-E2E_BACKEND=postgres make test-e2e
 ```
 
 ## Infrastructure Components
 
 | Service | Container | Port | Purpose |
 |---------|-----------|------|---------|
-| MongoDB | `cinelog_mongo_e2e` | 27018 | Test database |
 | PostgreSQL | `cinelog_postgres_e2e` | 5433 | Test database |
 | Redis | `cinelog_redis_e2e` | 6380 | Rate-limit and cache backend |
 
@@ -39,17 +35,11 @@ E2E_BACKEND=postgres make test-e2e
 
 ## Environment Variables
 
-The e2e tests automatically configure these (via `conftest.py`), depending on `E2E_BACKEND`:
+The e2e tests automatically configure these (via `conftest.py`):
 
 ```bash
-# Mongo mode
-MONGODB_HOST=localhost
-MONGODB_PORT=27018
-MONGODB_DB=cinelog_e2e_db
-
-# PostgreSQL mode
 DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db
-DB_BACKEND=postgres
+REDIS_URL=redis://localhost:6380/0
 ```
 
 **Note:** `TMDB_API_KEY` is loaded from `.env` for log tests that fetch movie data.
@@ -58,7 +48,7 @@ DB_BACKEND=postgres
 
 ```
 tests/e2e/
-├── conftest.py          # Backend-aware fixtures and cleanup
+├── conftest.py          # Fixtures and database cleanup
 ├── test_auth_e2e.py     # Registration tests
 ├── test_movie_rating_e2e.py # Movie rating tests
 ├── test_user_e2e.py     # User info & logs tests
@@ -66,11 +56,6 @@ tests/e2e/
 ```
 
 ## Debugging
-
-### Connect to MongoDB
-```bash
-mongosh --port 27018
-```
 
 ### Connect to PostgreSQL
 ```bash
@@ -86,14 +71,7 @@ uv run pytest tests/e2e/test_auth_e2e.py::TestAuthE2E::test_register_success -v
 
 The GitHub workflow (`.github/workflows/e2e_tests.yml`) runs e2e tests automatically on pull requests and pushes to `main`.
 
-It uses a backend matrix so every PR now gets two separate e2e checks:
-
-- `E2E Tests (mongo)`
-- `E2E Tests (postgres)`
-
-The workflow allows both matrix entries to run in parallel, so Mongo and PostgreSQL e2e coverage do not block each other serially on the same pull request.
-
-The PostgreSQL job runs `uv run alembic upgrade head` before pytest so the schema is created from the same Alembic revisions used in development.
+The workflow runs `uv run alembic upgrade head` before pytest so the schema is created from the same Alembic revisions used in development.
 
 **Required secrets:**
 - `TMDB_API_KEY` - For movie data fetching
