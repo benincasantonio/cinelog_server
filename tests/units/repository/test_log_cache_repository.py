@@ -242,7 +242,7 @@ async def test_create_log_invalidates_user_and_movie_lists():
     inner_repository.create_log.return_value = log
     repository = LogCacheRepository(inner_repository)
     request = LogCreateRequest(
-        movie_id=str(log.movie_id),
+        movie_id=log.movie_id,
         tmdb_id=log.tmdb_id,
         date_watched=log.date_watched.date(),
         watched_where=log.watched_where,
@@ -390,7 +390,7 @@ async def test_invalidation_failure_does_not_raise():
     inner_repository.create_log.return_value = log
     repository = LogCacheRepository(inner_repository)
     request = LogCreateRequest(
-        movie_id=str(log.movie_id),
+        movie_id=log.movie_id,
         tmdb_id=log.tmdb_id,
         date_watched=log.date_watched.date(),
         watched_where=log.watched_where,

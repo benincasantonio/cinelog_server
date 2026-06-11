@@ -24,12 +24,10 @@ class PostgresLogRepository(RepositoryBase):
         if create_log_request.movie_id is None:
             raise ValueError("movie_id is required")
 
-        movie_id = UUID(create_log_request.movie_id)
-
         async with self._session_provider() as session:
             log = PostgresLog(
                 user_id=user_id,
-                movie_id=movie_id,
+                movie_id=create_log_request.movie_id,
                 tmdb_id=create_log_request.tmdb_id,
                 date_watched=to_utc_datetime(create_log_request.date_watched),
                 viewing_notes=create_log_request.viewing_notes,
