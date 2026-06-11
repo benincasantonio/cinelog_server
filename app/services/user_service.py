@@ -1,8 +1,6 @@
 from datetime import datetime
 from uuid import UUID
 
-from beanie import PydanticObjectId
-
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.user_schemas import (
     ChangePasswordResponse,
@@ -24,9 +22,9 @@ class UserService:
     ):
         self.user_repository = user_repository
 
-    async def get_user_info(self, user_id: PydanticObjectId | UUID) -> UserResponse:
+    async def get_user_info(self, user_id: UUID) -> UserResponse:
         """
-        Get user information from MongoDB.
+        Get user information.
         """
         user = await self.user_repository.find_user_by_id(user_id)
         if not user:
@@ -45,7 +43,7 @@ class UserService:
             profile_visibility=user.profile_visibility,
         )
 
-    async def get_visible_profile(self, handle: str, requester_id: PydanticObjectId | UUID) -> UserProfileResponse:
+    async def get_visible_profile(self, handle: str, requester_id: UUID) -> UserProfileResponse:
         user = await self.user_repository.find_user_by_handle(handle.strip())
         if not user:
             raise AppException(ErrorCodes.USER_NOT_FOUND)
@@ -74,7 +72,7 @@ class UserService:
             date_of_birth=None,
         )
 
-    async def update_profile(self, user_id: PydanticObjectId | UUID, request: UpdateProfileRequest) -> UserResponse:
+    async def update_profile(self, user_id: UUID, request: UpdateProfileRequest) -> UserResponse:
         """
         Update user profile fields.
         """
@@ -101,7 +99,7 @@ class UserService:
 
     async def change_password(
         self,
-        user_id: PydanticObjectId | UUID,
+        user_id: UUID,
         current_password: str,
         new_password: str,
     ) -> ChangePasswordResponse:

@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Cinelog FastAPI backend"
 requires-python = ">=3.12"
 dependencies = [
-    "beanie==2.0.1",
     "bcrypt==5.0.0",
     "fastapi==0.135.2",
     "httpx==0.28.1",
@@ -25,7 +24,6 @@ dev = [
     "bandit==1.9.4",
     "freezegun==1.5.5",
     "mypy==1.19.1",
-    "mongomock-motor==0.0.36",
     "pytest==9.0.2",
     "pytest-asyncio==1.3.0",
     "pytest-cov==7.1.0",
@@ -62,10 +60,8 @@ known-first-party = ["app"]
     "PT011",
     "S101",
 ]
-# The dev email fallback and the CLI migration scripts print progress to stdout by design.
+# The dev email fallback prints progress to stdout by design.
 "app/services/email_service.py" = ["T20"]
-"db_migrations/**/*.py" = ["T20"]
-"migrations/**/*.py" = ["T20"]
 
 [tool.bandit]
 exclude_dirs = ["tests"]

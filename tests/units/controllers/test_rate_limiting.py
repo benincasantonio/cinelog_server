@@ -13,9 +13,9 @@ Note: Redis is swapped for in-memory storage for all unit tests via the
 from datetime import date, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
-from beanie import PydanticObjectId
 from fastapi.testclient import TestClient
 
 import app.config.rate_limiter as rate_limiter_module
@@ -76,14 +76,14 @@ def client():
 @pytest.fixture
 def override_auth():
     """Mock successful authentication."""
-    return lambda: PydanticObjectId()
+    return lambda: uuid4()
 
 
 @pytest.fixture
 def sample_log_response():
     """Minimal LogCreateResponse for rate limit tests."""
     movie = MovieResponse(
-        id=PydanticObjectId(),
+        id=uuid4(),
         title="Fight Club",
         tmdb_id=550,
         poster_path="/path/to/poster.jpg",
@@ -96,8 +96,8 @@ def sample_log_response():
         updated_at=datetime(2024, 1, 1),
     )
     return LogCreateResponse(
-        id=str(PydanticObjectId()),
-        movie_id=str(PydanticObjectId()),
+        id=str(uuid4()),
+        movie_id=str(uuid4()),
         movie=movie,
         tmdb_id=550,
         date_watched=date(2024, 1, 15),
@@ -279,7 +279,7 @@ class TestLoginRateLimit:
             "User",
             (),
             {
-                "id": PydanticObjectId(),
+                "id": uuid4(),
                 "email": "test@example.com",
                 "first_name": "John",
                 "last_name": "Doe",
@@ -818,11 +818,11 @@ class TestSearchMoviesRateLimit:
 
     @pytest.fixture
     def user_one_token(self):
-        return TokenService.create_access_token({"sub": "507f1f77bcf86cd799439011"})
+        return TokenService.create_access_token({"sub": "0f0e8400-e29b-41d4-a716-446655440011"})
 
     @pytest.fixture
     def user_two_token(self):
-        return TokenService.create_access_token({"sub": "507f1f77bcf86cd799439012"})
+        return TokenService.create_access_token({"sub": "0f0e8400-e29b-41d4-a716-446655440012"})
 
     @patch(
         "app.controllers.movie_controller.tmdb_service.search_movie",
@@ -921,7 +921,7 @@ class TestCreateLogRateLimit:
     """Verify POST /v1/logs/ is limited to 20 requests per minute."""
 
     LOG_PAYLOAD = {
-        "movieId": "507f1f77bcf86cd799439011",
+        "movieId": "0f0e8400-e29b-41d4-a716-446655440011",
         "tmdbId": 550,
         "dateWatched": "2024-01-15",
         "viewingNotes": "Great film!",
@@ -996,7 +996,7 @@ class TestUpdateLogRateLimit:
         try:
             for _ in range(10):
                 response = client.put(
-                    "/v1/logs/507f1f77bcf86cd799439011",
+                    "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
                     json=self.LOG_UPDATE_PAYLOAD,
                     headers={"X-CSRF-Token": "test-token"},
                 )
@@ -1017,13 +1017,13 @@ class TestUpdateLogRateLimit:
         try:
             for _ in range(10):
                 client.put(
-                    "/v1/logs/507f1f77bcf86cd799439011",
+                    "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
                     json=self.LOG_UPDATE_PAYLOAD,
                     headers={"X-CSRF-Token": "test-token"},
                 )
 
             response = client.put(
-                "/v1/logs/507f1f77bcf86cd799439011",
+                "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
                 json=self.LOG_UPDATE_PAYLOAD,
                 headers={"X-CSRF-Token": "test-token"},
             )

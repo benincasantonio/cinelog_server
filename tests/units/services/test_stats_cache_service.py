@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
-from beanie import PydanticObjectId
 
 from app.schemas.stats_schemas import (
     StatsByMethod,
@@ -29,19 +29,19 @@ def _sample_stats_response() -> StatsResponse:
 
 class TestBuildKey:
     def test_no_filters(self):
-        uid = PydanticObjectId()
+        uid = uuid4()
         assert StatsCacheService.build_key(uid) == f"cinelog:stats:{uid}:all"
 
     def test_both_filters(self):
-        uid = PydanticObjectId()
+        uid = uuid4()
         assert StatsCacheService.build_key(uid, 2023, 2024) == f"cinelog:stats:{uid}:2023:2024"
 
     def test_only_year_from(self):
-        uid = PydanticObjectId()
+        uid = uuid4()
         assert StatsCacheService.build_key(uid, year_from=2023) == f"cinelog:stats:{uid}:2023:any"
 
     def test_only_year_to(self):
-        uid = PydanticObjectId()
+        uid = uuid4()
         assert StatsCacheService.build_key(uid, year_to=2024) == f"cinelog:stats:{uid}:any:2024"
 
 
@@ -56,7 +56,7 @@ class TestGetStats:
             return_value=mock_cache,
         ):
             service = StatsCacheService()
-            result = await service.get_stats(PydanticObjectId())
+            result = await service.get_stats(uuid4())
             assert result is None
 
     @pytest.mark.asyncio
@@ -70,7 +70,7 @@ class TestGetStats:
             return_value=mock_cache,
         ):
             service = StatsCacheService()
-            result = await service.get_stats(PydanticObjectId())
+            result = await service.get_stats(uuid4())
             assert result is not None
             assert isinstance(result, StatsResponse)
             assert result.summary.total_watches == 5
@@ -80,7 +80,7 @@ class TestSetStats:
     @pytest.mark.asyncio
     async def test_set_stats_calls_cache_set(self):
         stats = _sample_stats_response()
-        uid = PydanticObjectId()
+        uid = uuid4()
         mock_cache = MagicMock()
         mock_cache.set = AsyncMock(return_value=True)
 
@@ -102,7 +102,7 @@ class TestSetStats:
 class TestInvalidateUserStats:
     @pytest.mark.asyncio
     async def test_invalidate_calls_pattern(self):
-        uid = PydanticObjectId()
+        uid = uuid4()
         mock_cache = MagicMock()
         mock_cache.invalidate_pattern = AsyncMock(return_value=3)
 

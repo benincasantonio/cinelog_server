@@ -2,8 +2,6 @@ from unittest.mock import Mock, patch
 from uuid import UUID
 
 import pytest
-from beanie import PydanticObjectId
-from bson import ObjectId
 from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
 
@@ -13,20 +11,20 @@ from app.dependencies.auth_dependency import auth_dependency
 class TestAuthDependency:
     """Test cases for the AuthDependency class."""
 
-    def test_when_cookie_is_valid(self):
-        """Test that auth_dependency allows access when a valid cookie is provided."""
+    def test_when_sub_is_not_a_uuid_rejects_token(self):
+        """Test that a stale pre-cutover (Mongo ObjectId) sub is rejected with 401."""
         mock_request = Mock()
         mock_request.cookies = {"__Host-access_token": "valid_token"}
         mock_request.headers = {}
 
         with patch("app.dependencies.auth_dependency.TokenService.decode_token") as mock_decode:
-            user_id_str = str(ObjectId())
-            mock_decode.return_value = {"sub": user_id_str, "type": "access"}
+            mock_decode.return_value = {"sub": "507f1f77bcf86cd799439011", "type": "access"}
 
-            result = auth_dependency(mock_request)
+            with pytest.raises(HTTPException) as exc_info:
+                auth_dependency(mock_request)
 
-            assert result == PydanticObjectId(user_id_str)
-            mock_decode.assert_called_once_with("valid_token")
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Unauthorized"
 
     def test_when_cookie_contains_uuid_sub_returns_uuid(self):
         """Test that auth_dependency returns UUID when JWT sub is a UUID string."""

@@ -270,8 +270,7 @@ class TestAuthE2E:
         forgot_resp = await async_client.post("/v1/auth/forgot-password", json={"email": "reset@example.com"})
         assert forgot_resp.status_code == 200
 
-        # Fetch the reset code through the active repository so the test
-        # works for both Mongo and PostgreSQL e2e backends.
+        # Fetch the reset code through the repository (it is only sent by email).
         from app.dependencies.repository_dependency import get_user_repository
 
         user = await get_user_repository().find_user_by_email("reset@example.com")

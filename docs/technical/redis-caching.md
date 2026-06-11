@@ -22,7 +22,7 @@ Rate-limited auth routes also require `RATE_LIMIT_HMAC_SECRET` so account-based 
 
 ### Singleton Lifecycle
 
-- **Initialization:** `CacheService.initialize(config)` is called during the FastAPI lifespan startup (in `app/__init__.py`), after Beanie initialization
+- **Initialization:** `CacheService.initialize(config)` is called during the FastAPI lifespan startup (in `app/__init__.py`)
 - **Access:** `CacheService.get_instance()` returns the singleton — raises `RuntimeError` if not initialized
 - **Shutdown:** `CacheService.aclose_all()` closes the Redis client and clears the singleton
 

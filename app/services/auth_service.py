@@ -27,15 +27,15 @@ class AuthService:
 
     async def register(self, request: RegisterRequest) -> RegisterResponse:
         """
-        Register a new user in MongoDB.
+        Register a new user.
         """
-        # Check if email already exists in MongoDB
+        # Check if email already exists
         email_lowercase = request.email.strip().lower()
         existing_user_by_email = await self.user_repository.find_user_by_email(email_lowercase)
         if existing_user_by_email:
             raise AppException(ErrorCodes.EMAIL_ALREADY_EXISTS)
 
-        # Check if handle already exists in MongoDB
+        # Check if handle already exists
         existing_user_by_handle = await self.user_repository.find_user_by_handle(request.handle.strip())
         if existing_user_by_handle:
             raise AppException(ErrorCodes.HANDLE_ALREADY_TAKEN)
@@ -43,7 +43,7 @@ class AuthService:
         # Hash password
         hashed_password = PasswordService.get_password_hash(request.password.strip())
 
-        # Create user in MongoDB
+        # Create user
         try:
             user_create_request = UserCreateRequest(
                 first_name=request.first_name,

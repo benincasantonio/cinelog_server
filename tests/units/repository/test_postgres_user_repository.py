@@ -17,7 +17,6 @@ from app.models.base_model import Base
 from app.models.user_model import PostgresUser
 from app.repository.postgres_user_repository import PostgresUserRepository
 from app.schemas.user_schemas import UserCreateRequest
-from app.utils.id_utils import mongo_id_to_uuid
 
 
 def _async_url(pg, dbname: str) -> str:
@@ -307,13 +306,6 @@ async def test_update_user_profile_only_changes_whitelisted_fields(
     persisted = await seed_session.get(PostgresUser, user.id)
     assert persisted is not None
     assert persisted.email == "profile@example.com"
-
-
-def test_mongo_id_to_uuid_is_deterministic_for_user_migration():
-    first = mongo_id_to_uuid("507f1f77bcf86cd799439011")
-    second = mongo_id_to_uuid("507f1f77bcf86cd799439011")
-
-    assert first == second
 
 
 @pytest.mark.asyncio

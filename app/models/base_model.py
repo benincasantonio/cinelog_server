@@ -11,7 +11,7 @@ class Base(DeclarativeBase):
 
 
 class PostgresBaseEntity(Base):
-    """Abstract PostgreSQL base entity matching common Mongo lifecycle fields."""
+    """Abstract PostgreSQL base entity with soft-delete and timestamp columns."""
 
     __abstract__ = True
 

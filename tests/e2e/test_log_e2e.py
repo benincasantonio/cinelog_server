@@ -172,7 +172,7 @@ class TestLogE2E:
         csrf_token = login_data["csrfToken"]
 
         response = await async_client.put(
-            "/v1/logs/507f1f77bcf86cd799439011",
+            "/v1/logs/00000000-0000-4000-8000-000000000000",
             headers={"X-CSRF-Token": csrf_token},
             json={"viewingNotes": "Should fail"},
         )
@@ -357,7 +357,9 @@ class TestLogE2E:
 
     async def test_update_log_unauthorized(self, async_client):
         """Test updating a log without authentication."""
-        response = await async_client.put("/v1/logs/507f1f77bcf86cd799439011", json={"viewingNotes": "Should fail"})
+        response = await async_client.put(
+            "/v1/logs/00000000-0000-4000-8000-000000000000", json={"viewingNotes": "Should fail"}
+        )
         assert response.status_code in [401, 403]
 
     async def test_update_log_invalid_watched_where(self, async_client):
@@ -544,7 +546,7 @@ class TestLogE2E:
         csrf_token = login_data["csrfToken"]
 
         response = await async_client.delete(
-            "/v1/logs/507f1f77bcf86cd799439011",
+            "/v1/logs/00000000-0000-4000-8000-000000000000",
             headers={"X-CSRF-Token": csrf_token},
         )
 
@@ -603,7 +605,7 @@ class TestLogE2E:
 
     async def test_delete_log_unauthorized(self, async_client):
         """Test deleting a log without authentication."""
-        response = await async_client.delete("/v1/logs/507f1f77bcf86cd799439011")
+        response = await async_client.delete("/v1/logs/00000000-0000-4000-8000-000000000000")
         assert response.status_code in [401, 403]
 
     async def test_friends_only_profile_other_user_logs(self, async_client):

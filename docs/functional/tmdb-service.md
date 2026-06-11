@@ -158,7 +158,7 @@ flowchart TD
 
     J --> M{Movie in local DB?}
     M -- Yes --> N[Return existing local record]
-    M -- No --> O[Persist movie to MongoDB]
+    M -- No --> O[Persist movie to PostgreSQL]
     O --> N
 ```
 
@@ -167,7 +167,7 @@ flowchart TD
 - Search results are cached for 10 minutes to reduce TMDB API calls for repeated queries.
 - Full movie details are cached for 24 hours since this data changes infrequently.
 - A movie is written to the local database only when it is first fully fetched — not when it appears in a search list.
-- Once persisted locally, a movie record is available to other features (logs, ratings) by its internal MongoDB ID.
+- Once persisted locally, a movie record is available to other features (logs, ratings) by its internal UUID.
 
 ---
 

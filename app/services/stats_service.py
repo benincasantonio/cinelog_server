@@ -2,8 +2,6 @@ import asyncio
 from datetime import date
 from uuid import UUID
 
-from beanie import PydanticObjectId
-
 from app.dependencies.repository_dependency import get_log_repository, get_movie_rating_repository, get_movie_repository
 from app.repository.log_repository_protocol import LogRepositoryProtocol
 from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
@@ -34,7 +32,7 @@ class StatsService:
 
     async def get_user_stats(
         self,
-        user_id: PydanticObjectId | UUID,
+        user_id: UUID,
         year_from: int | None = None,
         year_to: int | None = None,
     ) -> StatsResponse:

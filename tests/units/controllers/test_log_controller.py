@@ -1,8 +1,8 @@
 from datetime import date, datetime
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
-from beanie import PydanticObjectId
 from fastapi.testclient import TestClient
 
 from app import app
@@ -28,7 +28,7 @@ def client():
 def sample_log_create_request():
     """Sample log creation request."""
     return {
-        "movieId": "507f1f77bcf86cd799439011",
+        "movieId": "0f0e8400-e29b-41d4-a716-446655440011",
         "tmdbId": 550,
         "dateWatched": "2024-01-15",
         "viewingNotes": "Amazing film!",
@@ -41,7 +41,7 @@ def sample_log_create_request():
 def sample_movie_response():
     """Sample movie response for log responses."""
     return MovieResponse(
-        id=PydanticObjectId(),
+        id=uuid4(),
         title="Fight Club",
         tmdb_id=550,
         poster_path="/path/to/poster.jpg",
@@ -59,8 +59,8 @@ def sample_movie_response():
 def sample_log_response(sample_movie_response):
     """Sample log response."""
     return LogCreateResponse(
-        id=str(PydanticObjectId()),
-        movie_id=str(PydanticObjectId()),
+        id=str(uuid4()),
+        movie_id=str(uuid4()),
         movie=sample_movie_response,
         tmdb_id=550,
         date_watched=date(2024, 1, 15),
@@ -76,8 +76,8 @@ def sample_log_list_response(sample_movie_response):
     return LogListResponse(
         logs=[
             LogListItem(
-                id=PydanticObjectId(),
-                movie_id=PydanticObjectId(),
+                id=uuid4(),
+                movie_id=uuid4(),
                 movie=sample_movie_response,
                 tmdb_id=550,
                 date_watched=date(2024, 1, 15),
@@ -93,7 +93,7 @@ def sample_log_list_response(sample_movie_response):
 @pytest.fixture
 def override_auth():
     """Mock successful authentication."""
-    return lambda: PydanticObjectId()
+    return lambda: uuid4()
 
 
 class TestCreateLog:
@@ -144,7 +144,7 @@ class TestCreateLog:
         app.dependency_overrides[auth_dependency] = override_auth
 
         invalid_request = {
-            "movieId": "507f1f77bcf86cd799439011",
+            "movieId": "0f0e8400-e29b-41d4-a716-446655440011",
             "tmdbId": 550,
             "dateWatched": "2024-01-15",
             "watchedWhere": "invalid_location",
@@ -174,7 +174,7 @@ class TestUpdateLog:
         update_request = {"viewingNotes": "Updated notes", "watchedWhere": "streaming"}
 
         response = client.put(
-            "/v1/logs/507f1f77bcf86cd799439011",
+            "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
             json=update_request,
             cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
@@ -193,7 +193,7 @@ class TestUpdateLog:
         update_request = {"viewingNotes": "Updated notes"}
 
         response = client.put(
-            "/v1/logs/507f1f77bcf86cd799439011",
+            "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
             json=update_request,
             cookies={"__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
@@ -201,12 +201,12 @@ class TestUpdateLog:
 
         assert response.status_code == 401
 
-    def test_update_log_invalid_object_id_returns_422(self, client, override_auth):
+    def test_update_log_invalid_uuid_returns_422(self, client, override_auth):
         """Malformed log_id path param fails FastAPI validation with 422."""
         app.dependency_overrides[auth_dependency] = override_auth
 
         response = client.put(
-            "/v1/logs/not-an-object-id",
+            "/v1/logs/not-a-uuid",
             json={"viewingNotes": "x"},
             cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
@@ -227,7 +227,7 @@ class TestDeleteLog:
         mock_delete_log.return_value = None
 
         response = client.delete(
-            "/v1/logs/507f1f77bcf86cd799439011",
+            "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
             cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )
@@ -245,7 +245,7 @@ class TestDeleteLog:
         mock_delete_log.side_effect = AppException(ErrorCodes.LOG_NOT_FOUND)
 
         response = client.delete(
-            "/v1/logs/507f1f77bcf86cd799439011",
+            "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
             cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )
@@ -259,7 +259,7 @@ class TestDeleteLog:
         """Delete without access token returns 401."""
         app.dependency_overrides = {}
         response = client.delete(
-            "/v1/logs/507f1f77bcf86cd799439011",
+            "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
             cookies={"__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )
@@ -271,7 +271,7 @@ class TestDeleteLog:
         app.dependency_overrides[auth_dependency] = override_auth
 
         response = client.delete(
-            "/v1/logs/not-an-object-id",
+            "/v1/logs/not-a-uuid",
             cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )

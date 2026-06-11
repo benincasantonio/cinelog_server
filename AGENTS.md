@@ -4,7 +4,7 @@ This file provides operational guidance for AI coding agents working with this r
 
 ## Project Overview
 
-Cinelog is a FastAPI-based movie logging application that allows users to track movies they've watched, rate them, and manage their viewing history. The backend integrates with The Movie Database (TMDB) API for movie information and uses MongoDB with Beanie ODM for data persistence.
+Cinelog is a FastAPI-based movie logging application that allows users to track movies they've watched, rate them, and manage their viewing history. The backend integrates with The Movie Database (TMDB) API for movie information and uses PostgreSQL with async SQLAlchemy for data persistence.
 
 ## Development Commands
 
@@ -27,8 +27,9 @@ Cinelog is a FastAPI-based movie logging application that allows users to track 
 | `make run` | Start the application locally |
 | `make docker-up` | Start local Docker environment |
 | `make docker-down` | Stop local Docker environment |
-| `make migrate` | Run database migrations |
-| `make migrate-dry-run` | Dry-run database migrations |
+| `make db-schema-migrate` | Apply Alembic schema migrations |
+| `make db-schema-migrate-dry-run` | Preview Alembic migration SQL |
+| `make db-schema-rollback` | Roll back one Alembic revision |
 
 ### Running the Application
 
@@ -47,7 +48,7 @@ The API will be available at `http://127.0.0.1:5009`
 make docker-up
 ```
 
-This starts both MongoDB (as a single-node replica set for transaction support) and the API service with hot-reload enabled.
+This starts PostgreSQL, Redis, Mailpit, and the API service with hot-reload enabled. The API container applies Alembic migrations on startup.
 
 ### Testing
 
@@ -76,10 +77,7 @@ Required environment variables (see `.env`):
 - `JWT_SECRET_KEY`: Secret key for JWT token generation
 - `RATE_LIMIT_HMAC_SECRET`: Secret key used to HMAC account-based rate-limit identifiers
 - `TMDB_API_KEY`: The Movie Database API key
-- `MONGODB_URI`: Full MongoDB connection string (e.g., `mongodb://localhost:27017` or `mongodb+srv://host/cinelog_db`)
-- `MONGODB_HOST`: MongoDB host (default: localhost) — only used if `MONGODB_URI` not set
-- `MONGODB_PORT`: MongoDB port (default: 27017) — only used if `MONGODB_URI` not set
-- `MONGODB_DB`: MongoDB database name (default: cinelog_db) — only used if `MONGODB_URI` not set
+- `DATABASE_URL`: PostgreSQL connection string (e.g., `postgresql+asyncpg://cinelog:cinelog@localhost:5432/cinelog_db`) — required
 - `REDIS_ENABLED`: Enable Redis caching (default: `false`)
 - `REDIS_URL`: Redis connection URL (default: `redis://localhost:6379/0`)
 - `REDIS_DEFAULT_TTL`: Default cache TTL in seconds (default: `300`)
@@ -177,7 +175,7 @@ For the full architecture reference, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 1. **Controllers** (`app/controllers/`) → API endpoints
 2. **Services** (`app/services/`) → Business logic
-3. **Repositories** (`app/repositories/`) → Data access (Beanie ODM)
+3. **Repositories** (`app/repository/`) → Data access (async SQLAlchemy)
 4. **Models** (`app/models/`) → Database entities
 5. **Schemas** (`app/schemas/`) → Request/response validation
 6. **Dependencies** (`app/dependencies/`) → FastAPI dependency injection (e.g., JWT auth)

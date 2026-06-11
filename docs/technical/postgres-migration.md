@@ -1,32 +1,40 @@
-# PostgreSQL Migration Setup
+# PostgreSQL Migration
 
-## Scope
+## Status: Migration Complete ✅
 
-The current setup includes:
+The MongoDB → PostgreSQL migration is finished. All four repositories (movies, users, movie ratings, logs) run on PostgreSQL in production, the data migration scripts have been executed and verified, and MongoDB has been removed from the codebase entirely.
 
-- SQLAlchemy asyncio, asyncpg, and Alembic dependencies
-- Async PostgreSQL engine/session helpers in `app/db/postgres.py`
-- Optional application startup initialization driven by `DATABASE_URL`
-- Async Alembic scaffolding and schema migrations
-- Local and e2e Docker Compose PostgreSQL services
-- Deterministic Mongo ObjectId to PostgreSQL UUID conversion
+**What was removed in the final cleanup (issue #130):**
+
+- `beanie` runtime dependency and `mongomock-motor` dev dependency
+- Beanie document models (`app/models/base_entity.py`, `user.py`, `movie.py`, `log.py`, `movie_rating.py`)
+- Mongo repositories (`app/repository/user_repository.py`, `movie_repository.py`, `log_repository.py`, `movie_rating_repository.py`)
+- The `DB_BACKEND` feature flag and `is_postgres_required()` backend switching
+- MongoDB migration runner (`migrations/`) and Mongo→Postgres data migration scripts (`db_migrations/`)
+- MongoDB services in all Docker Compose files and the `migrate.yml` GitHub workflow
+- `MONGODB_*` environment variables
+- `mongo_id_to_uuid()` / `to_object_id()` ID conversion helpers
+
+`LogCacheRepository` was ported to UUID/PostgreSQL and now always wraps the log repository, restoring Redis log caching.
+
+Phases (all completed):
+
+- [x] #125 — Postgres infrastructure setup
+- [x] #126 — Movie repository → PostgreSQL
+- [x] #127 — User repository → PostgreSQL
+- [x] #128 — MovieRating repository → PostgreSQL
+- [x] #129 — Log repository → PostgreSQL
+- [x] #130 — Remove MongoDB completely
+
+The sections below document the current PostgreSQL setup; the per-collection migration sections are kept as a historical record of how the data was moved.
 
 ## Environment
 
-Set `DATABASE_URL` when you want the app or Alembic to initialize PostgreSQL:
+`DATABASE_URL` is required for the app and Alembic:
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5432/cinelog_db
 ```
-
-Repository activation is controlled through `DB_BACKEND`:
-
-```bash
-DB_BACKEND=mongo      # default during mixed-mode migration
-# DB_BACKEND=postgres # reserved for later cutover stages
-```
-
-If `DB_BACKEND=postgres` is set while repository dependencies are still unsafe for mixed mode, the app fails fast with a clear activation error.
 
 ## Local Services
 
@@ -68,50 +76,23 @@ Roll back the latest migration:
 make db-schema-rollback
 ```
 
-Run pending PostgreSQL data migrations:
-
-```bash
-make db-data-migrate
-```
-
-Preview pending PostgreSQL data migrations:
-
-```bash
-make db-data-migrate-dry-run
-```
-
-The movie data migration dry-run checks current PostgreSQL `tmdb_id` conflicts, so its inserted/skipped totals match a real run.
-
-Run all pending migration systems (Mongo custom runner + Alembic schema + PostgreSQL data):
-
-```bash
-make migrate-all
-```
-
-Run only the PostgreSQL cutover path, with schema migrations before data migrations:
-
-```bash
-make postgres-migrate-all
-```
-
-This target is the same migration order used by production Compose.
+Alembic is the only migration system. The Mongo→Postgres data migration targets (`db-data-migrate`, `migrate-all`, `postgres-migrate-all`, and their dry-run variants) were removed with the migration tooling once the production data migration completed.
 
 ## Production Compose Migration
 
 `docker-compose.prod.yml` includes a one-shot `db-migrate` service that runs before the API starts:
 
 ```bash
-alembic upgrade head && python -m db_migrations.runner --yes
+alembic upgrade head
 ```
 
-The production order is intentionally PostgreSQL schema first, then MongoDB-to-PostgreSQL data migrations. The API service depends on `db-migrate` with `service_completed_successfully`, so a failed schema or data migration prevents the API container from starting.
+The API service depends on `db-migrate` with `service_completed_successfully`, so a failed schema migration prevents the API container from starting.
 
 Required production Compose settings:
 
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | External PostgreSQL database URL, required |
-| `MONGODB_URI` | Source MongoDB URI for data migration, required |
 | `JWT_SECRET_KEY` | API auth signing secret |
 | `RATE_LIMIT_HMAC_SECRET` | HMAC secret for account-based rate-limit identifiers |
 | `TMDB_API_KEY` | TMDB API key |
@@ -122,7 +103,7 @@ Start production Compose after the required variables are present in the host en
 make docker-prod-up
 ```
 
-The `db-migrate` service is idempotent: Alembic skips already-applied schema revisions, and `db_migrations.runner` skips data migrations recorded in `data_migration_versions`.
+The `db-migrate` service is idempotent: Alembic skips already-applied schema revisions.
 
 ### Reaching a managed PostgreSQL on an external Docker network
 
@@ -144,17 +125,9 @@ Because the `api` service then sits on both the project network and the shared e
 
 Alternatively, if the database can be exposed publicly, set `DATABASE_URL` to its public connection string. This avoids the shared network but exposes the database to the internet, so protect it with the host firewall and a strong password.
 
-## Deterministic IDs
+## Deterministic IDs (historical)
 
-During migration, PostgreSQL IDs derived from MongoDB documents must use the shared helper:
-
-```python
-from app.utils.id_utils import mongo_id_to_uuid
-
-postgres_id = mongo_id_to_uuid("507f1f77bcf86cd799439011")
-```
-
-The helper uses UUID's built-in `NAMESPACE_URL` namespace and maps only the Mongo ObjectId value. The same Mongo ObjectId always produces the same UUID.
+During migration, PostgreSQL IDs derived from MongoDB documents used a shared `mongo_id_to_uuid()` helper based on UUIDv5 with the built-in `NAMESPACE_URL` namespace, so the same Mongo ObjectId always produced the same UUID. The helper was removed with the rest of the Mongo code once the data migration completed; migrated rows keep their derived UUIDs, and new rows use `gen_random_uuid()`.
 
 ## Movie Collection Migration
 
@@ -367,24 +340,6 @@ Migration rules:
 - Idempotent inserts via PostgreSQL `ON CONFLICT (id) DO NOTHING`
 - Progress reporting (total / inserted / skipped / warnings)
 
-## Activation Guardrails
+## Activation Guardrails (historical)
 
-PostgreSQL movie activation is intentionally blocked in mixed mode while `LogRepository` and `MovieRatingRepository` still persist/query Mongo ObjectId movie references.
-
-Activation must happen through dependency wiring (`app/dependencies/repository_dependency.py`), not controller imports.
-
-PostgreSQL user activation is also intentionally blocked in mixed mode while JWT subjects, `auth_dependency`, ownership checks, Redis cache keys, and still-active Mongo repositories depend on ObjectId user references.
-
-PostgreSQL movie-rating activation is intentionally blocked in mixed mode while auth still emits ObjectId user IDs, `LogRepository` still consumes ObjectId movie IDs, and `MovieRepository` cutover remains blocked behind the earlier movie guard.
-
-PostgreSQL log activation is intentionally blocked in mixed mode while `LogCacheRepository`, service wiring, and runtime ID assumptions still require the later cutover work before PostgreSQL logs can safely back live requests.
-
-JWT `sub` values and public response IDs remain Mongo ObjectId strings until the core cutover is complete.
-
-## Later Tickets
-
-Future migration tickets should add:
-
-- Runtime repository cutover and PostgreSQL-safe log caching
-- Safe full backend cutover once ID dependencies are resolved
-- Final MongoDB decommissioning
+During the mixed-mode migration window, repository activation was gated behind a `DB_BACKEND` flag with fail-fast guards that blocked premature cutover while ObjectId references were still in play. With the cutover complete, the flag and guards were removed: the dependency providers in `app/dependencies/repository_dependency.py` return the PostgreSQL repositories unconditionally, `auth_dependency` returns UUIDs, and stale pre-cutover tokens with ObjectId subjects are rejected with 401.

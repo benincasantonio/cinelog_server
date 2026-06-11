@@ -1,6 +1,5 @@
 from uuid import UUID
 
-from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.config.rate_limiter import limiter
@@ -24,7 +23,7 @@ async def create_log(
     request: Request,
     response: Response,
     request_body: LogCreateRequest,
-    user_id: PydanticObjectId | UUID = Depends(auth_dependency),
+    user_id: UUID = Depends(auth_dependency),
     log_service: LogService = Depends(get_log_service),
 ) -> LogCreateResponse:
     """
@@ -40,9 +39,9 @@ async def create_log(
 async def update_log(
     request: Request,
     response: Response,
-    log_id: PydanticObjectId | UUID,
+    log_id: UUID,
     request_body: LogUpdateRequest,
-    user_id: PydanticObjectId | UUID = Depends(auth_dependency),
+    user_id: UUID = Depends(auth_dependency),
     log_service: LogService = Depends(get_log_service),
 ) -> LogCreateResponse:
     """
@@ -63,8 +62,8 @@ async def update_log(
 async def delete_log(
     request: Request,
     response: Response,
-    log_id: PydanticObjectId | UUID,
-    user_id: PydanticObjectId | UUID = Depends(auth_dependency),
+    log_id: UUID,
+    user_id: UUID = Depends(auth_dependency),
     log_service: LogService = Depends(get_log_service),
 ) -> None:
     """
@@ -81,7 +80,7 @@ async def get_logs_by_handle(
     handle: str,
     request: Request,
     list_request: LogListRequest = Depends(),
-    user_id: PydanticObjectId | UUID = Depends(auth_dependency),
+    user_id: UUID = Depends(auth_dependency),
     log_service: LogService = Depends(get_log_service),
 ) -> LogListResponse:
     """

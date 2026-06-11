@@ -1,8 +1,8 @@
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock
+from uuid import UUID, uuid4
 
 import pytest
-from beanie import PydanticObjectId
 
 from app.services.movie_rating_service import MovieRatingService
 
@@ -35,7 +35,7 @@ def movie_rating_service(
     )
 
 
-def _mock_rating(user_id: PydanticObjectId | str, tmdb_id: int = 550, rating: int = 9):
+def _mock_rating(user_id: UUID | str, tmdb_id: int = 550, rating: int = 9):
     rating_obj = Mock()
     rating_obj.id = "rating123"
     rating_obj.user_id = str(user_id)
@@ -58,7 +58,7 @@ class TestMovieRatingService:
         """Test creating/updating a movie rating."""
         # Setup mocks
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie_service.find_or_create_movie.return_value = mock_movie
 
         mock_rating = Mock()
@@ -75,7 +75,7 @@ class TestMovieRatingService:
 
         # Execute
         result = await movie_rating_service.create_update_movie_rating(
-            user_id=PydanticObjectId(), tmdb_id=550, rating=8, comment="Great movie!"
+            user_id=uuid4(), tmdb_id=550, rating=8, comment="Great movie!"
         )
 
         # Verify
@@ -93,9 +93,9 @@ class TestMovieRatingService:
         mock_stats_cache_service,
     ):
         """Test that creating/updating a rating invalidates the stats cache."""
-        user_id = PydanticObjectId()
+        user_id = uuid4()
         mock_movie = Mock()
-        mock_movie.id = PydanticObjectId()
+        mock_movie.id = uuid4()
         mock_movie_service.find_or_create_movie.return_value = mock_movie
 
         mock_rating = Mock()
@@ -148,7 +148,7 @@ class TestMovieRatingService:
         self, movie_rating_service, mock_movie_rating_repository
     ):
         """Owner reads own rating by tmdb_id."""
-        user_id = PydanticObjectId()
+        user_id = uuid4()
         mock_movie_rating_repository.find_movie_rating_by_user_and_tmdb.return_value = _mock_rating(user_id)
 
         result = await movie_rating_service.get_movie_ratings_by_tmdb_id(user_id=user_id, tmdb_id=550)
@@ -164,6 +164,6 @@ class TestMovieRatingService:
         """Returns None when no rating exists for the caller."""
         mock_movie_rating_repository.find_movie_rating_by_user_and_tmdb.return_value = None
 
-        result = await movie_rating_service.get_movie_ratings_by_tmdb_id(user_id=PydanticObjectId(), tmdb_id=550)
+        result = await movie_rating_service.get_movie_ratings_by_tmdb_id(user_id=uuid4(), tmdb_id=550)
 
         assert result is None

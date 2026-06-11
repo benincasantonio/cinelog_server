@@ -20,7 +20,6 @@ COPY --from=builder /app/.venv /app/.venv
 
 COPY app/ ./app/
 COPY alembic/ ./alembic/
-COPY db_migrations/ ./db_migrations/
 COPY alembic.ini ./
 COPY main.py ./
 

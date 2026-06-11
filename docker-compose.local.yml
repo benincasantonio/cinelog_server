@@ -1,20 +1,6 @@
 name: cinelog-local
 
 services:
-  mongo:
-    image: mongo:8
-    container_name: cinelog_mongo_local
-    command: ["mongod", "--replSet", "rs0"]
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test: mongosh --eval 'db.runCommand("ping").ok' --quiet
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   redis:
     image: redis:7-alpine
     container_name: cinelog_redis_local
@@ -58,36 +44,18 @@ services:
       - .:/app
       - api_venv:/app/.venv
     environment:
-      - MONGODB_HOST=mongo
-      - MONGODB_PORT=27017
-      - MONGODB_DB=cinelog_db
       - SMTP_SERVER=mailpit
       - SMTP_PORT=1025
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@postgres:5432/cinelog_db
-    command: uv run uvicorn app:app --host 0.0.0.0 --port 5009 --reload --reload-dir app
+    command: sh -c "uv run alembic upgrade head && uv run uvicorn app:app --host 0.0.0.0 --port 5009 --reload --reload-dir app"
     depends_on:
-      mongo-init-replica:
-        condition: service_started
       mailpit:
         condition: service_started
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
-
-  mongo-init-replica:
-    image: mongo:8
-    container_name: cinelog_mongo_init
-    depends_on:
-      mongo:
-        condition: service_healthy
-    restart: "no"
-    entrypoint: >
-      mongosh --host mongo:27017 --eval '
-        try { rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongo:27017"}]}) }
-        catch(e) { if (e.codeName !== "AlreadyInitialized") throw e; }
-      '
 
   mailpit:
     image: axllent/mailpit
@@ -98,7 +66,6 @@ services:
 
 
 volumes:
-  mongo_data:
   redis_data:
   postgres_data:
   api_venv:

@@ -9,25 +9,10 @@ on:
 
 jobs:
   e2e_tests:
-    name: E2E Tests (${{ matrix.backend }})
+    name: E2E Tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        backend: [mongo, postgres]
 
     services:
-      mongo:
-        image: mongo:8
-        ports:
-          - 27018:27017
-        options: >-
-          --health-cmd="mongosh --eval 'db.runCommand(\"ping\").ok'"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
       redis:
         image: redis:7-alpine
         ports:
@@ -54,7 +39,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -70,7 +55,6 @@ jobs:
           uv sync --frozen --group dev
 
       - name: Prepare PostgreSQL schema
-        if: matrix.backend == 'postgres'
         run: |
           uv run alembic upgrade head
         env:
@@ -82,7 +66,6 @@ jobs:
         run: |
           uv run pytest tests/e2e -v
         env:
-          E2E_BACKEND: ${{ matrix.backend }}
           JWT_SECRET_KEY: test-jwt-secret-key-for-e2e-1234567890
           RATE_LIMIT_HMAC_SECRET: test-rate-limit-hmac-secret
           REDIS_URL: redis://localhost:6380/0

@@ -1,6 +1,5 @@
 from uuid import UUID
 
-from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.dependencies.auth_dependency import auth_dependency
@@ -16,7 +15,7 @@ router = APIRouter()
 async def get_my_stats(
     request: Request,
     stats_request: StatsRequest = Depends(),
-    user_id: PydanticObjectId | UUID = Depends(auth_dependency),
+    user_id: UUID = Depends(auth_dependency),
     stats_service: StatsService = Depends(get_stats_service),
 ) -> StatsResponse:
     """
