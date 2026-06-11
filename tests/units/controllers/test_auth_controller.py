@@ -89,6 +89,52 @@ class TestAuthController:
 
         assert response.status_code == 422  # Validation error
 
+    def test_register_validation_error_does_not_echo_password(self, client):
+        """Validation errors must not leak the submitted password (issue #24)."""
+        response = client.post(
+            "/v1/auth/register",
+            json={
+                "email": "not-an-email",
+                "password": "SuperSecret1!",
+                "handle": "validhandle",
+                "firstName": "Tony",
+                "lastName": "B",
+            },
+        )
+
+        assert response.status_code == 422
+        assert "SuperSecret1!" not in response.text
+        details = response.json()["detail"]
+        assert all("input" not in error for error in details)
+        assert all("loc" in error and "msg" in error for error in details)
+
+    def test_login_validation_error_does_not_echo_password(self, client):
+        """Missing-field errors must not echo the payload containing the password."""
+        response = client.post(
+            "/v1/auth/login",
+            json={"password": "SuperSecret1!"},  # email missing
+        )
+
+        assert response.status_code == 422
+        assert "SuperSecret1!" not in response.text
+        assert all("input" not in error for error in response.json()["detail"])
+
+    def test_reset_password_validation_error_does_not_echo_secrets(self, client):
+        """Field-level errors must not echo the new password or reset code."""
+        response = client.post(
+            "/v1/auth/reset-password",
+            json={
+                "email": "test@example.com",
+                "code": "reset-code-123",
+                "newPassword": "Pw1!",  # violates min_length=8
+            },
+        )
+
+        assert response.status_code == 422
+        assert "Pw1!" not in response.text
+        assert "reset-code-123" not in response.text
+        assert all("input" not in error for error in response.json()["detail"])
+
     @patch.object(get_auth_service(), "forgot_password", new_callable=AsyncMock)
     def test_forgot_password_success(self, mock_forgot_password, client):
         """Test successful forgot-password request."""
