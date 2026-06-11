@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.models.log_model import PostgresLog
+from app.models.log_model import Log
 from app.repository.log_cache_repository import LOG_CACHE_TTL, LogCacheRepository
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 from app.schemas.stats_schemas import LogStats
@@ -13,8 +13,8 @@ from app.schemas.stats_schemas import LogStats
 def _sample_log(
     user_id: UUID | None = None,
     movie_id: UUID | None = None,
-) -> PostgresLog:
-    return PostgresLog(
+) -> Log:
+    return Log(
         id=uuid4(),
         user_id=user_id or uuid4(),
         movie_id=movie_id or uuid4(),

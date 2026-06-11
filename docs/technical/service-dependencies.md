@@ -11,7 +11,7 @@ Controllers receive services through FastAPI `Depends(...)`.
 
 ## Repository Providers
 
-`get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, and `get_log_repository()` return the PostgreSQL repository implementations (`PostgresMovieRepository`, `PostgresUserRepository`, `PostgresMovieRatingRepository`, `PostgresLogRepository`). Services type-hint against the `*RepositoryProtocol` interfaces in `app/repository/`.
+`get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, and `get_log_repository()` return the PostgreSQL repository implementations (`MovieRepository`, `UserRepository`, `MovieRatingRepository`, `LogRepository`). Services type-hint against the `*RepositoryProtocol` interfaces in `app/repository/`.
 
 ## Service Providers
 

@@ -4,9 +4,9 @@ from datetime import date
 from typing import Any
 from uuid import UUID
 
-from app.models.log_model import PostgresLog
+from app.models.log_model import Log
+from app.repository.log_repository import LogRepository
 from app.repository.log_repository_protocol import LogRepositoryProtocol
-from app.repository.postgres_log_repository import PostgresLogRepository
 from app.schemas.cache_schemas import CachedLog
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 from app.schemas.stats_schemas import LogStats
@@ -24,7 +24,7 @@ class LogCacheRepository:
         self,
         repository: LogRepositoryProtocol | None = None,
     ):
-        self.repository = repository or PostgresLogRepository()
+        self.repository = repository or LogRepository()
 
     @property
     def _cache(self) -> CacheService:
@@ -64,20 +64,20 @@ class LogCacheRepository:
     def build_movie_logs_pattern(self, movie_id: UUID) -> str:
         return f"cinelog:logs:movie:{movie_id}:*"
 
-    def _serialize_log(self, log: PostgresLog) -> dict[str, Any]:
+    def _serialize_log(self, log: Log) -> dict[str, Any]:
         return CachedLog.model_validate(log).model_dump(mode="json")
 
-    def _serialize_logs(self, logs: list[PostgresLog]) -> list[dict[str, Any]]:
+    def _serialize_logs(self, logs: list[Log]) -> list[dict[str, Any]]:
         return [self._serialize_log(log) for log in logs]
 
-    def _deserialize_log(self, data: dict[str, Any]) -> PostgresLog:
+    def _deserialize_log(self, data: dict[str, Any]) -> Log:
         # Detached instance for read-only use; never attach it to a session.
-        return PostgresLog(**CachedLog.model_validate(data).model_dump())
+        return Log(**CachedLog.model_validate(data).model_dump())
 
-    def _deserialize_logs(self, data: list[Any]) -> list[PostgresLog]:
+    def _deserialize_logs(self, data: list[Any]) -> list[Log]:
         return [self._deserialize_log(item) for item in data]
 
-    async def _get_log(self, key: str) -> PostgresLog | None:
+    async def _get_log(self, key: str) -> Log | None:
         try:
             data = await self._cache.get(key)
             if data is None:
@@ -92,7 +92,7 @@ class LogCacheRepository:
             logger.exception("Log cache read failed for key=%s", key)
             return None
 
-    async def _get_logs(self, key: str) -> list[PostgresLog] | None:
+    async def _get_logs(self, key: str) -> list[Log] | None:
         try:
             data = await self._cache.get(key)
             if data is None:
@@ -107,14 +107,14 @@ class LogCacheRepository:
             logger.exception("Log cache read failed for key=%s", key)
             return None
 
-    async def _set_log(self, key: str, log: PostgresLog) -> None:
+    async def _set_log(self, key: str, log: Log) -> None:
         try:
             await self._cache.set(key, self._serialize_log(log), ttl=LOG_CACHE_TTL)
             logger.debug("Log cache set for key=%s", key)
         except Exception:
             logger.exception("Log cache write failed for key=%s", key)
 
-    async def _set_logs(self, key: str, logs: list[PostgresLog]) -> None:
+    async def _set_logs(self, key: str, logs: list[Log]) -> None:
         try:
             await self._cache.set(key, self._serialize_logs(logs), ttl=LOG_CACHE_TTL)
             logger.debug("Log cache set for key=%s", key)
@@ -141,18 +141,18 @@ class LogCacheRepository:
     async def _invalidate_movie_logs(self, movie_id: UUID) -> None:
         await self._invalidate_pattern(self.build_movie_logs_pattern(movie_id))
 
-    async def _invalidate_log(self, log: PostgresLog) -> None:
+    async def _invalidate_log(self, log: Log) -> None:
         await self._delete_key(self.build_log_key(log.id, log.user_id))
         await self._invalidate_user_logs(log.user_id)
         await self._invalidate_movie_logs(log.movie_id)
 
-    async def create_log(self, user_id: UUID, create_log_request: LogCreateRequest) -> PostgresLog:
+    async def create_log(self, user_id: UUID, create_log_request: LogCreateRequest) -> Log:
         log = await self.repository.create_log(user_id, create_log_request)
         await self._invalidate_user_logs(log.user_id)
         await self._invalidate_movie_logs(log.movie_id)
         return log
 
-    async def find_log_by_id(self, log_id: UUID, user_id: UUID) -> PostgresLog | None:
+    async def find_log_by_id(self, log_id: UUID, user_id: UUID) -> Log | None:
         key = self.build_log_key(log_id, user_id)
         cached = await self._get_log(key)
         if cached is not None:
@@ -168,7 +168,7 @@ class LogCacheRepository:
         log_id: UUID,
         user_id: UUID,
         update_request: LogUpdateRequest,
-    ) -> PostgresLog | None:
+    ) -> Log | None:
         log = await self.repository.update_log(log_id, user_id, update_request)
         if log is not None:
             await self._invalidate_log(log)
@@ -182,7 +182,7 @@ class LogCacheRepository:
         date_watched_to: date | None = None,
         sort_by: str = "dateWatched",
         sort_order: str = "desc",
-    ) -> list[PostgresLog]:
+    ) -> list[Log]:
         key = self.build_user_logs_key(
             user_id=user_id,
             watched_where=watched_where,
@@ -211,7 +211,7 @@ class LogCacheRepository:
         self,
         movie_id: UUID,
         user_id: UUID | None = None,
-    ) -> list[PostgresLog]:
+    ) -> list[Log]:
         key = self.build_movie_logs_key(movie_id, user_id)
         cached = await self._get_logs(key)
         if cached is not None:
@@ -222,7 +222,7 @@ class LogCacheRepository:
         await self._set_logs(key, logs)
         return logs
 
-    async def delete_log(self, log_id: UUID, user_id: UUID) -> PostgresLog | None:
+    async def delete_log(self, log_id: UUID, user_id: UUID) -> Log | None:
         deleted_log = await self.repository.delete_log(log_id, user_id)
         if deleted_log is None:
             return None

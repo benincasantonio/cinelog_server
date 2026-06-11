@@ -9,11 +9,11 @@ from sqlalchemy import CheckConstraint, Date, DateTime, Index, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base_model import PostgresBaseEntity
+from app.models.base_model import BaseEntity
 from app.types import PROFILE_VISIBILITY_CHOICES
 
 
-class PostgresUser(PostgresBaseEntity):
+class User(BaseEntity):
     """User record stored in PostgreSQL."""
 
     __tablename__ = "users"

@@ -8,7 +8,7 @@ from uuid import UUID
 
 from sqlalchemy import func, or_, select
 
-from app.models.user_model import PostgresUser
+from app.models.user_model import User
 from app.repository.repository_base import RepositoryBase
 from app.schemas.user_schemas import UserCreateRequest
 
@@ -21,17 +21,17 @@ ALLOWED_PROFILE_FIELDS = {
 }
 
 
-class PostgresUserRepository(RepositoryBase):
+class UserRepository(RepositoryBase):
     """Repository class for PostgreSQL user-related operations."""
 
-    async def create_user(self, request: UserCreateRequest) -> PostgresUser:
+    async def create_user(self, request: UserCreateRequest) -> User:
         """Create a new user in PostgreSQL."""
 
         if request.handle is None:
             raise ValueError("User handle is required.")
 
         async with self._session_provider() as session:
-            user = PostgresUser(
+            user = User(
                 email=request.email,
                 handle=request.handle,
                 first_name=request.first_name,
@@ -46,49 +46,49 @@ class PostgresUserRepository(RepositoryBase):
             await session.refresh(user)
             return user
 
-    async def find_user_by_email(self, email: str) -> PostgresUser | None:
+    async def find_user_by_email(self, email: str) -> User | None:
         """Find an active user by email, case-insensitively."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresUser).where(
-                func.lower(PostgresUser.email) == email.lower(),
-                PostgresUser.active(),
+            statement = select(User).where(
+                func.lower(User.email) == email.lower(),
+                User.active(),
             )
             result = await session.execute(statement)
             return result.scalar_one_or_none()
 
-    async def find_user_by_handle(self, handle: str) -> PostgresUser | None:
+    async def find_user_by_handle(self, handle: str) -> User | None:
         """Find an active user by handle, case-insensitively."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresUser).where(
-                func.lower(PostgresUser.handle) == handle.lower(),
-                PostgresUser.active(),
+            statement = select(User).where(
+                func.lower(User.handle) == handle.lower(),
+                User.active(),
             )
             result = await session.execute(statement)
             return result.scalar_one_or_none()
 
-    async def find_user_by_email_or_handle(self, email_or_handle: str) -> PostgresUser | None:
+    async def find_user_by_email_or_handle(self, email_or_handle: str) -> User | None:
         """Find an active user by case-insensitive email or handle."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresUser).where(
+            statement = select(User).where(
                 or_(
-                    func.lower(PostgresUser.email) == email_or_handle.lower(),
-                    func.lower(PostgresUser.handle) == email_or_handle.lower(),
+                    func.lower(User.email) == email_or_handle.lower(),
+                    func.lower(User.handle) == email_or_handle.lower(),
                 ),
-                PostgresUser.active(),
+                User.active(),
             )
             result = await session.execute(statement)
             return result.scalar_one_or_none()
 
-    async def find_user_by_id(self, user_id: UUID) -> PostgresUser | None:
+    async def find_user_by_id(self, user_id: UUID) -> User | None:
         """Find an active user by UUID."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresUser).where(
-                PostgresUser.id == user_id,
-                PostgresUser.active(),
+            statement = select(User).where(
+                User.id == user_id,
+                User.active(),
             )
             result = await session.execute(statement)
             return result.scalar_one_or_none()
@@ -97,9 +97,9 @@ class PostgresUserRepository(RepositoryBase):
         """Soft-delete an active user by UUID."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresUser).where(
-                PostgresUser.id == user_id,
-                PostgresUser.active(),
+            statement = select(User).where(
+                User.id == user_id,
+                User.active(),
             )
             result = await session.execute(statement)
             user = result.scalar_one_or_none()
@@ -116,9 +116,9 @@ class PostgresUserRepository(RepositoryBase):
         """Obliterate user PII and soft-delete the active row."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresUser).where(
-                PostgresUser.id == user_id,
-                PostgresUser.active(),
+            statement = select(User).where(
+                User.id == user_id,
+                User.active(),
             )
             result = await session.execute(statement)
             user = result.scalar_one_or_none()
@@ -140,11 +140,11 @@ class PostgresUserRepository(RepositoryBase):
             await session.commit()
             return True
 
-    async def update_password(self, user: PostgresUser, password_hash: str) -> PostgresUser:
+    async def update_password(self, user: User, password_hash: str) -> User:
         """Update password hash for the active user row."""
 
         async with self._session_provider() as session:
-            persisted_user = await session.get(PostgresUser, user.id)
+            persisted_user = await session.get(User, user.id)
             if persisted_user is None or persisted_user.deleted:
                 raise LookupError("User not found.")
 
@@ -156,14 +156,14 @@ class PostgresUserRepository(RepositoryBase):
 
     async def set_reset_password_code(
         self,
-        user: PostgresUser,
+        user: User,
         code: str,
         expires_at: datetime,
-    ) -> PostgresUser:
+    ) -> User:
         """Persist password-reset metadata for the active user row."""
 
         async with self._session_provider() as session:
-            persisted_user = await session.get(PostgresUser, user.id)
+            persisted_user = await session.get(User, user.id)
             if persisted_user is None or persisted_user.deleted:
                 raise LookupError("User not found.")
 
@@ -174,11 +174,11 @@ class PostgresUserRepository(RepositoryBase):
             await session.refresh(persisted_user)
             return persisted_user
 
-    async def clear_reset_password_code(self, user: PostgresUser) -> PostgresUser:
+    async def clear_reset_password_code(self, user: User) -> User:
         """Clear password-reset metadata for the active user row."""
 
         async with self._session_provider() as session:
-            persisted_user = await session.get(PostgresUser, user.id)
+            persisted_user = await session.get(User, user.id)
             if persisted_user is None or persisted_user.deleted:
                 raise LookupError("User not found.")
 
@@ -189,7 +189,7 @@ class PostgresUserRepository(RepositoryBase):
             await session.refresh(persisted_user)
             return persisted_user
 
-    async def update_user_profile(self, user_id: UUID, update_data: dict[str, Any]) -> PostgresUser | None:
+    async def update_user_profile(self, user_id: UUID, update_data: dict[str, Any]) -> User | None:
         """Update whitelisted profile fields for the active user row."""
 
         filtered_updates = {field: value for field, value in update_data.items() if field in ALLOWED_PROFILE_FIELDS}
@@ -197,9 +197,9 @@ class PostgresUserRepository(RepositoryBase):
             return await self.find_user_by_id(user_id)
 
         async with self._session_provider() as session:
-            statement = select(PostgresUser).where(
-                PostgresUser.id == user_id,
-                PostgresUser.active(),
+            statement = select(User).where(
+                User.id == user_id,
+                User.active(),
             )
             result = await session.execute(statement)
             user = result.scalar_one_or_none()

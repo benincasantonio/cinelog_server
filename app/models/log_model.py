@@ -9,11 +9,11 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, Te
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base_model import PostgresBaseEntity
+from app.models.base_model import BaseEntity
 from app.types import WATCHED_WHERE_CHOICES
 
 
-class PostgresLog(PostgresBaseEntity):
+class Log(BaseEntity):
     """Viewing log record stored in PostgreSQL."""
 
     __tablename__ = "logs"

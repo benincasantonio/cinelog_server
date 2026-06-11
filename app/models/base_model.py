@@ -10,7 +10,7 @@ class Base(DeclarativeBase):
     """Base class for PostgreSQL ORM models."""
 
 
-class PostgresBaseEntity(Base):
+class BaseEntity(Base):
     """Abstract PostgreSQL base entity with soft-delete and timestamp columns."""
 
     __abstract__ = True

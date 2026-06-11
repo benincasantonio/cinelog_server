@@ -17,6 +17,8 @@ The MongoDB → PostgreSQL migration is finished. All four repositories (movies,
 
 `LogCacheRepository` was ported to UUID/PostgreSQL and now always wraps the log repository, restoring Redis log caching.
 
+**Post-migration rename (issue #181):** the `Postgres*` prefixes used during the mixed-mode window were dropped once Mongo was gone. The current canonical names are `UserRepository`, `MovieRepository`, `MovieRatingRepository`, `LogRepository` (in `app/repository/{user,movie,movie_rating,log}_repository.py`) and the models `User`, `Movie`, `MovieRating`, `Log`, `BaseEntity` (files keep the `_model.py` suffix). The historical sections below intentionally keep the old `Postgres*` names as a record of the migration period.
+
 Phases (all completed):
 
 - [x] #125 — Postgres infrastructure setup

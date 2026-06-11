@@ -8,10 +8,10 @@ from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Text, Unique
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base_model import PostgresBaseEntity
+from app.models.base_model import BaseEntity
 
 
-class PostgresMovieRating(PostgresBaseEntity):
+class MovieRating(BaseEntity):
     """Movie rating record stored in PostgreSQL."""
 
     __tablename__ = "movie_ratings"

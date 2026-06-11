@@ -6,10 +6,10 @@ from app.dependencies.repository_dependency import (
     get_movie_repository,
     get_user_repository,
 )
-from app.repository.postgres_log_repository import PostgresLogRepository
-from app.repository.postgres_movie_rating_repository import PostgresMovieRatingRepository
-from app.repository.postgres_movie_repository import PostgresMovieRepository
-from app.repository.postgres_user_repository import PostgresUserRepository
+from app.repository.log_repository import LogRepository
+from app.repository.movie_rating_repository import MovieRatingRepository
+from app.repository.movie_repository import MovieRepository
+from app.repository.user_repository import UserRepository
 
 
 @pytest.fixture(autouse=True)
@@ -28,26 +28,26 @@ def clear_repository_caches():
 def test_get_movie_repository_returns_postgres_repository():
     repository = get_movie_repository()
 
-    assert isinstance(repository, PostgresMovieRepository)
+    assert isinstance(repository, MovieRepository)
     assert get_movie_repository() is repository
 
 
 def test_get_log_repository_returns_postgres_repository():
     repository = get_log_repository()
 
-    assert isinstance(repository, PostgresLogRepository)
+    assert isinstance(repository, LogRepository)
     assert get_log_repository() is repository
 
 
 def test_get_movie_rating_repository_returns_postgres_repository():
     repository = get_movie_rating_repository()
 
-    assert isinstance(repository, PostgresMovieRatingRepository)
+    assert isinstance(repository, MovieRatingRepository)
     assert get_movie_rating_repository() is repository
 
 
 def test_get_user_repository_returns_postgres_repository():
     repository = get_user_repository()
 
-    assert isinstance(repository, PostgresUserRepository)
+    assert isinstance(repository, UserRepository)
     assert get_user_repository() is repository

@@ -1,4 +1,4 @@
-"""Unit tests for ``PostgresLogRepository``."""
+"""Unit tests for ``LogRepository``."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base_model import Base
-from app.models.log_model import PostgresLog
-from app.models.movie_model import PostgresMovie
-from app.models.user_model import PostgresUser
-from app.repository.postgres_log_repository import PostgresLogRepository
+from app.models.log_model import Log
+from app.models.movie_model import Movie
+from app.models.user_model import User
+from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 from app.schemas.stats_schemas import LogStats
 
@@ -55,13 +55,13 @@ async def session_factory(pg_engine):
 
 
 @pytest.fixture
-def repository(session_factory) -> PostgresLogRepository:
+def repository(session_factory) -> LogRepository:
     @asynccontextmanager
     async def _provider():
         async with session_factory() as session:
             yield session
 
-    return PostgresLogRepository(session_provider=_provider)
+    return LogRepository(session_provider=_provider)
 
 
 @pytest_asyncio.fixture
@@ -77,16 +77,16 @@ async def _add(seed_session: AsyncSession, *entities) -> None:
         await seed_session.refresh(entity)
 
 
-async def _seed_fk_entities(seed_session: AsyncSession) -> tuple[PostgresUser, PostgresMovie, PostgresMovie]:
-    user = PostgresUser(
+async def _seed_fk_entities(seed_session: AsyncSession) -> tuple[User, Movie, Movie]:
+    user = User(
         email="logs@example.com",
         handle="logs-user",
         first_name="Logs",
         last_name="User",
         date_of_birth=date(1990, 1, 1),
     )
-    movie_a = PostgresMovie(tmdb_id=550, title="Fight Club")
-    movie_b = PostgresMovie(tmdb_id=551, title="Alien")
+    movie_a = Movie(tmdb_id=550, title="Fight Club")
+    movie_b = Movie(tmdb_id=551, title="Alien")
     await _add(seed_session, user, movie_a, movie_b)
     return user, movie_a, movie_b
 
@@ -111,7 +111,7 @@ def _create_request(
 
 
 @pytest.mark.asyncio
-async def test_create_log_persists_row(repository: PostgresLogRepository, seed_session: AsyncSession):
+async def test_create_log_persists_row(repository: LogRepository, seed_session: AsyncSession):
     user, movie, _ = await _seed_fk_entities(seed_session)
 
     log = await repository.create_log(
@@ -130,11 +130,11 @@ async def test_create_log_persists_row(repository: PostgresLogRepository, seed_s
 
 @pytest.mark.asyncio
 async def test_find_log_by_id_respects_owner_and_deleted_rows(
-    repository: PostgresLogRepository,
+    repository: LogRepository,
     seed_session: AsyncSession,
 ):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    other_user = PostgresUser(
+    other_user = User(
         email="other@example.com",
         handle="other-user",
         first_name="Other",
@@ -143,14 +143,14 @@ async def test_find_log_by_id_respects_owner_and_deleted_rows(
     )
     await _add(seed_session, other_user)
 
-    active = PostgresLog(
+    active = Log(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         watched_where="cinema",
     )
-    deleted = PostgresLog(
+    deleted = Log(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=999,
@@ -168,11 +168,11 @@ async def test_find_log_by_id_respects_owner_and_deleted_rows(
 
 @pytest.mark.asyncio
 async def test_update_log_applies_partial_updates_and_rejects_wrong_owner(
-    repository: PostgresLogRepository,
+    repository: LogRepository,
     seed_session: AsyncSession,
 ):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    other_user = PostgresUser(
+    other_user = User(
         email="update-other@example.com",
         handle="update-other",
         first_name="Update",
@@ -181,7 +181,7 @@ async def test_update_log_applies_partial_updates_and_rejects_wrong_owner(
     )
     await _add(seed_session, other_user)
 
-    log = PostgresLog(
+    log = Log(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=movie.tmdb_id,
@@ -210,9 +210,9 @@ async def test_update_log_applies_partial_updates_and_rejects_wrong_owner(
 
 
 @pytest.mark.asyncio
-async def test_delete_log_hard_deletes_row(repository: PostgresLogRepository, seed_session: AsyncSession):
+async def test_delete_log_hard_deletes_row(repository: LogRepository, seed_session: AsyncSession):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    other_user = PostgresUser(
+    other_user = User(
         email="delete-other@example.com",
         handle="delete-other",
         first_name="Delete",
@@ -222,7 +222,7 @@ async def test_delete_log_hard_deletes_row(repository: PostgresLogRepository, se
     await _add(seed_session, other_user)
     other_user_id = other_user.id
 
-    log = PostgresLog(
+    log = Log(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=movie.tmdb_id,
@@ -238,18 +238,18 @@ async def test_delete_log_hard_deletes_row(repository: PostgresLogRepository, se
     assert deleted is not None
     assert deleted.id == log_id
     seed_session.expire_all()
-    assert await seed_session.get(PostgresLog, log_id) is None
+    assert await seed_session.get(Log, log_id) is None
     assert await repository.delete_log(log_id, user_id) is None
     assert await repository.delete_log(uuid4(), other_user_id) is None
 
 
 @pytest.mark.asyncio
 async def test_find_logs_by_user_id_filters_and_sorts(
-    repository: PostgresLogRepository,
+    repository: LogRepository,
     seed_session: AsyncSession,
 ):
     user, movie_a, movie_b = await _seed_fk_entities(seed_session)
-    other_user = PostgresUser(
+    other_user = User(
         email="filters-other@example.com",
         handle="filters-other",
         first_name="Filters",
@@ -258,7 +258,7 @@ async def test_find_logs_by_user_id_filters_and_sorts(
     )
     await _add(seed_session, other_user)
 
-    older_streaming = PostgresLog(
+    older_streaming = Log(
         user_id=user.id,
         movie_id=movie_a.id,
         tmdb_id=movie_a.tmdb_id,
@@ -268,7 +268,7 @@ async def test_find_logs_by_user_id_filters_and_sorts(
         created_at=datetime(2024, 1, 2, 8, 0, tzinfo=UTC),
         updated_at=datetime(2024, 1, 2, 8, 0, tzinfo=UTC),
     )
-    newer_streaming = PostgresLog(
+    newer_streaming = Log(
         user_id=user.id,
         movie_id=movie_b.id,
         tmdb_id=movie_b.tmdb_id,
@@ -278,7 +278,7 @@ async def test_find_logs_by_user_id_filters_and_sorts(
         created_at=datetime(2024, 1, 2, 20, 0, tzinfo=UTC),
         updated_at=datetime(2024, 1, 2, 20, 0, tzinfo=UTC),
     )
-    cinema = PostgresLog(
+    cinema = Log(
         user_id=user.id,
         movie_id=movie_a.id,
         tmdb_id=movie_a.tmdb_id,
@@ -288,14 +288,14 @@ async def test_find_logs_by_user_id_filters_and_sorts(
         created_at=datetime(2024, 1, 4, 9, 0, tzinfo=UTC),
         updated_at=datetime(2024, 1, 4, 9, 0, tzinfo=UTC),
     )
-    other_users_log = PostgresLog(
+    other_users_log = Log(
         user_id=other_user.id,
         movie_id=movie_b.id,
         tmdb_id=movie_b.tmdb_id,
         date_watched=datetime(2024, 1, 5, tzinfo=UTC),
         watched_where="tv",
     )
-    deleted = PostgresLog(
+    deleted = Log(
         user_id=user.id,
         movie_id=movie_b.id,
         tmdb_id=999,
@@ -335,11 +335,11 @@ async def test_find_logs_by_user_id_filters_and_sorts(
 
 @pytest.mark.asyncio
 async def test_find_logs_by_movie_id_supports_optional_user_filter_and_created_order(
-    repository: PostgresLogRepository,
+    repository: LogRepository,
     seed_session: AsyncSession,
 ):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    other_user = PostgresUser(
+    other_user = User(
         email="movie-filter@example.com",
         handle="movie-filter",
         first_name="Movie",
@@ -348,7 +348,7 @@ async def test_find_logs_by_movie_id_supports_optional_user_filter_and_created_o
     )
     await _add(seed_session, other_user)
 
-    first = PostgresLog(
+    first = Log(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=movie.tmdb_id,
@@ -357,7 +357,7 @@ async def test_find_logs_by_movie_id_supports_optional_user_filter_and_created_o
         created_at=datetime(2024, 1, 2, 8, 0, tzinfo=UTC),
         updated_at=datetime(2024, 1, 2, 8, 0, tzinfo=UTC),
     )
-    second = PostgresLog(
+    second = Log(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=movie.tmdb_id,
@@ -366,7 +366,7 @@ async def test_find_logs_by_movie_id_supports_optional_user_filter_and_created_o
         created_at=datetime(2024, 1, 2, 20, 0, tzinfo=UTC),
         updated_at=datetime(2024, 1, 2, 20, 0, tzinfo=UTC),
     )
-    other_users_log = PostgresLog(
+    other_users_log = Log(
         user_id=other_user.id,
         movie_id=movie.id,
         tmdb_id=movie.tmdb_id,
@@ -386,35 +386,35 @@ async def test_find_logs_by_movie_id_supports_optional_user_filter_and_created_o
 
 @pytest.mark.asyncio
 async def test_get_log_stats_returns_summary_distribution_and_uuid_movie_ids(
-    repository: PostgresLogRepository,
+    repository: LogRepository,
     seed_session: AsyncSession,
 ):
     user, movie_a, movie_b = await _seed_fk_entities(seed_session)
-    movie_c = PostgresMovie(tmdb_id=552, title="Movie C")
+    movie_c = Movie(tmdb_id=552, title="Movie C")
     await _add(seed_session, movie_c)
 
-    active_one = PostgresLog(
+    active_one = Log(
         user_id=user.id,
         movie_id=movie_a.id,
         tmdb_id=movie_a.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         watched_where="cinema",
     )
-    active_two = PostgresLog(
+    active_two = Log(
         user_id=user.id,
         movie_id=movie_a.id,
         tmdb_id=movie_a.tmdb_id,
         date_watched=datetime(2024, 1, 3, tzinfo=UTC),
         watched_where="streaming",
     )
-    active_three = PostgresLog(
+    active_three = Log(
         user_id=user.id,
         movie_id=movie_b.id,
         tmdb_id=movie_b.tmdb_id,
         date_watched=datetime(2024, 1, 4, tzinfo=UTC),
         watched_where="streaming",
     )
-    deleted = PostgresLog(
+    deleted = Log(
         user_id=user.id,
         movie_id=movie_c.id,
         tmdb_id=movie_c.tmdb_id,
@@ -438,18 +438,18 @@ async def test_get_log_stats_returns_summary_distribution_and_uuid_movie_ids(
 
 @pytest.mark.asyncio
 async def test_get_log_stats_supports_date_range_and_empty_result(
-    repository: PostgresLogRepository,
+    repository: LogRepository,
     seed_session: AsyncSession,
 ):
     user, movie_a, movie_b = await _seed_fk_entities(seed_session)
-    first = PostgresLog(
+    first = Log(
         user_id=user.id,
         movie_id=movie_a.id,
         tmdb_id=movie_a.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         watched_where="cinema",
     )
-    second = PostgresLog(
+    second = Log(
         user_id=user.id,
         movie_id=movie_b.id,
         tmdb_id=movie_b.tmdb_id,

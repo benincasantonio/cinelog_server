@@ -6,7 +6,7 @@ from app.dependencies.repository_dependency import (
     get_movie_repository,
     get_user_repository,
 )
-from app.models.movie_model import PostgresMovie
+from app.models.movie_model import Movie
 from app.repository.log_repository_protocol import LogRepositoryProtocol
 from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
 from app.repository.movie_repository_protocol import MovieRepositoryProtocol
@@ -49,7 +49,7 @@ class LogService:
         self.stats_cache_service = stats_cache_service or StatsCacheService()
         self.user_repository = user_repository or get_user_repository()
 
-    def _map_movie_to_response(self, movie: PostgresMovie) -> MovieResponse:
+    def _map_movie_to_response(self, movie: Movie) -> MovieResponse:
         return MovieResponse(
             id=movie.id,
             title=movie.title,
@@ -71,7 +71,7 @@ class LogService:
         If the movie doesn't exist in our database, it will be fetched from TMDB
         and created automatically.
         """
-        movie: PostgresMovie = await self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
+        movie: Movie = await self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
 
         request.movie_id = movie.id
 

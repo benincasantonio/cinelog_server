@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class CachedLog(BaseModel):
-    """JSON-serializable mirror of ``PostgresLog`` columns for Redis payloads."""
+    """JSON-serializable mirror of ``Log`` columns for Redis payloads."""
 
     model_config = ConfigDict(from_attributes=True)
 
