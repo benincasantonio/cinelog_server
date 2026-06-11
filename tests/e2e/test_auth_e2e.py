@@ -119,6 +119,23 @@ class TestAuthE2E:
 
         assert response.status_code == 422  # Validation error
 
+    async def test_validation_error_does_not_echo_password(self, async_client):
+        """422 responses must not leak submitted credentials (issue #24)."""
+        response = await async_client.post(
+            "/v1/auth/register",
+            json={
+                "email": "not-an-email",
+                "password": "SuperSecret1!",
+                "firstName": "Test",
+                "lastName": "User",
+                "handle": "testuser",
+            },
+        )
+
+        assert response.status_code == 422
+        assert "SuperSecret1!" not in response.text
+        assert all("input" not in error for error in response.json()["detail"])
+
     async def test_login_success(self, async_client):
         """Test successful user login."""
         await async_client.post(

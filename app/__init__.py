@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
@@ -22,6 +23,7 @@ from app.services.cache_service import CacheService
 from app.services.tmdb_service import TMDBService
 from app.utils.exceptions_utils import AppException
 from app.utils.rate_limit_utils import rate_limit_exceeded_handler
+from app.utils.validation_error_utils import sanitize_validation_errors
 
 
 @asynccontextmanager
@@ -65,6 +67,15 @@ async def app_exception_handler(request: Request, exc: AppException):
             "error_message": exc.error.error_message,
             "error_description": exc.error.error_description,
         },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return 422 details without echoing the submitted request values."""
+    return JSONResponse(
+        status_code=422,
+        content={"detail": sanitize_validation_errors(exc.errors())},
     )
 
 
