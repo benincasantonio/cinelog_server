@@ -1,4 +1,4 @@
-"""Unit tests for ``PostgresUserRepository``."""
+"""Unit tests for ``UserRepository``."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base_model import Base
-from app.models.user_model import PostgresUser
-from app.repository.postgres_user_repository import PostgresUserRepository
+from app.models.user_model import User
+from app.repository.user_repository import UserRepository
 from app.schemas.user_schemas import UserCreateRequest
 
 
@@ -53,13 +53,13 @@ async def session_factory(pg_engine):
 
 
 @pytest.fixture
-def repository(session_factory) -> PostgresUserRepository:
+def repository(session_factory) -> UserRepository:
     @asynccontextmanager
     async def _provider():
         async with session_factory() as session:
             yield session
 
-    return PostgresUserRepository(session_provider=_provider)
+    return UserRepository(session_provider=_provider)
 
 
 @pytest_asyncio.fixture
@@ -91,7 +91,7 @@ def _user_request(
     )
 
 
-async def _add(seed_session: AsyncSession, *users: PostgresUser) -> None:
+async def _add(seed_session: AsyncSession, *users: User) -> None:
     seed_session.add_all(users)
     await seed_session.commit()
     for user in users:
@@ -99,7 +99,7 @@ async def _add(seed_session: AsyncSession, *users: PostgresUser) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_user_persists_row(repository: PostgresUserRepository, seed_session: AsyncSession):
+async def test_create_user_persists_row(repository: UserRepository, seed_session: AsyncSession):
     user = await repository.create_user(_user_request())
 
     assert user.id is not None
@@ -107,13 +107,13 @@ async def test_create_user_persists_row(repository: PostgresUserRepository, seed
     assert user.handle == "johndoe"
     assert user.deleted is False
 
-    persisted = await seed_session.get(PostgresUser, user.id)
+    persisted = await seed_session.get(User, user.id)
     assert persisted is not None
     assert persisted.first_name == "John"
 
 
 @pytest.mark.asyncio
-async def test_find_user_by_email_is_case_insensitive(repository: PostgresUserRepository):
+async def test_find_user_by_email_is_case_insensitive(repository: UserRepository):
     await repository.create_user(_user_request(email="User@Example.com", handle="mixedcase"))
 
     found = await repository.find_user_by_email("user@example.com")
@@ -123,7 +123,7 @@ async def test_find_user_by_email_is_case_insensitive(repository: PostgresUserRe
 
 
 @pytest.mark.asyncio
-async def test_email_uniqueness_is_case_insensitive(repository: PostgresUserRepository):
+async def test_email_uniqueness_is_case_insensitive(repository: UserRepository):
     await repository.create_user(_user_request(email="User@Example.com", handle="firsthandle"))
 
     with pytest.raises(IntegrityError):
@@ -131,7 +131,7 @@ async def test_email_uniqueness_is_case_insensitive(repository: PostgresUserRepo
 
 
 @pytest.mark.asyncio
-async def test_handle_uniqueness_is_case_insensitive(repository: PostgresUserRepository):
+async def test_handle_uniqueness_is_case_insensitive(repository: UserRepository):
     await repository.create_user(_user_request(email="first-handle@example.com", handle="Antonio"))
 
     with pytest.raises(IntegrityError):
@@ -139,7 +139,7 @@ async def test_handle_uniqueness_is_case_insensitive(repository: PostgresUserRep
 
 
 @pytest.mark.asyncio
-async def test_find_user_by_handle_returns_active_row(repository: PostgresUserRepository):
+async def test_find_user_by_handle_returns_active_row(repository: UserRepository):
     created = await repository.create_user(_user_request(handle="janedoe", email="jane@example.com"))
 
     found = await repository.find_user_by_handle("JANEDOE")
@@ -149,7 +149,7 @@ async def test_find_user_by_handle_returns_active_row(repository: PostgresUserRe
 
 
 @pytest.mark.asyncio
-async def test_find_user_by_email_or_handle_matches_both_paths(repository: PostgresUserRepository):
+async def test_find_user_by_email_or_handle_matches_both_paths(repository: UserRepository):
     created = await repository.create_user(_user_request(email="lookup@example.com", handle="LookupHandle"))
 
     found_by_email = await repository.find_user_by_email_or_handle("LOOKUP@example.com")
@@ -162,17 +162,15 @@ async def test_find_user_by_email_or_handle_matches_both_paths(repository: Postg
 
 
 @pytest.mark.asyncio
-async def test_find_user_by_id_excludes_deleted_and_unknown(
-    repository: PostgresUserRepository, seed_session: AsyncSession
-):
-    active = PostgresUser(
+async def test_find_user_by_id_excludes_deleted_and_unknown(repository: UserRepository, seed_session: AsyncSession):
+    active = User(
         email="active@example.com",
         handle="active",
         first_name="Active",
         last_name="User",
         date_of_birth=date(1990, 1, 1),
     )
-    deleted = PostgresUser(
+    deleted = User(
         email="deleted@example.com",
         handle="deleted",
         first_name="Deleted",
@@ -189,7 +187,7 @@ async def test_find_user_by_id_excludes_deleted_and_unknown(
 
 
 @pytest.mark.asyncio
-async def test_delete_user_soft_deletes_row(repository: PostgresUserRepository, seed_session: AsyncSession):
+async def test_delete_user_soft_deletes_row(repository: UserRepository, seed_session: AsyncSession):
     user = await repository.create_user(_user_request(email="softdelete@example.com", handle="softdelete"))
 
     deleted = await repository.delete_user(user.id)
@@ -197,21 +195,19 @@ async def test_delete_user_soft_deletes_row(repository: PostgresUserRepository, 
     assert deleted is True
     assert await repository.find_user_by_id(user.id) is None
 
-    persisted = await seed_session.get(PostgresUser, user.id)
+    persisted = await seed_session.get(User, user.id)
     assert persisted is not None
     assert persisted.deleted is True
     assert persisted.deleted_at is not None
 
 
 @pytest.mark.asyncio
-async def test_delete_user_returns_false_for_unknown_id(repository: PostgresUserRepository):
+async def test_delete_user_returns_false_for_unknown_id(repository: UserRepository):
     assert await repository.delete_user(uuid4()) is False
 
 
 @pytest.mark.asyncio
-async def test_delete_user_oblivion_overwrites_sensitive_fields(
-    repository: PostgresUserRepository, seed_session: AsyncSession
-):
+async def test_delete_user_oblivion_overwrites_sensitive_fields(repository: UserRepository, seed_session: AsyncSession):
     user = await repository.create_user(
         _user_request(
             email="obliterate@example.com",
@@ -224,7 +220,7 @@ async def test_delete_user_oblivion_overwrites_sensitive_fields(
     deleted = await repository.delete_user_oblivion(user.id)
 
     assert deleted is True
-    persisted = await seed_session.get(PostgresUser, user.id)
+    persisted = await seed_session.get(User, user.id)
     assert persisted is not None
     assert persisted.first_name == "Deleted"
     assert persisted.last_name == "User"
@@ -239,19 +235,19 @@ async def test_delete_user_oblivion_overwrites_sensitive_fields(
 
 
 @pytest.mark.asyncio
-async def test_update_password_changes_hash(repository: PostgresUserRepository, seed_session: AsyncSession):
+async def test_update_password_changes_hash(repository: UserRepository, seed_session: AsyncSession):
     user = await repository.create_user(_user_request(email="password@example.com", handle="passwordhandle"))
 
     updated = await repository.update_password(user, "$2b$12$new_hashed")
 
     assert updated.password_hash == "$2b$12$new_hashed"
-    persisted = await seed_session.get(PostgresUser, user.id)
+    persisted = await seed_session.get(User, user.id)
     assert persisted is not None
     assert persisted.password_hash == "$2b$12$new_hashed"
 
 
 @pytest.mark.asyncio
-async def test_set_reset_password_code_updates_fields(repository: PostgresUserRepository):
+async def test_set_reset_password_code_updates_fields(repository: UserRepository):
     user = await repository.create_user(_user_request(email="reset@example.com", handle="resethandle"))
     expires_at = datetime.now(UTC)
 
@@ -262,7 +258,7 @@ async def test_set_reset_password_code_updates_fields(repository: PostgresUserRe
 
 
 @pytest.mark.asyncio
-async def test_clear_reset_password_code_nulls_fields(repository: PostgresUserRepository):
+async def test_clear_reset_password_code_nulls_fields(repository: UserRepository):
     user = await repository.create_user(_user_request(email="clear@example.com", handle="clearhandle"))
     user = await repository.set_reset_password_code(user, "ABC123", datetime.now(UTC))
 
@@ -274,7 +270,7 @@ async def test_clear_reset_password_code_nulls_fields(repository: PostgresUserRe
 
 @pytest.mark.asyncio
 async def test_update_user_profile_only_changes_whitelisted_fields(
-    repository: PostgresUserRepository, seed_session: AsyncSession
+    repository: UserRepository, seed_session: AsyncSession
 ):
     user = await repository.create_user(
         _user_request(
@@ -303,14 +299,14 @@ async def test_update_user_profile_only_changes_whitelisted_fields(
     assert updated.profile_visibility == "public"
     assert updated.date_of_birth == date(1991, 2, 3)
 
-    persisted = await seed_session.get(PostgresUser, user.id)
+    persisted = await seed_session.get(User, user.id)
     assert persisted is not None
     assert persisted.email == "profile@example.com"
 
 
 @pytest.mark.asyncio
 async def test_profile_visibility_check_constraint_rejects_invalid_value(seed_session: AsyncSession):
-    invalid_user = PostgresUser(
+    invalid_user = User(
         email="invalid-visibility@example.com",
         handle="invalidvisibility",
         first_name="Invalid",

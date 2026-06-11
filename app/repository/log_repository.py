@@ -8,24 +8,24 @@ from uuid import UUID
 
 from sqlalchemy import ColumnElement, distinct, func, select
 
-from app.models.log_model import PostgresLog
+from app.models.log_model import Log
 from app.repository.repository_base import RepositoryBase
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 from app.schemas.stats_schemas import LogDistributionEntry, LogStats
 from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
 
 
-class PostgresLogRepository(RepositoryBase):
+class LogRepository(RepositoryBase):
     """Repository class for PostgreSQL log operations."""
 
-    async def create_log(self, user_id: UUID, create_log_request: LogCreateRequest) -> PostgresLog:
+    async def create_log(self, user_id: UUID, create_log_request: LogCreateRequest) -> Log:
         """Create a new viewing log in PostgreSQL."""
 
         if create_log_request.movie_id is None:
             raise ValueError("movie_id is required")
 
         async with self._session_provider() as session:
-            log = PostgresLog(
+            log = Log(
                 user_id=user_id,
                 movie_id=create_log_request.movie_id,
                 tmdb_id=create_log_request.tmdb_id,
@@ -39,14 +39,14 @@ class PostgresLogRepository(RepositoryBase):
             await session.refresh(log)
             return log
 
-    async def find_log_by_id(self, log_id: UUID, user_id: UUID) -> PostgresLog | None:
+    async def find_log_by_id(self, log_id: UUID, user_id: UUID) -> Log | None:
         """Find an active log by ID owned by the given user."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresLog).where(
-                PostgresLog.id == log_id,
-                PostgresLog.user_id == user_id,
-                PostgresLog.active(),
+            statement = select(Log).where(
+                Log.id == log_id,
+                Log.user_id == user_id,
+                Log.active(),
             )
             result = await session.execute(statement)
             return result.scalar_one_or_none()
@@ -56,14 +56,14 @@ class PostgresLogRepository(RepositoryBase):
         log_id: UUID,
         user_id: UUID,
         update_request: LogUpdateRequest,
-    ) -> PostgresLog | None:
+    ) -> Log | None:
         """Update an active log owned by the given user."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresLog).where(
-                PostgresLog.id == log_id,
-                PostgresLog.user_id == user_id,
-                PostgresLog.active(),
+            statement = select(Log).where(
+                Log.id == log_id,
+                Log.user_id == user_id,
+                Log.active(),
             )
             result = await session.execute(statement)
             log = result.scalar_one_or_none()
@@ -89,33 +89,33 @@ class PostgresLogRepository(RepositoryBase):
         date_watched_to: date | None = None,
         sort_by: str = "dateWatched",
         sort_order: str = "desc",
-    ) -> list[PostgresLog]:
+    ) -> list[Log]:
         """Find active logs for a user with optional filters and sorting."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresLog).where(
-                PostgresLog.user_id == user_id,
-                PostgresLog.active(),
+            statement = select(Log).where(
+                Log.user_id == user_id,
+                Log.active(),
             )
 
             if watched_where is not None:
-                statement = statement.where(PostgresLog.watched_where == watched_where)
+                statement = statement.where(Log.watched_where == watched_where)
             if date_watched_from is not None:
-                statement = statement.where(PostgresLog.date_watched >= date_start_utc(date_watched_from))
+                statement = statement.where(Log.date_watched >= date_start_utc(date_watched_from))
             if date_watched_to is not None:
-                statement = statement.where(PostgresLog.date_watched <= date_end_utc(date_watched_to))
+                statement = statement.where(Log.date_watched <= date_end_utc(date_watched_to))
 
             is_desc = sort_order == "desc"
             order_by: tuple[ColumnElement[Any], ColumnElement[Any]]
             if sort_by == "watchedWhere":
                 order_by = (
-                    PostgresLog.watched_where.desc() if is_desc else PostgresLog.watched_where.asc(),
-                    PostgresLog.created_at.desc() if is_desc else PostgresLog.created_at.asc(),
+                    Log.watched_where.desc() if is_desc else Log.watched_where.asc(),
+                    Log.created_at.desc() if is_desc else Log.created_at.asc(),
                 )
             else:
                 order_by = (
-                    PostgresLog.date_watched.desc() if is_desc else PostgresLog.date_watched.asc(),
-                    PostgresLog.created_at.desc() if is_desc else PostgresLog.created_at.asc(),
+                    Log.date_watched.desc() if is_desc else Log.date_watched.asc(),
+                    Log.created_at.desc() if is_desc else Log.created_at.asc(),
                 )
 
             result = await session.execute(statement.order_by(*order_by))
@@ -125,28 +125,28 @@ class PostgresLogRepository(RepositoryBase):
         self,
         movie_id: UUID,
         user_id: UUID | None = None,
-    ) -> list[PostgresLog]:
+    ) -> list[Log]:
         """Find active logs for a movie, optionally filtered by user."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresLog).where(
-                PostgresLog.movie_id == movie_id,
-                PostgresLog.active(),
+            statement = select(Log).where(
+                Log.movie_id == movie_id,
+                Log.active(),
             )
             if user_id is not None:
-                statement = statement.where(PostgresLog.user_id == user_id)
+                statement = statement.where(Log.user_id == user_id)
 
-            result = await session.execute(statement.order_by(PostgresLog.created_at.asc()))
+            result = await session.execute(statement.order_by(Log.created_at.asc()))
             return list(result.scalars().all())
 
-    async def delete_log(self, log_id: UUID, user_id: UUID) -> PostgresLog | None:
+    async def delete_log(self, log_id: UUID, user_id: UUID) -> Log | None:
         """Hard-delete an active log owned by the given user."""
 
         async with self._session_provider() as session:
-            statement = select(PostgresLog).where(
-                PostgresLog.id == log_id,
-                PostgresLog.user_id == user_id,
-                PostgresLog.active(),
+            statement = select(Log).where(
+                Log.id == log_id,
+                Log.user_id == user_id,
+                Log.active(),
             )
             result = await session.execute(statement)
             log = result.scalar_one_or_none()
@@ -166,19 +166,19 @@ class PostgresLogRepository(RepositoryBase):
         """Compute active log statistics for a user."""
 
         filters = [
-            PostgresLog.user_id == user_id,
-            PostgresLog.active(),
+            Log.user_id == user_id,
+            Log.active(),
         ]
         if date_from is not None:
-            filters.append(PostgresLog.date_watched >= date_start_utc(date_from))
+            filters.append(Log.date_watched >= date_start_utc(date_from))
         if date_to is not None:
-            filters.append(PostgresLog.date_watched <= date_end_utc(date_to))
+            filters.append(Log.date_watched <= date_end_utc(date_to))
 
         filtered = (
             select(
-                PostgresLog.id,
-                PostgresLog.movie_id,
-                PostgresLog.watched_where,
+                Log.id,
+                Log.movie_id,
+                Log.watched_where,
             )
             .where(*filters)
             .cte("filtered_logs")

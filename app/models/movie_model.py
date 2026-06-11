@@ -10,10 +10,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base_model import PostgresBaseEntity
+from app.models.base_model import BaseEntity
 
 
-class PostgresMovie(PostgresBaseEntity):
+class Movie(BaseEntity):
     """Movie record stored in PostgreSQL."""
 
     __tablename__ = "movies"

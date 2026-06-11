@@ -1,4 +1,4 @@
-"""Unit tests for ``PostgresMovieRatingRepository``."""
+"""Unit tests for ``MovieRatingRepository``."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base_model import Base
-from app.models.movie_model import PostgresMovie
-from app.models.movie_rating_model import PostgresMovieRating
-from app.models.user_model import PostgresUser
-from app.repository.postgres_movie_rating_repository import PostgresMovieRatingRepository
+from app.models.movie_model import Movie
+from app.models.movie_rating_model import MovieRating
+from app.models.user_model import User
+from app.repository.movie_rating_repository import MovieRatingRepository
 
 
 def _async_url(pg, dbname: str) -> str:
@@ -53,13 +53,13 @@ async def session_factory(pg_engine):
 
 
 @pytest.fixture
-def repository(session_factory) -> PostgresMovieRatingRepository:
+def repository(session_factory) -> MovieRatingRepository:
     @asynccontextmanager
     async def _provider():
         async with session_factory() as session:
             yield session
 
-    return PostgresMovieRatingRepository(session_provider=_provider)
+    return MovieRatingRepository(session_provider=_provider)
 
 
 @pytest_asyncio.fixture
@@ -75,23 +75,23 @@ async def _add(seed_session: AsyncSession, *entities) -> None:
         await seed_session.refresh(entity)
 
 
-async def _seed_fk_entities(seed_session: AsyncSession) -> tuple[PostgresUser, PostgresMovie, PostgresMovie]:
-    user = PostgresUser(
+async def _seed_fk_entities(seed_session: AsyncSession) -> tuple[User, Movie, Movie]:
+    user = User(
         email="ratings@example.com",
         handle="ratings-user",
         first_name="Ratings",
         last_name="User",
         date_of_birth=date(1990, 1, 1),
     )
-    movie_a = PostgresMovie(tmdb_id=550, title="Fight Club")
-    movie_b = PostgresMovie(tmdb_id=551, title="Movie B")
+    movie_a = Movie(tmdb_id=550, title="Fight Club")
+    movie_b = Movie(tmdb_id=551, title="Movie B")
     await _add(seed_session, user, movie_a, movie_b)
     return user, movie_a, movie_b
 
 
 @pytest.mark.asyncio
 async def test_create_update_movie_rating_creates_new_row(
-    repository: PostgresMovieRatingRepository,
+    repository: MovieRatingRepository,
     seed_session: AsyncSession,
 ):
     user, movie, _ = await _seed_fk_entities(seed_session)
@@ -114,12 +114,12 @@ async def test_create_update_movie_rating_creates_new_row(
 
 @pytest.mark.asyncio
 async def test_find_movie_rating_by_user_and_movie_excludes_deleted_and_unknown(
-    repository: PostgresMovieRatingRepository,
+    repository: MovieRatingRepository,
     seed_session: AsyncSession,
 ):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    active = PostgresMovieRating(user_id=user.id, movie_id=movie.id, tmdb_id=movie.tmdb_id, rating=9, review="Loved it")
-    deleted = PostgresMovieRating(
+    active = MovieRating(user_id=user.id, movie_id=movie.id, tmdb_id=movie.tmdb_id, rating=9, review="Loved it")
+    deleted = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=999,
@@ -139,11 +139,11 @@ async def test_find_movie_rating_by_user_and_movie_excludes_deleted_and_unknown(
 
 @pytest.mark.asyncio
 async def test_find_movie_rating_by_user_and_tmdb_returns_active_row(
-    repository: PostgresMovieRatingRepository,
+    repository: MovieRatingRepository,
     seed_session: AsyncSession,
 ):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    deleted_rating = PostgresMovieRating(
+    deleted_rating = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=777,
@@ -152,7 +152,7 @@ async def test_find_movie_rating_by_user_and_tmdb_returns_active_row(
         deleted=True,
         deleted_at=datetime.now(UTC),
     )
-    active_rating = PostgresMovieRating(
+    active_rating = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=movie.tmdb_id,
@@ -171,11 +171,11 @@ async def test_find_movie_rating_by_user_and_tmdb_returns_active_row(
 
 @pytest.mark.asyncio
 async def test_create_update_movie_rating_updates_existing_row_on_conflict(
-    repository: PostgresMovieRatingRepository,
+    repository: MovieRatingRepository,
     seed_session: AsyncSession,
 ):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    existing = PostgresMovieRating(
+    existing = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=movie.tmdb_id,
@@ -199,11 +199,11 @@ async def test_create_update_movie_rating_updates_existing_row_on_conflict(
 
 @pytest.mark.asyncio
 async def test_create_update_movie_rating_revives_soft_deleted_row(
-    repository: PostgresMovieRatingRepository,
+    repository: MovieRatingRepository,
     seed_session: AsyncSession,
 ):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    deleted = PostgresMovieRating(
+    deleted = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
         tmdb_id=movie.tmdb_id,
@@ -231,12 +231,12 @@ async def test_create_update_movie_rating_revives_soft_deleted_row(
 
 @pytest.mark.asyncio
 async def test_find_movie_ratings_by_user_and_movie_ids_filters_deleted_and_unknown(
-    repository: PostgresMovieRatingRepository,
+    repository: MovieRatingRepository,
     seed_session: AsyncSession,
 ):
     user, movie_a, movie_b = await _seed_fk_entities(seed_session)
-    active = PostgresMovieRating(user_id=user.id, movie_id=movie_a.id, tmdb_id=movie_a.tmdb_id, rating=7, review="A")
-    deleted = PostgresMovieRating(
+    active = MovieRating(user_id=user.id, movie_id=movie_a.id, tmdb_id=movie_a.tmdb_id, rating=7, review="A")
+    deleted = MovieRating(
         user_id=user.id,
         movie_id=movie_b.id,
         tmdb_id=movie_b.tmdb_id,
@@ -254,24 +254,24 @@ async def test_find_movie_ratings_by_user_and_movie_ids_filters_deleted_and_unkn
 
 @pytest.mark.asyncio
 async def test_find_movie_ratings_by_user_and_movie_ids_short_circuits_empty_set(
-    repository: PostgresMovieRatingRepository,
+    repository: MovieRatingRepository,
 ):
     assert await repository.find_movie_ratings_by_user_and_movie_ids(uuid4(), set()) == []
 
 
 @pytest.mark.asyncio
 async def test_get_user_movie_ratings_average_excludes_deleted_and_null(
-    repository: PostgresMovieRatingRepository,
+    repository: MovieRatingRepository,
     seed_session: AsyncSession,
 ):
     user, movie_a, movie_b = await _seed_fk_entities(seed_session)
-    movie_c = PostgresMovie(tmdb_id=552, title="Movie C")
-    movie_d = PostgresMovie(tmdb_id=553, title="Movie D")
+    movie_c = Movie(tmdb_id=552, title="Movie C")
+    movie_d = Movie(tmdb_id=553, title="Movie D")
     await _add(seed_session, movie_c, movie_d)
 
-    rating_a = PostgresMovieRating(user_id=user.id, movie_id=movie_a.id, tmdb_id=movie_a.tmdb_id, rating=8, review="A")
-    rating_b = PostgresMovieRating(user_id=user.id, movie_id=movie_b.id, tmdb_id=movie_b.tmdb_id, rating=6, review="B")
-    deleted = PostgresMovieRating(
+    rating_a = MovieRating(user_id=user.id, movie_id=movie_a.id, tmdb_id=movie_a.tmdb_id, rating=8, review="A")
+    rating_b = MovieRating(user_id=user.id, movie_id=movie_b.id, tmdb_id=movie_b.tmdb_id, rating=6, review="B")
+    deleted = MovieRating(
         user_id=user.id,
         movie_id=movie_c.id,
         tmdb_id=movie_c.tmdb_id,
@@ -280,7 +280,7 @@ async def test_get_user_movie_ratings_average_excludes_deleted_and_null(
         deleted=True,
         deleted_at=datetime.now(UTC),
     )
-    unrated = PostgresMovieRating(
+    unrated = MovieRating(
         user_id=user.id,
         movie_id=movie_d.id,
         tmdb_id=movie_d.tmdb_id,
@@ -297,7 +297,7 @@ async def test_get_user_movie_ratings_average_excludes_deleted_and_null(
 
 @pytest.mark.asyncio
 async def test_get_user_movie_ratings_average_returns_zeroes_when_empty(
-    repository: PostgresMovieRatingRepository,
+    repository: MovieRatingRepository,
 ):
     stats = await repository.get_user_movie_ratings_average(uuid4(), {uuid4()})
 

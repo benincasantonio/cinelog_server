@@ -1,4 +1,4 @@
-"""Unit tests for ``PostgresMovieRepository``.
+"""Unit tests for ``MovieRepository``.
 
 A real PostgreSQL instance is spawned per test session by ``pytest-postgresql``
 (via ``pg_ctl``), and a fresh database is created/dropped per test by
@@ -23,8 +23,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base_model import Base
-from app.models.movie_model import PostgresMovie
-from app.repository.postgres_movie_repository import PostgresMovieRepository
+from app.models.movie_model import Movie
+from app.repository.movie_repository import MovieRepository
 from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
 from app.schemas.tmdb_schemas import TMDBMovieDetails
 
@@ -63,13 +63,13 @@ async def session_factory(pg_engine):
 
 
 @pytest.fixture
-def repository(session_factory) -> PostgresMovieRepository:
+def repository(session_factory) -> MovieRepository:
     @asynccontextmanager
     async def _provider():
         async with session_factory() as session:
             yield session
 
-    return PostgresMovieRepository(session_provider=_provider)
+    return MovieRepository(session_provider=_provider)
 
 
 @pytest_asyncio.fixture
@@ -106,7 +106,7 @@ def _tmdb_details(tmdb_id: int, *, release_date: str | None = "2024-01-01") -> T
     )
 
 
-async def _add(seed_session: AsyncSession, *movies: PostgresMovie) -> None:
+async def _add(seed_session: AsyncSession, *movies: Movie) -> None:
     seed_session.add_all(movies)
     await seed_session.commit()
     for movie in movies:
@@ -114,7 +114,7 @@ async def _add(seed_session: AsyncSession, *movies: PostgresMovie) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_movie_persists_row(repository: PostgresMovieRepository, seed_session: AsyncSession):
+async def test_create_movie_persists_row(repository: MovieRepository, seed_session: AsyncSession):
     movie = await repository.create_movie(MovieCreateRequest(title="Inception", tmdb_id=111))
 
     assert movie.id is not None
@@ -122,16 +122,16 @@ async def test_create_movie_persists_row(repository: PostgresMovieRepository, se
     assert movie.tmdb_id == 111
     assert movie.deleted is False
 
-    persisted = await seed_session.get(PostgresMovie, movie.id)
+    persisted = await seed_session.get(Movie, movie.id)
     assert persisted is not None
     assert persisted.title == "Inception"
 
 
 @pytest.mark.asyncio
 async def test_update_movie_changes_title_and_touches_updated_at(
-    repository: PostgresMovieRepository, seed_session: AsyncSession
+    repository: MovieRepository, seed_session: AsyncSession
 ):
-    movie = PostgresMovie(tmdb_id=222, title="Old")
+    movie = Movie(tmdb_id=222, title="Old")
     await _add(seed_session, movie)
     original_updated_at = movie.updated_at
 
@@ -143,15 +143,13 @@ async def test_update_movie_changes_title_and_touches_updated_at(
 
 
 @pytest.mark.asyncio
-async def test_update_movie_is_silent_when_id_missing(repository: PostgresMovieRepository):
+async def test_update_movie_is_silent_when_id_missing(repository: MovieRepository):
     await repository.update_movie(uuid4(), MovieUpdateRequest(title="Ghost"))
 
 
 @pytest.mark.asyncio
-async def test_update_movie_does_not_touch_soft_deleted_rows(
-    repository: PostgresMovieRepository, seed_session: AsyncSession
-):
-    deleted_movie = PostgresMovie(
+async def test_update_movie_does_not_touch_soft_deleted_rows(repository: MovieRepository, seed_session: AsyncSession):
+    deleted_movie = Movie(
         tmdb_id=223,
         title="Original",
         deleted=True,
@@ -167,9 +165,9 @@ async def test_update_movie_does_not_touch_soft_deleted_rows(
 
 
 @pytest.mark.asyncio
-async def test_find_movie_by_id_returns_active_row(repository: PostgresMovieRepository, seed_session: AsyncSession):
-    active = PostgresMovie(tmdb_id=333, title="Active")
-    deleted = PostgresMovie(tmdb_id=334, title="Gone", deleted=True, deleted_at=datetime.now(UTC))
+async def test_find_movie_by_id_returns_active_row(repository: MovieRepository, seed_session: AsyncSession):
+    active = Movie(tmdb_id=333, title="Active")
+    deleted = Movie(tmdb_id=334, title="Gone", deleted=True, deleted_at=datetime.now(UTC))
     await _add(seed_session, active, deleted)
 
     assert (await repository.find_movie_by_id(active.id)) is not None
@@ -178,11 +176,9 @@ async def test_find_movie_by_id_returns_active_row(repository: PostgresMovieRepo
 
 
 @pytest.mark.asyncio
-async def test_find_movie_by_tmdb_id_skips_soft_deleted(
-    repository: PostgresMovieRepository, seed_session: AsyncSession
-):
-    active = PostgresMovie(tmdb_id=444, title="Active")
-    deleted = PostgresMovie(tmdb_id=445, title="Gone", deleted=True, deleted_at=datetime.now(UTC))
+async def test_find_movie_by_tmdb_id_skips_soft_deleted(repository: MovieRepository, seed_session: AsyncSession):
+    active = Movie(tmdb_id=444, title="Active")
+    deleted = Movie(tmdb_id=445, title="Gone", deleted=True, deleted_at=datetime.now(UTC))
     await _add(seed_session, active, deleted)
 
     assert (await repository.find_movie_by_tmdb_id(444)) is not None
@@ -192,7 +188,7 @@ async def test_find_movie_by_tmdb_id_skips_soft_deleted(
 
 @pytest.mark.asyncio
 async def test_create_from_tmdb_data_persists_payload_and_sync_timestamp(
-    repository: PostgresMovieRepository, seed_session: AsyncSession
+    repository: MovieRepository, seed_session: AsyncSession
 ):
     movie = await repository.create_from_tmdb_data(_tmdb_details(555))
 
@@ -202,16 +198,16 @@ async def test_create_from_tmdb_data_persists_payload_and_sync_timestamp(
     assert movie.tmdb_payload["id"] == 555
     assert movie.tmdb_last_synced_at is not None
 
-    persisted = await seed_session.get(PostgresMovie, movie.id)
+    persisted = await seed_session.get(Movie, movie.id)
     assert persisted is not None
     assert persisted.tmdb_payload is not None
 
 
 @pytest.mark.asyncio
 async def test_create_from_tmdb_data_returns_existing_on_duplicate_tmdb_id(
-    repository: PostgresMovieRepository, seed_session: AsyncSession
+    repository: MovieRepository, seed_session: AsyncSession
 ):
-    existing = PostgresMovie(tmdb_id=666, title="First")
+    existing = Movie(tmdb_id=666, title="First")
     await _add(seed_session, existing)
 
     duplicate = await repository.create_from_tmdb_data(_tmdb_details(666))
@@ -222,7 +218,7 @@ async def test_create_from_tmdb_data_returns_existing_on_duplicate_tmdb_id(
 
 @pytest.mark.asyncio
 async def test_create_from_tmdb_data_with_invalid_release_date_returns_none(
-    repository: PostgresMovieRepository,
+    repository: MovieRepository,
 ):
     movie = await repository.create_from_tmdb_data(_tmdb_details(777, release_date="not-a-date"))
 
@@ -230,12 +226,10 @@ async def test_create_from_tmdb_data_with_invalid_release_date_returns_none(
 
 
 @pytest.mark.asyncio
-async def test_find_movies_by_ids_filters_deleted_and_unknown(
-    repository: PostgresMovieRepository, seed_session: AsyncSession
-):
-    a = PostgresMovie(tmdb_id=801, title="A")
-    b = PostgresMovie(tmdb_id=802, title="B", deleted=True, deleted_at=datetime.now(UTC))
-    c = PostgresMovie(tmdb_id=803, title="C")
+async def test_find_movies_by_ids_filters_deleted_and_unknown(repository: MovieRepository, seed_session: AsyncSession):
+    a = Movie(tmdb_id=801, title="A")
+    b = Movie(tmdb_id=802, title="B", deleted=True, deleted_at=datetime.now(UTC))
+    c = Movie(tmdb_id=803, title="C")
     await _add(seed_session, a, b, c)
 
     found = await repository.find_movies_by_ids({a.id, b.id, c.id, uuid4()})
@@ -244,14 +238,14 @@ async def test_find_movies_by_ids_filters_deleted_and_unknown(
 
 
 @pytest.mark.asyncio
-async def test_find_movies_by_ids_with_empty_set_short_circuits(repository: PostgresMovieRepository):
+async def test_find_movies_by_ids_with_empty_set_short_circuits(repository: MovieRepository):
     assert await repository.find_movies_by_ids(set()) == []
 
 
 @pytest.mark.asyncio
-async def test_find_movies_by_ids_accepts_iterable(repository: PostgresMovieRepository, seed_session: AsyncSession):
-    first = PostgresMovie(tmdb_id=804, title="First")
-    second = PostgresMovie(tmdb_id=805, title="Second")
+async def test_find_movies_by_ids_accepts_iterable(repository: MovieRepository, seed_session: AsyncSession):
+    first = Movie(tmdb_id=804, title="First")
+    second = Movie(tmdb_id=805, title="Second")
     await _add(seed_session, first, second)
 
     found = await repository.find_movies_by_ids([first.id, second.id])
@@ -260,13 +254,11 @@ async def test_find_movies_by_ids_accepts_iterable(repository: PostgresMovieRepo
 
 
 @pytest.mark.asyncio
-async def test_get_movie_stats_sums_runtime_excluding_deleted(
-    repository: PostgresMovieRepository, seed_session: AsyncSession
-):
-    a = PostgresMovie(tmdb_id=901, title="A", runtime=120)
-    b = PostgresMovie(tmdb_id=902, title="B", runtime=90)
-    deleted = PostgresMovie(tmdb_id=903, title="C", runtime=999, deleted=True, deleted_at=datetime.now(UTC))
-    null_runtime = PostgresMovie(tmdb_id=904, title="D", runtime=None)
+async def test_get_movie_stats_sums_runtime_excluding_deleted(repository: MovieRepository, seed_session: AsyncSession):
+    a = Movie(tmdb_id=901, title="A", runtime=120)
+    b = Movie(tmdb_id=902, title="B", runtime=90)
+    deleted = Movie(tmdb_id=903, title="C", runtime=999, deleted=True, deleted_at=datetime.now(UTC))
+    null_runtime = Movie(tmdb_id=904, title="D", runtime=None)
     await _add(seed_session, a, b, deleted, null_runtime)
 
     stats = await repository.get_movie_stats({a.id, b.id, deleted.id, null_runtime.id})
@@ -275,9 +267,9 @@ async def test_get_movie_stats_sums_runtime_excluding_deleted(
 
 
 @pytest.mark.asyncio
-async def test_get_movie_stats_accepts_iterable(repository: PostgresMovieRepository, seed_session: AsyncSession):
-    first = PostgresMovie(tmdb_id=905, title="First", runtime=100)
-    second = PostgresMovie(tmdb_id=906, title="Second", runtime=80)
+async def test_get_movie_stats_accepts_iterable(repository: MovieRepository, seed_session: AsyncSession):
+    first = Movie(tmdb_id=905, title="First", runtime=100)
+    second = Movie(tmdb_id=906, title="Second", runtime=80)
     await _add(seed_session, first, second)
 
     stats = await repository.get_movie_stats((first.id, second.id))
@@ -286,7 +278,7 @@ async def test_get_movie_stats_accepts_iterable(repository: PostgresMovieReposit
 
 
 @pytest.mark.asyncio
-async def test_get_movie_stats_with_empty_set_short_circuits(repository: PostgresMovieRepository):
+async def test_get_movie_stats_with_empty_set_short_circuits(repository: MovieRepository):
     stats = await repository.get_movie_stats(set())
 
     assert stats.total_runtime == 0

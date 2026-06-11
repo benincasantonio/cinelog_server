@@ -11,10 +11,10 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context, util
 from app.models.base_model import Base
-from app.models.log_model import PostgresLog  # noqa: F401
-from app.models.movie_model import PostgresMovie  # noqa: F401
-from app.models.movie_rating_model import PostgresMovieRating  # noqa: F401
-from app.models.user_model import PostgresUser  # noqa: F401
+from app.models.log_model import Log  # noqa: F401
+from app.models.movie_model import Movie  # noqa: F401
+from app.models.movie_rating_model import MovieRating  # noqa: F401
+from app.models.user_model import User  # noqa: F401
 
 config = context.config
 
