@@ -1,0 +1,25 @@
+name: Linear Commit History Check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  linear-commit-history:
+    name: Linear Commit History Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a single commit
+        env:
+          COMMIT_COUNT: ${{ github.event.pull_request.commits }}
+        run: |
+          if [ "$COMMIT_COUNT" -ne 1 ]; then
+            echo "::error title=Linear commit history required::Pull requests must contain exactly one commit; found $COMMIT_COUNT. Squash the branch commits and push the rewritten branch."
+            exit 1
+          fi
+
+          echo "Pull request contains exactly one commit."
