@@ -11,12 +11,23 @@ As of February 2026, Cinelog Server uses a self-hosted authentication solution (
 ## Authentication Flow
 
 ### Registration
-**Endpoint**: `POST /v1/auth/register`
+**Step 1 Endpoint**: `POST /v1/auth/register/send-code`
 
-1. Client sends user details (email, password, etc.).
-2. Server creates the user and returns the newly created user details via JSON response.
+1. Client sends `{ "email": "user@example.com" }`.
+2. Server sends a short-lived email verification code if the address can be registered.
+3. Server always returns the same generic success message. If the email already has an account, the email receives an account-exists notice instead of a code.
 
-Rate limit: 5 requests per hour per client.
+Rate limits: 6 requests per hour per IP, 3 requests per hour per anonymous session, 5 requests per 30 minutes per email-hash account bucket.
+
+**Step 2 Endpoint**: `POST /v1/auth/register`
+
+1. Client sends user details plus `verificationCode`.
+2. Server verifies the code for the submitted email.
+3. Server creates the user and returns the newly created user details via JSON response.
+
+Rate limits: 10 requests per hour per IP and 5 requests per hour per anonymous session.
+
+Verification codes expire after 15 minutes, are single-use, and are stored temporarily in Redis. If a code expires or is lost, request a new one.
 
 *Note: Registration does not automatically log the user in. The client must make a subsequent call to `/v1/auth/login` to obtain authentication and CSRF cookies.*
 
@@ -100,7 +111,7 @@ fetch("/v1/logs", {
 1. **Request Reset**: `POST /v1/auth/forgot-password` with `{ "email": "..." }`.
     - Server generates a 6-character code (valid for 15 minutes) and sends it via email.
     - Rate limits: 6 requests per hour per IP, 3 requests per hour per anonymous session, 5 requests per 30 minutes per email-hash account bucket.
-2. **Reset Password**: `POST /v1/auth/reset-password` with `{ "email": "...", "code": "...", "new_password": "..." }`.
+2. **Reset Password**: `POST /v1/auth/reset-password` with `{ "email": "...", "code": "...", "newPassword": "..." }`.
     - Server verifies code and updates the password.
     - Rate limits: 10 requests per hour per IP, 10 requests per hour per anonymous session, 10 requests per hour per email-hash account bucket.
 

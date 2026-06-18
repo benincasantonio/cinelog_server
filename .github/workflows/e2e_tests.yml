@@ -60,6 +60,7 @@ jobs:
         env:
           JWT_SECRET_KEY: test-jwt-secret-key-for-e2e-1234567890
           RATE_LIMIT_HMAC_SECRET: test-rate-limit-hmac-secret
+          REGISTRATION_VERIFICATION_HMAC_SECRET: test-registration-verification-hmac-secret
           DATABASE_URL: postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db
 
       - name: Run E2E Tests
@@ -68,5 +69,6 @@ jobs:
         env:
           JWT_SECRET_KEY: test-jwt-secret-key-for-e2e-1234567890
           RATE_LIMIT_HMAC_SECRET: test-rate-limit-hmac-secret
+          REGISTRATION_VERIFICATION_HMAC_SECRET: test-registration-verification-hmac-secret
           REDIS_URL: redis://localhost:6380/0
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}

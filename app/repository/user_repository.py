@@ -11,6 +11,7 @@ from sqlalchemy import func, or_, select
 from app.models.user_model import User
 from app.repository.repository_base import RepositoryBase
 from app.schemas.user_schemas import UserCreateRequest
+from app.utils.auth_utils import normalize_email_identifier
 
 ALLOWED_PROFILE_FIELDS = {
     "first_name",
@@ -49,9 +50,10 @@ class UserRepository(RepositoryBase):
     async def find_user_by_email(self, email: str) -> User | None:
         """Find an active user by email, case-insensitively."""
 
+        normalized_email = normalize_email_identifier(email)
         async with self._session_provider() as session:
             statement = select(User).where(
-                func.lower(User.email) == email.lower(),
+                func.lower(User.email) == normalized_email,
                 User.active(),
             )
             result = await session.execute(statement)

@@ -219,7 +219,8 @@ Includes all fields from the search result item, plus:
 | `tmdb_id` is not an integer | FastAPI validation rejects the request | `422 Unprocessable Entity` |
 | TMDB returns no results | Empty `results` array is returned | `200 OK` with `"results": []` |
 | TMDB API returns a non-2xx status | `raise_for_status()` raises an error, propagated as a 5xx | `500 Internal Server Error` |
-| Redis is unavailable | Cache is bypassed silently; TMDB is called directly | No user impact; slightly slower response |
+| Redis is unavailable at startup | API startup fails because Redis is required | Service is unavailable until Redis is healthy |
+| Redis becomes unavailable at runtime | Cache operation errors can fail TMDB requests | `500 Internal Server Error` |
 | `tmdb_id` not found on TMDB | TMDB returns 404, propagated as 5xx | `500 Internal Server Error` |
 
 ---

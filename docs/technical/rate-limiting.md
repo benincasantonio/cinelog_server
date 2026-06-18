@@ -12,7 +12,8 @@ See Also: [Redis Caching](redis-caching.md)
 
 | Endpoint | Method | Limit |
 |----------|--------|-------|
-| `/v1/auth/register` | `POST` | 5 per hour per client |
+| `/v1/auth/register/send-code` | `POST` | 6 per hour per IP, plus 3 per hour per session and 5 per 30 minutes per email-hash account |
+| `/v1/auth/register` | `POST` | 10 per hour per IP, plus 5 per hour per session |
 | `/v1/auth/login` | `POST` | 30 per 15 minutes per IP, plus session/email-hash limits |
 | `/v1/auth/forgot-password` | `POST` | 6 per hour per IP, plus 3 per hour per session and 5 per 30 minutes per email-hash account |
 | `/v1/auth/reset-password` | `POST` | 10 per hour per IP, plus 10 per hour per session and 10 per hour per email-hash account for invalid credentials |
@@ -75,7 +76,7 @@ Because the account layer is enforced outside `slowapi`, a login request can sti
 
 ### Password Recovery Abuse Protection
 
-`POST /v1/auth/forgot-password` uses:
+`POST /v1/auth/register/send-code` and `POST /v1/auth/forgot-password` use:
 
 1. A coarse outer IP limit enforced by `slowapi` (`6/hour`)
 2. An anonymous session limit enforced by `slowapi` (`3/hour`)
@@ -92,14 +93,15 @@ The recovery-route account buckets behave as follows:
 - Keys always use a keyed HMAC hash of the normalized email
 - The HMAC key comes from the required `RATE_LIMIT_HMAC_SECRET` environment variable
 - No database lookup is needed to derive the bucket key
+- `register/send-code` counts every request against the email-hash account bucket
 - `forgot-password` counts every request against the email-hash account bucket
 - `reset-password` counts only invalid-credential attempts against the email-hash account bucket
 
-For `forgot-password`, the account bucket is charged before the service call. That intentionally prevents repeated requests for a known email from bypassing the per-account cap, at the cost of a small denial-of-service window for that address if an attacker exhausts the `5/30minute` bucket first.
+For `register/send-code` and `forgot-password`, the account bucket is charged before the service call. That intentionally prevents repeated requests for a known email from bypassing the per-account cap, at the cost of a small denial-of-service window for that address if an attacker exhausts the `5/30minute` bucket first.
 
 ### Session Middleware (`app/middleware/rate_limit_session_middleware.py`)
 
-`RateLimitSessionMiddleware` validates or sets a `__Host-session_id` cookie only for the public auth routes that use session-scoped limits: `/v1/auth/register`, `/v1/auth/login`, `/v1/auth/forgot-password`, and `/v1/auth/reset-password`.
+`RateLimitSessionMiddleware` validates or sets a `__Host-session_id` cookie only for the public auth routes that use session-scoped limits: `/v1/auth/register/send-code`, `/v1/auth/register`, `/v1/auth/login`, `/v1/auth/forgot-password`, and `/v1/auth/reset-password`.
 
 For those routes it:
 

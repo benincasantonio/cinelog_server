@@ -9,6 +9,8 @@ from app.schemas.auth_schemas import (
 from app.schemas.user_schemas import UserCreateRequest
 from app.services.email_service import EmailService
 from app.services.password_service import PasswordService
+from app.services.registration_verification_service import RegistrationVerificationService
+from app.utils.auth_utils import normalize_email_identifier
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
@@ -16,21 +18,39 @@ from app.utils.exceptions_utils import AppException
 class AuthService:
     user_repository: UserRepositoryProtocol
     email_service: EmailService
+    registration_verification_service: RegistrationVerificationService
 
     def __init__(
         self,
         user_repository: UserRepositoryProtocol,
         email_service: EmailService | None = None,
+        registration_verification_service: RegistrationVerificationService | None = None,
     ):
         self.user_repository = user_repository
         self.email_service = email_service or EmailService()
+        self.registration_verification_service = registration_verification_service or RegistrationVerificationService()
+
+    async def send_registration_verification_code(self, email: str) -> None:
+        """
+        Send a registration verification code without revealing account existence.
+        """
+        email_lowercase = normalize_email_identifier(email)
+        existing_user_by_email = await self.user_repository.find_user_by_email(email_lowercase)
+        if existing_user_by_email:
+            self.email_service.send_registration_existing_account_email(email_lowercase)
+            return
+
+        verification_code = await self.registration_verification_service.issue_code(email_lowercase)
+        self.email_service.send_registration_verification_email(email_lowercase, verification_code)
 
     async def register(self, request: RegisterRequest) -> RegisterResponse:
         """
         Register a new user.
         """
         # Check if email already exists
-        email_lowercase = request.email.strip().lower()
+        email_lowercase = normalize_email_identifier(request.email)
+        await self.registration_verification_service.validate_code(email_lowercase, request.verification_code)
+
         existing_user_by_email = await self.user_repository.find_user_by_email(email_lowercase)
         if existing_user_by_email:
             raise AppException(ErrorCodes.EMAIL_ALREADY_EXISTS)
@@ -59,6 +79,8 @@ class AuthService:
         except Exception as e:
             raise AppException(ErrorCodes.ERROR_CREATING_USER) from e
 
+        await self.registration_verification_service.delete_code(email_lowercase)
+
         response: RegisterResponse = RegisterResponse(
             email=user.email,
             first_name=user.first_name,
@@ -75,7 +97,7 @@ class AuthService:
         """
         Authenticate user and return user object if successful.
         """
-        email_lowercase = email.strip().lower()
+        email_lowercase = normalize_email_identifier(email)
         user = await self.user_repository.find_user_by_email(email_lowercase)
 
         if not user:
@@ -101,7 +123,7 @@ class AuthService:
         """
         Generate reset code and send email (mocked).
         """
-        email_lowercase = email.strip().lower()
+        email_lowercase = normalize_email_identifier(email)
         user = await self.user_repository.find_user_by_email(email_lowercase)
         if not user:
             # Security: Don't reveal if user exists.
@@ -121,7 +143,7 @@ class AuthService:
         """
         Verify reset code and set new password.
         """
-        email_lowercase = email.strip().lower()
+        email_lowercase = normalize_email_identifier(email)
         user = await self.user_repository.find_user_by_email(email_lowercase)
         if not user:
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)

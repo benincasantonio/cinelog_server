@@ -1,8 +1,9 @@
 import asyncio
 import json
 import logging
+from collections.abc import Awaitable
 from threading import Lock
-from typing import Any
+from typing import Any, cast
 
 import redis.asyncio as aioredis
 
@@ -11,6 +12,7 @@ from app.config.redis import RedisConfig
 logger = logging.getLogger(__name__)
 
 CacheValue = dict[str, Any] | list[Any]
+HashValue = str | int
 
 
 class CacheService:
@@ -52,6 +54,20 @@ class CacheService:
     async def delete(self, key: str) -> bool:
         result = int(await self._client.delete(key))
         return result > 0
+
+    async def hgetall(self, key: str) -> dict[str, str]:
+        data = await cast("Awaitable[dict[Any, Any]]", self._client.hgetall(key))
+        return dict(data)
+
+    async def hset_with_ttl(self, key: str, mapping: dict[str, HashValue], ttl: int) -> int:
+        async with self._client.pipeline(transaction=True) as pipe:
+            pipe.hset(key, mapping=mapping)
+            pipe.expire(key, ttl)
+            results = await pipe.execute()
+        return int(results[0])
+
+    async def hincrby(self, key: str, field: str, amount: int = 1) -> int:
+        return int(await cast("Awaitable[int]", self._client.hincrby(key, field, amount)))
 
     async def delete_many(self, keys: list[str]) -> int:
         if not keys:

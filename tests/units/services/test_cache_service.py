@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
@@ -58,6 +58,56 @@ class TestCacheServiceEnabled:
         service._mock_client.delete = AsyncMock(return_value=0)
         result = await service.delete("cinelog:movie:999")
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_hgetall_returns_hash_data(self, service):
+        service._mock_client.hgetall = AsyncMock(return_value={"code_hash": "abc", "attempts": "0"})
+        result = await service.hgetall("auth:register-verification:key")
+        assert result == {"code_hash": "abc", "attempts": "0"}
+
+    @pytest.mark.asyncio
+    async def test_hset_with_ttl_stores_hash_mapping_and_expiry(self, service):
+        class FakePipeline:
+            def __init__(self):
+                self.calls: list[tuple[str, tuple, dict]] = []
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, traceback):
+                return None
+
+            def hset(self, *args, **kwargs):
+                self.calls.append(("hset", args, kwargs))
+
+            def expire(self, *args, **kwargs):
+                self.calls.append(("expire", args, kwargs))
+
+            async def execute(self):
+                return [2, True]
+
+        fake_pipeline = FakePipeline()
+        service._mock_client.pipeline = MagicMock(return_value=fake_pipeline)
+
+        result = await service.hset_with_ttl("auth:register-verification:key", {"code_hash": "abc"}, 900)
+
+        assert result == 2
+        service._mock_client.pipeline.assert_called_once_with(transaction=True)
+        assert fake_pipeline.calls == [
+            (
+                "hset",
+                ("auth:register-verification:key",),
+                {"mapping": {"code_hash": "abc"}},
+            ),
+            ("expire", ("auth:register-verification:key", 900), {}),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_hincrby_increments_hash_field(self, service):
+        service._mock_client.hincrby = AsyncMock(return_value=1)
+        result = await service.hincrby("auth:register-verification:key", "attempts")
+        assert result == 1
+        service._mock_client.hincrby.assert_awaited_once_with("auth:register-verification:key", "attempts", 1)
 
     @pytest.mark.asyncio
     async def test_delete_many(self, service):
@@ -135,6 +185,12 @@ class TestCacheServiceErrors:
         service._mock_client.delete = AsyncMock(side_effect=ConnectionError("refused"))
         with pytest.raises(ConnectionError):
             await service.delete("key")
+
+    @pytest.mark.asyncio
+    async def test_hgetall_raises_on_connection_error(self, service):
+        service._mock_client.hgetall = AsyncMock(side_effect=ConnectionError("refused"))
+        with pytest.raises(ConnectionError):
+            await service.hgetall("key")
 
     @pytest.mark.asyncio
     async def test_delete_many_raises_on_connection_error(self, service):

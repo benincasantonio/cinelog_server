@@ -48,10 +48,10 @@ When data that affects stats is modified, all cached stats for that user are inv
 | `LogService` | `delete_log` | Existing viewing log deleted |
 | `MovieRatingService` | `create_update_movie_rating` | Rating created or updated |
 
-## Graceful Degradation
+## Error Behavior
 
-`StatsCacheService` inherits the graceful degradation behavior of `CacheService`:
+Redis is required at application startup. `StatsCacheService` uses the shared `CacheService` singleton directly:
 
-- If Redis is unavailable or `CacheService` is not initialized, all methods return `None` or no-op
-- Stats are computed from the database as a fallback
-- No exceptions propagate to callers
+- If Redis is unreachable during startup, the application fails fast.
+- If Redis becomes unavailable at runtime, Redis errors propagate from `StatsCacheService`.
+- Stats are computed from PostgreSQL only on cache misses, not as a fallback for Redis errors.

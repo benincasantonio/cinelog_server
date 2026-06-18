@@ -36,13 +36,23 @@ The auth dependency extracts the `__Host-access_token` cookie, verifies the JWT 
 
 | Endpoint | Limit |
 |----------|-------|
-| `POST /v1/auth/register` | 5 requests per hour per client |
+| `POST /v1/auth/register/send-code` | 6/hour per IP, plus 3/hour session and 5/30minute email-hash limits |
+| `POST /v1/auth/register` | 10/hour per IP, plus 5/hour session |
 | `POST /v1/auth/login` | 30 requests per 15 minutes per IP, plus session/email-hash limits |
 | `POST /v1/auth/forgot-password` | 6 requests per hour per IP, plus 3/hour session and 5/30minute email-hash limits |
 | `POST /v1/auth/reset-password` | 10 requests per hour per IP, plus session/email-hash limits |
 | `GET /v1/auth/csrf` | 300 requests per 30 minutes per authenticated user |
 
 The coarse IP and session limits are enforced via `slowapi` decorators in `app/controllers/auth_controller.py`. `AuthRateLimitService` handles the login and recovery email-hash buckets so they can be checked before authentication work and incremented only when the request should count.
+
+## Registration Verification Implementation
+
+- `POST /v1/auth/register/send-code` normalizes the submitted email and always returns a generic success response.
+- If the email already has an account, `EmailService` sends an existing-account notice instead of issuing a code.
+- If the email can be registered, `RegistrationVerificationService` generates a 6-character code, stores only an HMAC hash in Redis, and sends the plaintext code by email.
+- Redis keys and stored code hashes are HMAC-derived using the dedicated `REGISTRATION_VERIFICATION_HMAC_SECRET` (separate from the rate-limiting secret) and use a 15-minute TTL. No verification-code table or migration is used.
+- `POST /v1/auth/register` requires `verificationCode`; the code must exist, be unexpired, match the email, and have fewer than 5 failed attempts.
+- After successful account creation, the verification key is deleted so the code is single-use. If Redis loses the temporary key, the user must request a new code.
 
 ## Password Recovery Implementation
 
@@ -61,6 +71,8 @@ Subject: Password Reset
 Code: 123456
 ------------------
 ```
+
+Registration verification emails use the same development fallback and log the registration code instead of sending through SMTP.
 
 ## See Also
 

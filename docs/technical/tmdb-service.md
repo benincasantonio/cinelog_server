@@ -11,7 +11,7 @@
 - [Caching Layer](#caching-layer)
   - [Cache Keys](#cache-keys)
   - [TTL Configuration](#ttl-configuration)
-  - [Graceful Degradation](#graceful-degradation)
+  - [Error Behavior](#error-behavior)
 - [Request & Error Handling](#request--error-handling)
 - [MovieService Integration](#movieservice-integration)
 - [Environment Variables](#environment-variables)
@@ -140,11 +140,11 @@ The search key is normalized via `query.strip().lower()` before insertion and lo
 
 Both TTLs are read once at module import via `os.getenv` and cast to `int`.
 
-### Graceful Degradation
+### Error Behavior
 
-`TMDBCacheService` resolves the `CacheService` singleton lazily on first use via its `_cache` property. If `CacheService.get_instance()` raises `RuntimeError` (Redis not initialized or disabled), `_cache_instance` is set to `None` and all cache operations become no-ops that return `None` or return immediately. This means TMDB calls always succeed even when Redis is unavailable — they simply skip caching and call TMDB directly.
+Redis is required at application startup. `TMDBCacheService` resolves the shared `CacheService` singleton through its `_cache` property and does not catch Redis errors.
 
-The `REDIS_ENABLED` env var (managed by `CacheService`) is the primary toggle. See [Redis Caching](redis-caching.md) for details on that layer.
+If Redis is unreachable during startup, the FastAPI lifespan raises and the API does not start. If Redis becomes unavailable at runtime, TMDB cache reads or writes can fail the request instead of bypassing cache. See [Redis Caching](redis-caching.md) for details on that layer.
 
 ---
 
@@ -200,7 +200,7 @@ All four variables are read at module import time. Changing them requires an app
 ## Decision Records (Why Not)
 
 **Why not initialize the singleton during app startup (like `CacheService`)?**
-`CacheService` requires a configuration object (`REDIS_URL`, `REDIS_ENABLED`) that must be available at startup. `TMDBService` reads its config directly from environment variables and creates its `httpx.AsyncClient` without any external dependency, so lazy initialization on first `get_instance()` call is sufficient and keeps the startup sequence simpler.
+`CacheService` requires a Redis configuration object and startup health check, so it is initialized during FastAPI lifespan startup. `TMDBService` reads its config directly from environment variables and creates its `httpx.AsyncClient` without any external dependency, so lazy initialization on first `get_instance()` call is sufficient and keeps the startup sequence simpler.
 
 **Why a separate `TMDBCacheService` instead of calling `CacheService` directly from `TMDBService`?**
 Separating cache concerns into `TMDBCacheService` keeps key construction, TTL constants, and serialization/deserialization logic out of `TMDBService`. This makes both classes easier to test in isolation — `TMDBService` tests can inject a mock cache, and cache behavior can be tested independently.
@@ -221,7 +221,7 @@ It produces a structured `httpx.HTTPStatusError` with the full request and respo
 | All TMDB requests return `401 Unauthorized` from upstream | `TMDB_API_KEY` is missing or incorrect | Verify `TMDB_API_KEY` is set in your `.env` and the value matches a valid v4 read-access token from your TMDB account |
 | Search results are stale | Redis TTL for search is still active | Wait for the 10-minute TTL to expire, or flush the specific key: `DEL cinelog:tmdb:search:{normalized_query}` |
 | Movie details are stale | Redis TTL for details is still active | Flush the key: `DEL cinelog:tmdb:details:{tmdb_id}` |
-| Cache is never populated | `REDIS_ENABLED` is `false` or Redis is unreachable | Check `REDIS_ENABLED=true` in `.env` and confirm Redis is running (`redis-cli ping`) |
+| Cache is never populated | Redis is unreachable or cache writes are failing | Confirm Redis is running (`redis-cli ping`) and check API logs for cache errors |
 | `tmdb_id` 404 causes 500 for the client | `raise_for_status()` propagates TMDB 404 as an unhandled exception | Ensure the `tmdb_id` was obtained from a valid search result; direct ID entry is not validated before the TMDB call |
 
 ---

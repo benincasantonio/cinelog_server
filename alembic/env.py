@@ -5,16 +5,25 @@ import os
 from logging.config import fileConfig
 from typing import Any
 
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context, util
-from app.models.base_model import Base
-from app.models.log_model import Log  # noqa: F401
-from app.models.movie_model import Movie  # noqa: F401
-from app.models.movie_rating_model import MovieRating  # noqa: F401
-from app.models.user_model import User  # noqa: F401
+
+# Load variables from a local .env file BEFORE importing app modules, which read
+# environment variables (JWT_SECRET_KEY, DATABASE_URL, ...) at import time. This lets
+# migrations run without manually exporting the environment (`set -a; source .env; set +a`).
+# Real environment variables (set by Docker/Coolify) take precedence — load_dotenv does
+# not override them.
+load_dotenv()
+
+from app.models.base_model import Base  # noqa: E402
+from app.models.log_model import Log  # noqa: E402, F401
+from app.models.movie_model import Movie  # noqa: E402, F401
+from app.models.movie_rating_model import MovieRating  # noqa: E402, F401
+from app.models.user_model import User  # noqa: E402, F401
 
 config = context.config
 

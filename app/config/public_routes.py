@@ -3,6 +3,7 @@
 PUBLIC_AUTH_PATHS = frozenset(
     {
         "/v1/auth/register",
+        "/v1/auth/register/send-code",
         "/v1/auth/login",
         "/v1/auth/forgot-password",
         "/v1/auth/reset-password",
