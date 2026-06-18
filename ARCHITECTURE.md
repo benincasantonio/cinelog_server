@@ -181,7 +181,7 @@ The `__Host-` prefix enforces: `Secure=true`, no `Domain`, `path=/` — prevents
 | `TokenService` | JWT creation/decoding (HS256, access + refresh tokens) |
 | `PasswordService` | Bcrypt hashing via `passlib.CryptContext` |
 | `EmailService` | SMTP password reset emails (falls back to console logging in dev) |
-| `CacheService` | Singleton — Redis caching layer with graceful degradation (toggleable via `REDIS_ENABLED`) |
+| `CacheService` | Singleton — required Redis client for caching, rate limiting support, and registration verification |
 | `TMDBService` | Singleton — movie search and details via TMDB API (`httpx.AsyncClient`) |
 | `MovieService` | Movie lookup, lazy `find_or_create_movie()` from TMDB |
 | `LogService` | Viewing log CRUD with movie fetching and poster auto-population |
@@ -254,10 +254,11 @@ The user repository provides two deletion strategies:
 
 ## Caching
 
-`CacheService` provides an optional Redis caching layer:
+`CacheService` provides the shared Redis client:
 
-- **Toggle:** `REDIS_ENABLED` env var (default `false`) — when disabled, all methods return None/False immediately
-- **Graceful degradation:** All Redis calls are wrapped in try/except — the app never fails due to Redis unavailability
+- **Required dependency:** Redis must be reachable during FastAPI startup. `app/__init__.py` initializes `CacheService`, pings Redis via `health_check()`, and raises `RuntimeError` if Redis is unavailable.
+- **Configuration:** `REDIS_URL` selects the Redis instance and defaults to `redis://localhost:6379/0`; there is no `REDIS_ENABLED` toggle.
+- **Error behavior:** `CacheService` is a low-level wrapper and lets Redis errors propagate. Higher-level callers decide whether to fail open or fail closed. `LogCacheRepository` catches cache errors and falls back to PostgreSQL; registration verification, rate limiting, stats caching, and TMDB caching require Redis to remain healthy.
 - **Serialization:** Callers pass JSON-ready dicts to `set()` and revalidate after `get()` — keeps CacheService model-agnostic. `LogCacheRepository` serializes ORM rows through an internal Pydantic mirror model.
 - **Key naming:** `cinelog:{entity}:{identifier}` — key construction is the caller's responsibility
 - **Default TTL:** 300 seconds (5 minutes), configurable via `REDIS_DEFAULT_TTL`

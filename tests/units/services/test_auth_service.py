@@ -7,6 +7,7 @@ import pytest
 from app.schemas.auth_schemas import RegisterRequest
 from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.services.auth_service import AuthService
+from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
 
@@ -20,8 +21,51 @@ class TestAuthService:
         return MagicMock()
 
     @pytest.fixture
-    def auth_service(self, mock_user_repo, mock_email_service):
-        return AuthService(user_repository=mock_user_repo, email_service=mock_email_service)
+    def mock_registration_verification_service(self):
+        return AsyncMock()
+
+    @pytest.fixture
+    def auth_service(self, mock_user_repo, mock_email_service, mock_registration_verification_service):
+        return AuthService(
+            user_repository=mock_user_repo,
+            email_service=mock_email_service,
+            registration_verification_service=mock_registration_verification_service,
+        )
+
+    @pytest.mark.asyncio
+    async def test_send_registration_verification_code_for_new_email(
+        self,
+        auth_service,
+        mock_user_repo,
+        mock_email_service,
+        mock_registration_verification_service,
+    ):
+        mock_user_repo.find_user_by_email.return_value = None
+        mock_registration_verification_service.issue_code.return_value = "ABC123"
+
+        await auth_service.send_registration_verification_code("User@Example.com ")
+
+        mock_user_repo.find_user_by_email.assert_awaited_once_with("user@example.com")
+        mock_registration_verification_service.issue_code.assert_awaited_once_with("user@example.com")
+        mock_email_service.send_registration_verification_email.assert_called_once_with("user@example.com", "ABC123")
+        mock_email_service.send_registration_existing_account_email.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_send_registration_verification_code_for_existing_email(
+        self,
+        auth_service,
+        mock_user_repo,
+        mock_email_service,
+        mock_registration_verification_service,
+    ):
+        mock_user_repo.find_user_by_email.return_value = SimpleNamespace(email="user@example.com")
+
+        await auth_service.send_registration_verification_code("User@Example.com ")
+
+        mock_user_repo.find_user_by_email.assert_awaited_once_with("user@example.com")
+        mock_registration_verification_service.issue_code.assert_not_awaited()
+        mock_email_service.send_registration_existing_account_email.assert_called_once_with("user@example.com")
+        mock_email_service.send_registration_verification_email.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_forgot_password_success(self, auth_service, mock_user_repo, mock_email_service):
@@ -43,7 +87,7 @@ class TestAuthService:
         assert reset_code_repo == reset_code_email
 
     @pytest.mark.asyncio
-    async def test_register_success(self, auth_service, mock_user_repo):
+    async def test_register_success(self, auth_service, mock_user_repo, mock_registration_verification_service):
         request = RegisterRequest(
             first_name="John",
             last_name="Doe",
@@ -53,6 +97,7 @@ class TestAuthService:
             date_of_birth=date(1990, 1, 1),
             profile_visibility="private",
             bio=None,
+            verification_code="ABC123",
         )
 
         mock_user_repo.find_user_by_email.return_value = None
@@ -72,11 +117,43 @@ class TestAuthService:
         response = await auth_service.register(request)
 
         assert response.email == "john@example.com"
+        mock_registration_verification_service.validate_code.assert_awaited_once_with("john@example.com", "ABC123")
         mock_user_repo.create_user.assert_awaited_once()
+        mock_registration_verification_service.delete_code.assert_awaited_once_with("john@example.com")
 
         call_args = mock_user_repo.create_user.call_args[1]
         assert "password_hash" in call_args["request"].model_dump()
         assert call_args["request"].password_hash != "password123"
+
+    @pytest.mark.asyncio
+    async def test_register_rejects_invalid_verification_code(
+        self,
+        auth_service,
+        mock_user_repo,
+        mock_registration_verification_service,
+    ):
+        request = RegisterRequest(
+            first_name="John",
+            last_name="Doe",
+            email="john@example.com",
+            password="password123",
+            handle="johndoe",
+            date_of_birth=date(1990, 1, 1),
+            profile_visibility="private",
+            bio=None,
+            verification_code="BAD999",
+        )
+        mock_registration_verification_service.validate_code.side_effect = AppException(
+            ErrorCodes.INVALID_EMAIL_VERIFICATION_CODE
+        )
+
+        with pytest.raises(AppException) as exc_info:
+            await auth_service.register(request)
+
+        assert exc_info.value.error == ErrorCodes.INVALID_EMAIL_VERIFICATION_CODE
+        mock_user_repo.find_user_by_email.assert_not_awaited()
+        mock_user_repo.create_user.assert_not_awaited()
+        mock_registration_verification_service.delete_code.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_login_success(self, auth_service, mock_user_repo):
@@ -124,7 +201,12 @@ class TestAuthService:
         assert exc.value.error.error_code == 401
 
     @pytest.mark.asyncio
-    async def test_register_email_case_insensitivity(self, auth_service, mock_user_repo):
+    async def test_register_email_case_insensitivity(
+        self,
+        auth_service,
+        mock_user_repo,
+        mock_registration_verification_service,
+    ):
         request = RegisterRequest(
             first_name="Jane",
             last_name="Doe",
@@ -134,6 +216,7 @@ class TestAuthService:
             date_of_birth=date(1995, 1, 1),
             profile_visibility="public",
             bio=None,
+            verification_code="ABC123",
         )
 
         mock_user_repo.find_user_by_email.return_value = None
@@ -153,6 +236,7 @@ class TestAuthService:
         response = await auth_service.register(request)
 
         assert response.email == "jane.doe@example.com"
+        mock_registration_verification_service.validate_code.assert_awaited_once_with("jane.doe@example.com", "ABC123")
         mock_user_repo.find_user_by_email.assert_awaited_with("jane.doe@example.com")
 
         call_args = mock_user_repo.create_user.call_args[1]
@@ -206,3 +290,15 @@ class TestAuthRateLimitService:
             second_key = AuthRateLimitService.build_account_key("user@example.com")
 
         assert first_key != second_key
+
+    def test_register_verification_account_limit_blocks_after_five_attempts(self, rate_limit_service):
+        email = "User@Example.com "
+
+        for _ in range(5):
+            rate_limit_service.enforce_register_verification_limit(email)
+            rate_limit_service.record_register_verification_attempt(email)
+
+        with pytest.raises(AppException) as exc_info:
+            rate_limit_service.enforce_register_verification_limit("user@example.com")
+
+        assert exc_info.value.error == ErrorCodes.RATE_LIMIT_EXCEEDED

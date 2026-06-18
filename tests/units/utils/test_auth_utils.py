@@ -5,7 +5,17 @@ from app.utils.auth_utils import (
     CSRF_TOKEN_COOKIE,
     REFRESH_TOKEN_COOKIE,
     clear_auth_cookies,
+    normalize_email_identifier,
+    normalize_verification_code,
 )
+
+
+def test_normalize_email_identifier():
+    assert normalize_email_identifier(" User@Example.COM ") == "user@example.com"
+
+
+def test_normalize_verification_code():
+    assert normalize_verification_code(" abc123 ") == "ABC123"
 
 
 def test_clear_auth_cookies():

@@ -22,6 +22,33 @@ def client():
 class TestAuthController:
     """Tests for auth controller endpoints."""
 
+    @patch.object(get_auth_service(), "send_registration_verification_code", new_callable=AsyncMock)
+    def test_send_register_verification_code_success(self, mock_send_code, client):
+        """Test successful registration verification code request."""
+        response = client.post(
+            "/v1/auth/register/send-code",
+            json={"email": "test@example.com"},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"message": "If the email can be registered, a verification code has been sent."}
+        mock_send_code.assert_awaited_once_with("test@example.com")
+
+    @patch.object(get_auth_service(), "send_registration_verification_code", new_callable=AsyncMock)
+    def test_send_register_verification_code_with_exception(self, mock_send_code, client):
+        """Test registration verification code request that raises AppException."""
+        from app.utils.error_codes_utils import ErrorCodes
+        from app.utils.exceptions_utils import AppException
+
+        mock_send_code.side_effect = AppException(ErrorCodes.RATE_LIMIT_EXCEEDED)
+
+        response = client.post(
+            "/v1/auth/register/send-code",
+            json={"email": "test@example.com"},
+        )
+
+        assert response.status_code == ErrorCodes.RATE_LIMIT_EXCEEDED.error_code
+
     @patch.object(get_auth_service(), "register", new_callable=AsyncMock)
     def test_register_success(self, mock_register, client):
         """Test successful user registration."""
@@ -45,6 +72,7 @@ class TestAuthController:
                 "handle": "johndoe",
                 "dateOfBirth": "1990-01-01",
                 "profileVisibility": "private",
+                "verificationCode": "ABC123",
             },
         )
 
@@ -73,6 +101,7 @@ class TestAuthController:
                 "handle": "johndoe",
                 "dateOfBirth": "1990-01-01",
                 "profileVisibility": "private",
+                "verificationCode": "ABC123",
             },
         )
 

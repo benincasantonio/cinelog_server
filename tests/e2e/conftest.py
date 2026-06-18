@@ -10,6 +10,7 @@ import os
 # must be in place before any app module is imported.
 os.environ.setdefault("REDIS_URL", "redis://localhost:6380/0")
 os.environ.setdefault("RATE_LIMIT_HMAC_SECRET", "test-rate-limit-hmac-secret")
+os.environ.setdefault("REGISTRATION_VERIFICATION_HMAC_SECRET", "test-registration-verification-hmac-secret")
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db"
 
 import asyncio  # noqa: E402
@@ -26,6 +27,7 @@ from app.db.postgres import close_postgres_engine, init_postgres_engine  # noqa:
 from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult  # noqa: E402
 from app.services.cache_service import CacheService  # noqa: E402
 from app.services.tmdb_service import TMDBService  # noqa: E402
+from app.utils.auth_utils import normalize_email_identifier  # noqa: E402
 
 # Load .env file for remaining env vars (e.g. TMDB_API_KEY, JWT_SECRET_KEY).
 # The values set above take precedence because load_dotenv does not overwrite
@@ -33,6 +35,27 @@ from app.services.tmdb_service import TMDBService  # noqa: E402
 load_dotenv()
 
 POSTGRES_TABLES = ("logs", "movie_ratings", "movies", "users")
+
+
+class RegistrationAwareAsyncClient:
+    def __init__(self, client: httpx.AsyncClient, registration_codes: dict[str, str]):
+        self._client = client
+        self._registration_codes = registration_codes
+
+    def __getattr__(self, name: str):
+        return getattr(self._client, name)
+
+    async def post(self, url: str, *args, **kwargs):
+        request_json = kwargs.get("json")
+        if url == "/v1/auth/register" and isinstance(request_json, dict) and "verificationCode" not in request_json:
+            email = request_json.get("email")
+            if isinstance(email, str) and "@" in email:
+                await self._client.post("/v1/auth/register/send-code", json={"email": email})
+                code = self._registration_codes.pop(normalize_email_identifier(email), None)
+                if code is not None:
+                    kwargs["json"] = {**request_json, "verificationCode": code}
+
+        return await self._client.post(url, *args, **kwargs)
 
 
 def _clear_dependency_caches() -> None:
@@ -104,10 +127,27 @@ async def async_client(postgres_engine):
     _clear_dependency_caches()
 
     CacheService.initialize(get_redis_config())
+    registration_codes: dict[str, str] = {}
+
+    def capture_registration_code(self, to_email: str, code: str) -> None:
+        registration_codes[normalize_email_identifier(to_email)] = code
+
+    def capture_existing_account_notice(self, to_email: str) -> None:
+        return None
 
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
-        yield client
+    with (
+        patch(
+            "app.services.email_service.EmailService.send_registration_verification_email",
+            capture_registration_code,
+        ),
+        patch(
+            "app.services.email_service.EmailService.send_registration_existing_account_email",
+            capture_existing_account_notice,
+        ),
+    ):
+        async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
+            yield RegistrationAwareAsyncClient(client, registration_codes)
 
     _clear_dependency_caches()
     await CacheService.aclose_all()

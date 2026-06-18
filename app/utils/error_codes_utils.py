@@ -24,6 +24,34 @@ class ErrorCodes:
         error_description="An error occurred while creating the user.",
     )
 
+    EMAIL_VERIFICATION_CODE_REQUIRED = ErrorSchema(
+        error_code_name="EMAIL_VERIFICATION_CODE_REQUIRED",
+        error_code=400,
+        error_message="Email verification code required",
+        error_description="A valid email verification code is required to create an account.",
+    )
+
+    EMAIL_VERIFICATION_CODE_EXPIRED = ErrorSchema(
+        error_code_name="EMAIL_VERIFICATION_CODE_EXPIRED",
+        error_code=401,
+        error_message="Email verification code expired",
+        error_description="The email verification code is missing or has expired. Request a new code.",
+    )
+
+    INVALID_EMAIL_VERIFICATION_CODE = ErrorSchema(
+        error_code_name="INVALID_EMAIL_VERIFICATION_CODE",
+        error_code=401,
+        error_message="Invalid email verification code",
+        error_description="The email verification code provided is incorrect.",
+    )
+
+    EMAIL_VERIFICATION_CODE_ATTEMPTS_EXCEEDED = ErrorSchema(
+        error_code_name="EMAIL_VERIFICATION_CODE_ATTEMPTS_EXCEEDED",
+        error_code=429,
+        error_message="Too many verification attempts",
+        error_description="Too many incorrect verification attempts were submitted for this code.",
+    )
+
     USER_NOT_FOUND = ErrorSchema(
         error_code_name="USER_NOT_FOUND",
         error_code=404,

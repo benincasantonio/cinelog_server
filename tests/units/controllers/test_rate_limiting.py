@@ -116,6 +116,12 @@ class TestRateLimitDecoratorsApplied:
             "register endpoint must have @limiter.limit() decorator"
         )
 
+    def test_send_register_verification_code_has_rate_limit(self):
+        key = "app.controllers.auth_controller.send_register_verification_code"
+        assert key in rate_limiter_module.limiter._route_limits, (
+            "send_register_verification_code endpoint must have @limiter.limit() decorator"
+        )
+
     def test_login_has_rate_limit(self):
         key = "app.controllers.auth_controller.login"
         assert key in rate_limiter_module.limiter._route_limits, "login endpoint must have @limiter.limit() decorator"
@@ -260,6 +266,63 @@ class TestRegisterRateLimit:
                 json=self.REGISTER_PAYLOAD,
             )
             assert_429_response(blocked)
+        finally:
+            first_client.close()
+            second_client.close()
+
+
+class TestRegisterSendCodeRateLimit:
+    """Verify POST /v1/auth/register/send-code has session and IP limits."""
+
+    @staticmethod
+    def _payload(index: int = 0):
+        return {"email": f"register-code-{index}@example.com"}
+
+    @patch.object(get_auth_service(), "send_registration_verification_code", new_callable=AsyncMock)
+    def test_send_code_allows_requests_within_limit(self, mock_send_code, client):
+        """First 3 requests should succeed (200) with rate limit headers."""
+        for index in range(3):
+            response = client.post("/v1/auth/register/send-code", json=self._payload(index))
+            assert response.status_code == 200
+            assert_rate_limit_headers(response)
+
+        assert mock_send_code.await_count == 3
+
+    @patch.object(get_auth_service(), "send_registration_verification_code", new_callable=AsyncMock)
+    def test_send_code_blocks_request_over_session_limit(self, mock_send_code, client):
+        """4th request should hit the session-scoped limit."""
+        for index in range(3):
+            client.post("/v1/auth/register/send-code", json=self._payload(index))
+
+        response = client.post("/v1/auth/register/send-code", json=self._payload(3))
+        assert_429_response(response)
+        assert mock_send_code.await_count == 3
+
+    @patch.object(get_auth_service(), "send_registration_verification_code", new_callable=AsyncMock)
+    def test_send_code_ip_limit_blocks_after_six_requests_across_clients(self, mock_send_code):
+        """The outer IP gate should block the 7th request across sessions."""
+        first_client = TestClient(app, base_url="https://testserver")
+        second_client = TestClient(app, base_url="https://testserver")
+        try:
+            for index in range(3):
+                assert (
+                    first_client.post(
+                        "/v1/auth/register/send-code",
+                        json=self._payload(index),
+                    ).status_code
+                    == 200
+                )
+                assert (
+                    second_client.post(
+                        "/v1/auth/register/send-code",
+                        json=self._payload(index + 3),
+                    ).status_code
+                    == 200
+                )
+
+            blocked = first_client.post("/v1/auth/register/send-code", json=self._payload(6))
+            assert_429_response(blocked)
+            assert mock_send_code.await_count == 6
         finally:
             first_client.close()
             second_client.close()

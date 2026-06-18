@@ -35,8 +35,8 @@ class TestAuthE2E:
         assert data["handle"] == "e2etest"
         assert "userId" in data
 
-    async def test_register_duplicate_email(self, async_client):
-        """Test registration with duplicate email."""
+    async def test_register_duplicate_email_does_not_reveal_account_without_code(self, async_client):
+        """Test duplicate-email registration cannot bypass email verification."""
         payload = {
             "email": "duplicate@example.com",
             "password": "securepassword123",
@@ -54,8 +54,8 @@ class TestAuthE2E:
         payload["handle"] = "seconduser"
         response = await async_client.post("/v1/auth/register", json=payload)
 
-        assert response.status_code == 409  # EMAIL_ALREADY_EXISTS
-        assert response.json()["error_code_name"] == ErrorCodes.EMAIL_ALREADY_EXISTS.error_code_name
+        assert response.status_code == ErrorCodes.EMAIL_VERIFICATION_CODE_REQUIRED.error_code
+        assert response.json()["error_code_name"] == ErrorCodes.EMAIL_VERIFICATION_CODE_REQUIRED.error_code_name
 
     async def test_register_duplicate_handle(self, async_client):
         """Test registration with duplicate handle."""

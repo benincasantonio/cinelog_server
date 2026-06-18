@@ -4,8 +4,6 @@ from datetime import timedelta
 
 from fastapi import Response
 
-from app.services.token_service import TokenService
-
 # Cookie Configuration
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 15))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
@@ -20,6 +18,16 @@ RATE_LIMIT_SESSION_COOKIE = "__Host-session_id"  # nosec B105
 RATE_LIMIT_SESSION_TTL_SECONDS = 3600 * 24 * 7
 
 
+def normalize_email_identifier(email: str) -> str:
+    """Return the canonical email form used for auth lookups and keyed limits."""
+    return email.strip().lower()
+
+
+def normalize_verification_code(code: str) -> str:
+    """Return the canonical form used when comparing user-entered verification codes."""
+    return code.strip().upper()
+
+
 def generate_rate_limit_session_id() -> str:
     """Return a new opaque anonymous session ID for rate limiting."""
     return secrets.token_hex(16)
@@ -29,6 +37,8 @@ def set_auth_cookies(response: Response, user_id: str):
     """
     Helper to set access and refresh tokens in HttpOnly cookies.
     """
+    from app.services.token_service import TokenService
+
     # Create Tokens
     access_token = TokenService.create_access_token(
         data={"sub": user_id},

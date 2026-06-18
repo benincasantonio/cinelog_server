@@ -21,6 +21,8 @@ from app.schemas.auth_schemas import (
     RefreshResponse,
     RegisterRequest,
     RegisterResponse,
+    RegisterSendCodeRequest,
+    RegisterSendCodeResponse,
     ResetPasswordRequest,
     ResetPasswordResponse,
 )
@@ -41,6 +43,26 @@ from app.utils.rate_limit_utils import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+@router.post("/register/send-code", response_model=RegisterSendCodeResponse)
+@limiter.limit("6/hour", key_func=get_ip_rate_limit_key)
+@limiter.limit("3/hour", key_func=get_session_rate_limit_key)
+async def send_register_verification_code(
+    request: Request,
+    response: Response,
+    request_body: RegisterSendCodeRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+    auth_rate_limit_service: AuthRateLimitService = Depends(get_auth_rate_limit_service),
+) -> RegisterSendCodeResponse:
+    """
+    Send a verification code before user registration.
+    """
+    auth_rate_limit_service.enforce_register_verification_limit(request_body.email)
+    auth_rate_limit_service.record_register_verification_attempt(request_body.email)
+
+    await auth_service.send_registration_verification_code(request_body.email)
+    return RegisterSendCodeResponse(message="If the email can be registered, a verification code has been sent.")
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=RegisterResponse)

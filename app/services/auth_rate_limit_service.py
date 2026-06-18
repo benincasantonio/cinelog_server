@@ -11,10 +11,13 @@ from app.config.auth_rate_limit_config import (
     FORGOT_PASSWORD_ACCOUNT_RATE_LIMIT_SCOPE,
     LOGIN_ACCOUNT_RATE_LIMIT_SCOPE,
     LOGIN_FAILED_ACCOUNT_LIMIT_ITEM,
+    REGISTER_VERIFICATION_ACCOUNT_LIMIT_ITEM,
+    REGISTER_VERIFICATION_ACCOUNT_RATE_LIMIT_SCOPE,
     RESET_PASSWORD_ACCOUNT_LIMIT_ITEM,
     RESET_PASSWORD_ACCOUNT_RATE_LIMIT_SCOPE,
 )
 from app.config.rate_limiter import limiter
+from app.utils.auth_utils import normalize_email_identifier
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
@@ -42,10 +45,6 @@ class AuthRateLimitService:
         return self._limiter.test(limit_item, key, scope)
 
     @staticmethod
-    def _normalize_email(email: str) -> str:
-        return email.strip().lower()
-
-    @staticmethod
     def _hash_identifier(identifier: str) -> str:
         digest = hmac.new(
             cast(str, _RATE_LIMIT_HMAC_SECRET).encode("utf-8"),
@@ -56,7 +55,7 @@ class AuthRateLimitService:
 
     @classmethod
     def build_account_key(cls, email: str) -> str:
-        normalized_email = cls._normalize_email(email)
+        normalized_email = normalize_email_identifier(email)
         return f"identifier:{cls._hash_identifier(normalized_email)}"
 
     def _enforce_account_limit(
@@ -100,6 +99,20 @@ class AuthRateLimitService:
             LOGIN_FAILED_ACCOUNT_LIMIT_ITEM,
             LOGIN_ACCOUNT_RATE_LIMIT_SCOPE,
             self.build_account_key(email),
+        )
+
+    def enforce_register_verification_limit(self, email: str) -> None:
+        self._enforce_account_limit(
+            email,
+            REGISTER_VERIFICATION_ACCOUNT_LIMIT_ITEM,
+            REGISTER_VERIFICATION_ACCOUNT_RATE_LIMIT_SCOPE,
+        )
+
+    def record_register_verification_attempt(self, email: str) -> None:
+        self._register_account_attempt(
+            email,
+            REGISTER_VERIFICATION_ACCOUNT_LIMIT_ITEM,
+            REGISTER_VERIFICATION_ACCOUNT_RATE_LIMIT_SCOPE,
         )
 
     def enforce_forgot_password_limit(self, email: str) -> None:

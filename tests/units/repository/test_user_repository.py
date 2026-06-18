@@ -116,7 +116,7 @@ async def test_create_user_persists_row(repository: UserRepository, seed_session
 async def test_find_user_by_email_is_case_insensitive(repository: UserRepository):
     await repository.create_user(_user_request(email="User@Example.com", handle="mixedcase"))
 
-    found = await repository.find_user_by_email("user@example.com")
+    found = await repository.find_user_by_email(" user@example.com ")
 
     assert found is not None
     assert found.handle == "mixedcase"

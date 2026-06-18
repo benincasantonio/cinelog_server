@@ -52,6 +52,8 @@ This starts PostgreSQL, Redis, Mailpit, and the API service with hot-reload enab
 
 ### Testing
 
+Prefer the Makefile for full test runs. Use `make test-unit` and `make test-e2e` instead of raw `uv run pytest ...` when validating the whole unit or E2E suite, because those targets include the repository's expected coverage, environment, and Docker setup.
+
 **Run unit tests:**
 
 ```bash
@@ -76,9 +78,9 @@ Required environment variables (see `.env`):
 
 - `JWT_SECRET_KEY`: Secret key for JWT token generation
 - `RATE_LIMIT_HMAC_SECRET`: Secret key used to HMAC account-based rate-limit identifiers
+- `REGISTRATION_VERIFICATION_HMAC_SECRET`: Secret key used to HMAC registration email-verification codes and keys
 - `TMDB_API_KEY`: The Movie Database API key
 - `DATABASE_URL`: PostgreSQL connection string (e.g., `postgresql+asyncpg://cinelog:cinelog@localhost:5432/cinelog_db`) — required
-- `REDIS_ENABLED`: Enable Redis caching (default: `false`)
 - `REDIS_URL`: Redis connection URL (default: `redis://localhost:6379/0`)
 - `REDIS_DEFAULT_TTL`: Default cache TTL in seconds (default: `300`)
 

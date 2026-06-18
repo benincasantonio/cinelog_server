@@ -33,6 +33,9 @@ Rate-limited auth routes also require `RATE_LIMIT_HMAC_SECRET` so account-based 
 | `get(key)` | `dict \| list \| None` | Retrieve and deserialize a cached value |
 | `set(key, value, ttl?)` | `bool` | Serialize and store a value with TTL |
 | `delete(key)` | `bool` | Delete a single cached key |
+| `hgetall(key)` | `dict[str, str]` | Read a Redis hash |
+| `hset_with_ttl(key, mapping, ttl)` | `int` | Store a Redis hash and TTL atomically |
+| `hincrby(key, field, amount?)` | `int` | Increment a numeric Redis hash field |
 | `delete_many(keys)` | `int` | Bulk delete multiple keys |
 | `invalidate_pattern(pattern)` | `int` | Delete all keys matching a glob pattern (uses `SCAN`) |
 | `health_check()` | `bool` | Ping Redis to verify connectivity |
@@ -40,9 +43,11 @@ Rate-limited auth routes also require `RATE_LIMIT_HMAC_SECRET` so account-based 
 
 ### Error Behavior
 
-`CacheService` is a low-level wrapper, so Redis errors propagate directly from its methods. Higher-level cache layers decide whether to fail open or fail closed.
+`CacheService` is a low-level wrapper, so Redis errors propagate directly from its methods. Higher-level layers decide whether to fail open or fail closed.
 
 `LogCacheRepository` fails open: cache errors are logged and the repository falls back to the database query. This keeps log create, update, delete, and lookup flows available when Redis is temporarily unavailable.
+
+`StatsCacheService`, `TMDBCacheService`, rate limiting, and registration verification do not catch Redis errors. The application fails fast on startup if Redis is unreachable, and these flows require Redis to remain healthy at runtime.
 
 ## Key Naming Convention
 

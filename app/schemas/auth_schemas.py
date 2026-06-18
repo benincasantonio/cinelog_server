@@ -20,6 +20,22 @@ class RegisterRequest(BaseSchema):
         default="private",
         description="Profile visibility setting (public, friends_only, private)",
     )
+    verification_code: str | None = Field(
+        None,
+        description="Email verification code; required at runtime to create an account",
+    )
+
+
+class RegisterSendCodeRequest(BaseSchema):
+    """Schema for registration email verification request"""
+
+    email: EmailStr = Field(..., description="User's email address")
+
+
+class RegisterSendCodeResponse(BaseSchema):
+    """Schema for registration email verification response"""
+
+    message: str = Field(..., description="Registration email verification confirmation message")
 
 
 class RegisterResponse(BaseSchema):
