@@ -3,7 +3,6 @@ from datetime import date
 from typing import Protocol, TypeVar
 
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
-from app.schemas.stats_schemas import LogStats
 
 IdType = TypeVar("IdType", contravariant=True)
 LogType = TypeVar("LogType", covariant=True)
@@ -46,11 +45,3 @@ class LogRepositoryProtocol(Protocol[IdType, LogType]):
 
     async def delete_log(self, log_id: IdType, user_id: IdType) -> LogType | None:
         """Delete a log entry by ID, scoped to the owning user."""
-
-    async def get_log_stats(
-        self,
-        user_id: IdType,
-        date_from: date | None = None,
-        date_to: date | None = None,
-    ) -> LogStats:
-        """Compute aggregate log statistics for a user."""

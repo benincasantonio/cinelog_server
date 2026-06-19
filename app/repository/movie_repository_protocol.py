@@ -1,7 +1,7 @@
 from collections.abc import Iterable, Sequence
 from typing import Protocol, TypeVar
 
-from app.schemas.movie_schemas import MovieCreateRequest, MovieStats, MovieUpdateRequest
+from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
 from app.schemas.tmdb_schemas import TMDBMovieDetails
 
 IdType = TypeVar("IdType", contravariant=True)
@@ -28,6 +28,3 @@ class MovieRepositoryProtocol(Protocol[IdType, MovieType]):
 
     async def find_movies_by_ids(self, movie_ids: Iterable[IdType]) -> Sequence[MovieType]:
         """Find multiple movies by a set of unique identifiers."""
-
-    async def get_movie_stats(self, movie_id: Iterable[IdType]) -> MovieStats:
-        """Get aggregated stats for a movie (e.g. average rating, total ratings)."""

@@ -6,12 +6,12 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.models.movie_model import Movie
 from app.repository.repository_base import RepositoryBase
-from app.schemas.movie_schemas import MovieCreateRequest, MovieStats, MovieUpdateRequest
+from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
 from app.schemas.tmdb_schemas import TMDBMovieDetails
 from app.utils.datetime_utils import parse_iso_date
 
@@ -121,19 +121,3 @@ class MovieRepository(RepositoryBase):
             )
             result = await session.execute(statement)
             return list(result.scalars().all())
-
-    async def get_movie_stats(self, movie_ids: Iterable[UUID]) -> MovieStats:
-        """Compute runtime stats for active movies in PostgreSQL."""
-
-        movie_ids = list(movie_ids)
-        if not movie_ids:
-            return MovieStats(total_runtime=0)
-
-        async with self._session_provider() as session:
-            statement = select(func.coalesce(func.sum(Movie.runtime), 0)).where(
-                Movie.id.in_(movie_ids),
-                Movie.active(),
-            )
-            result = await session.execute(statement)
-            total_runtime = result.scalar_one()
-            return MovieStats(total_runtime=int(total_runtime or 0))

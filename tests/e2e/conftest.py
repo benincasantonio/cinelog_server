@@ -63,6 +63,7 @@ def _clear_dependency_caches() -> None:
         get_log_repository,
         get_movie_rating_repository,
         get_movie_repository,
+        get_stats_repository,
         get_user_repository,
     )
     from app.dependencies.service_dependency import (
@@ -84,6 +85,7 @@ def _clear_dependency_caches() -> None:
         get_log_repository,
         get_movie_rating_repository,
         get_movie_repository,
+        get_stats_repository,
         get_user_repository,
     ):
         provider.cache_clear()

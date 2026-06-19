@@ -7,7 +7,6 @@ import pytest
 from app.models.log_model import Log
 from app.repository.log_cache_repository import LOG_CACHE_TTL, LogCacheRepository
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
-from app.schemas.stats_schemas import LogStats
 
 
 def _sample_log(
@@ -47,7 +46,6 @@ def _mock_log_repository() -> MagicMock:
     repository.find_logs_by_user_id = AsyncMock()
     repository.find_logs_by_movie_id = AsyncMock()
     repository.delete_log = AsyncMock()
-    repository.get_log_stats = AsyncMock()
     return repository
 
 
@@ -361,24 +359,6 @@ async def test_delete_log_not_found_skips_invalidation():
     inner_repository.delete_log.assert_awaited_once_with(log_id, user_id)
     cache.delete.assert_not_awaited()
     cache.invalidate_pattern.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_get_log_stats_delegates_to_inner_repository():
-    user_id = uuid4()
-    stats = LogStats()
-    inner_repository = _mock_log_repository()
-    inner_repository.get_log_stats.return_value = stats
-    repository = LogCacheRepository(inner_repository)
-
-    result = await repository.get_log_stats(user_id, date_from=date(2024, 1, 1), date_to=date(2024, 12, 31))
-
-    assert result == stats
-    inner_repository.get_log_stats.assert_awaited_once_with(
-        user_id,
-        date_from=date(2024, 1, 1),
-        date_to=date(2024, 12, 31),
-    )
 
 
 @pytest.mark.asyncio

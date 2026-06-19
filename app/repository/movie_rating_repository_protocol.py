@@ -1,8 +1,6 @@
 from collections.abc import Iterable, Sequence
 from typing import Protocol, TypeVar
 
-from app.schemas.movie_rating_schemas import MovieRatingStats
-
 IdType = TypeVar("IdType", contravariant=True)
 
 MovieRatingType = TypeVar("MovieRatingType", covariant=True)
@@ -29,6 +27,3 @@ class MovieRatingRepositoryProtocol(Protocol[IdType, MovieRatingType]):
         self, user_id: IdType, movie_ids: Iterable[IdType]
     ) -> Sequence[MovieRatingType]:
         """Find all movie ratings for a list of movie IDs."""
-
-    async def get_user_movie_ratings_average(self, user_id: IdType, movie_ids: Iterable[IdType]) -> MovieRatingStats:
-        """Get the average rating for a movie by a specific user."""

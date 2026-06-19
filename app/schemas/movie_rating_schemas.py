@@ -24,10 +24,3 @@ class MovieRatingResponse(BaseSchema):
     comment: str | None = Field(None, description="User's review or opinion about the movie")
     created_at: datetime = Field(..., description="Timestamp when the rating was created")
     updated_at: datetime = Field(..., description="Timestamp when the rating was last updated")
-
-
-class MovieRatingStats(BaseSchema):
-    """Schema for movie rating statistics."""
-
-    average_rating: float | None = Field(None, description="Average rating for the movie")
-    total_ratings: int = Field(..., description="Total number of ratings for the movie")

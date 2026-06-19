@@ -8,6 +8,8 @@ from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
 from app.repository.movie_repository import MovieRepository
 from app.repository.movie_repository_protocol import MovieRepositoryProtocol
+from app.repository.stats_repository import StatsRepository
+from app.repository.stats_repository_protocol import StatsRepositoryProtocol
 from app.repository.user_repository import UserRepository
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 
@@ -38,3 +40,10 @@ def get_log_repository() -> LogRepositoryProtocol:
     """Return the active log repository implementation."""
 
     return LogRepository()
+
+
+@lru_cache
+def get_stats_repository() -> StatsRepositoryProtocol:
+    """Return the PostgreSQL cross-table stats read repository."""
+
+    return StatsRepository()

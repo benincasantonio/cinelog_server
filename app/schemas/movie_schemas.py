@@ -27,7 +27,3 @@ class MovieResponse(BaseSchema):
     original_language: str | None = Field(None, description="Original language code")
     created_at: datetime | None = Field(None, description="Creation date of the movie")
     updated_at: datetime | None = Field(None, description="Last update date of the movie")
-
-
-class MovieStats(BaseSchema):
-    total_runtime: int = Field(0, description="Total runtime of the movie in minutes")

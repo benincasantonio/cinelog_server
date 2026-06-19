@@ -18,7 +18,6 @@ from app.models.movie_model import Movie
 from app.models.user_model import User
 from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
-from app.schemas.stats_schemas import LogStats
 
 
 def _async_url(pg, dbname: str) -> str:
@@ -382,94 +381,3 @@ async def test_find_logs_by_movie_id_supports_optional_user_filter_and_created_o
     assert [log.id for log in user_logs] == [first.id, second.id]
 
     assert await repository.find_logs_by_movie_id(uuid4()) == []
-
-
-@pytest.mark.asyncio
-async def test_get_log_stats_returns_summary_distribution_and_uuid_movie_ids(
-    repository: LogRepository,
-    seed_session: AsyncSession,
-):
-    user, movie_a, movie_b = await _seed_fk_entities(seed_session)
-    movie_c = Movie(tmdb_id=552, title="Movie C")
-    await _add(seed_session, movie_c)
-
-    active_one = Log(
-        user_id=user.id,
-        movie_id=movie_a.id,
-        tmdb_id=movie_a.tmdb_id,
-        date_watched=datetime(2024, 1, 2, tzinfo=UTC),
-        watched_where="cinema",
-    )
-    active_two = Log(
-        user_id=user.id,
-        movie_id=movie_a.id,
-        tmdb_id=movie_a.tmdb_id,
-        date_watched=datetime(2024, 1, 3, tzinfo=UTC),
-        watched_where="streaming",
-    )
-    active_three = Log(
-        user_id=user.id,
-        movie_id=movie_b.id,
-        tmdb_id=movie_b.tmdb_id,
-        date_watched=datetime(2024, 1, 4, tzinfo=UTC),
-        watched_where="streaming",
-    )
-    deleted = Log(
-        user_id=user.id,
-        movie_id=movie_c.id,
-        tmdb_id=movie_c.tmdb_id,
-        date_watched=datetime(2024, 1, 5, tzinfo=UTC),
-        watched_where="tv",
-        deleted=True,
-        deleted_at=datetime.now(UTC),
-    )
-    await _add(seed_session, active_one, active_two, active_three, deleted)
-
-    stats = await repository.get_log_stats(user.id)
-
-    assert stats.total_watches == 3
-    assert stats.unique_titles == 2
-    assert set(stats.unique_movie_ids) == {movie_a.id, movie_b.id}
-    assert {entry.watched_where: entry.count for entry in stats.distribution} == {
-        "cinema": 1,
-        "streaming": 2,
-    }
-
-
-@pytest.mark.asyncio
-async def test_get_log_stats_supports_date_range_and_empty_result(
-    repository: LogRepository,
-    seed_session: AsyncSession,
-):
-    user, movie_a, movie_b = await _seed_fk_entities(seed_session)
-    first = Log(
-        user_id=user.id,
-        movie_id=movie_a.id,
-        tmdb_id=movie_a.tmdb_id,
-        date_watched=datetime(2024, 1, 2, tzinfo=UTC),
-        watched_where="cinema",
-    )
-    second = Log(
-        user_id=user.id,
-        movie_id=movie_b.id,
-        tmdb_id=movie_b.tmdb_id,
-        date_watched=datetime(2024, 2, 2, tzinfo=UTC),
-        watched_where="streaming",
-    )
-    await _add(seed_session, first, second)
-
-    january_stats = await repository.get_log_stats(
-        user.id,
-        date_from=date(2024, 1, 1),
-        date_to=date(2024, 1, 31),
-    )
-    assert january_stats.total_watches == 1
-    assert january_stats.unique_titles == 1
-    assert january_stats.unique_movie_ids == [movie_a.id]
-
-    empty_stats = await repository.get_log_stats(
-        user.id,
-        date_from=date(2024, 3, 1),
-        date_to=date(2024, 3, 31),
-    )
-    assert empty_stats == LogStats()
