@@ -12,6 +12,7 @@ from app.dependencies.repository_dependency import (
     get_log_repository,
     get_movie_rating_repository,
     get_movie_repository,
+    get_stats_repository,
     get_user_repository,
 )
 from app.repository.log_cache_repository import LogCacheRepository
@@ -70,7 +71,5 @@ def get_log_service() -> LogService:
 @lru_cache
 def get_stats_service() -> StatsService:
     return StatsService(
-        log_repository=_get_runtime_log_repository(),
-        movie_rating_repository=get_movie_rating_repository(),
-        movie_repository=get_movie_repository(),
+        stats_repository=get_stats_repository(),
     )

@@ -6,12 +6,11 @@ from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, distinct, func, select
+from sqlalchemy import ColumnElement, select
 
 from app.models.log_model import Log
 from app.repository.repository_base import RepositoryBase
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
-from app.schemas.stats_schemas import LogDistributionEntry, LogStats
 from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
 
 
@@ -156,63 +155,3 @@ class LogRepository(RepositoryBase):
             await session.delete(log)
             await session.commit()
             return log
-
-    async def get_log_stats(
-        self,
-        user_id: UUID,
-        date_from: date | None = None,
-        date_to: date | None = None,
-    ) -> LogStats:
-        """Compute active log statistics for a user."""
-
-        filters = [
-            Log.user_id == user_id,
-            Log.active(),
-        ]
-        if date_from is not None:
-            filters.append(Log.date_watched >= date_start_utc(date_from))
-        if date_to is not None:
-            filters.append(Log.date_watched <= date_end_utc(date_to))
-
-        filtered = (
-            select(
-                Log.id,
-                Log.movie_id,
-                Log.watched_where,
-            )
-            .where(*filters)
-            .cte("filtered_logs")
-        )
-
-        async with self._session_provider() as session:
-            summary_result = await session.execute(
-                select(
-                    func.count(filtered.c.id),
-                    func.count(distinct(filtered.c.movie_id)),
-                    func.array_agg(distinct(filtered.c.movie_id)),
-                )
-            )
-            total_watches, unique_titles, unique_movie_ids = summary_result.one()
-
-            if int(total_watches or 0) == 0:
-                return LogStats()
-
-            distribution_result = await session.execute(
-                select(
-                    filtered.c.watched_where,
-                    func.count(filtered.c.id),
-                )
-                .group_by(filtered.c.watched_where)
-                .order_by(filtered.c.watched_where.asc())
-            )
-            distribution = [
-                LogDistributionEntry(watched_where=watched_where, count=count)
-                for watched_where, count in distribution_result.all()
-            ]
-
-            return LogStats(
-                total_watches=int(total_watches or 0),
-                unique_titles=int(unique_titles or 0),
-                unique_movie_ids=list(unique_movie_ids or []),
-                distribution=distribution,
-            )

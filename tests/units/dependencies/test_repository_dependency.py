@@ -4,11 +4,13 @@ from app.dependencies.repository_dependency import (
     get_log_repository,
     get_movie_rating_repository,
     get_movie_repository,
+    get_stats_repository,
     get_user_repository,
 )
 from app.repository.log_repository import LogRepository
 from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_repository import MovieRepository
+from app.repository.stats_repository import StatsRepository
 from app.repository.user_repository import UserRepository
 
 
@@ -17,11 +19,13 @@ def clear_repository_caches():
     get_log_repository.cache_clear()
     get_movie_rating_repository.cache_clear()
     get_movie_repository.cache_clear()
+    get_stats_repository.cache_clear()
     get_user_repository.cache_clear()
     yield
     get_log_repository.cache_clear()
     get_movie_rating_repository.cache_clear()
     get_movie_repository.cache_clear()
+    get_stats_repository.cache_clear()
     get_user_repository.cache_clear()
 
 
@@ -51,3 +55,10 @@ def test_get_user_repository_returns_postgres_repository():
 
     assert isinstance(repository, UserRepository)
     assert get_user_repository() is repository
+
+
+def test_get_stats_repository_returns_postgres_repository():
+    repository = get_stats_repository()
+
+    assert isinstance(repository, StatsRepository)
+    assert get_stats_repository() is repository

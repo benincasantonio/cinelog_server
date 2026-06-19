@@ -10,7 +10,6 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.models.movie_rating_model import MovieRating
 from app.repository.repository_base import RepositoryBase
-from app.schemas.movie_rating_schemas import MovieRatingStats
 
 
 class MovieRatingRepository(RepositoryBase):
@@ -110,31 +109,3 @@ class MovieRatingRepository(RepositoryBase):
             )
             result = await session.execute(statement)
             return list(result.scalars().all())
-
-    async def get_user_movie_ratings_average(
-        self,
-        user_id: UUID,
-        movie_ids: Iterable[UUID],
-    ) -> MovieRatingStats:
-        """Compute average movie rating and count for the user's active ratings."""
-
-        movie_ids = list(movie_ids)
-        if not movie_ids:
-            return MovieRatingStats(average_rating=0.0, total_ratings=0)
-
-        async with self._session_provider() as session:
-            statement = select(
-                func.avg(MovieRating.rating),
-                func.count(MovieRating.id),
-            ).where(
-                MovieRating.user_id == user_id,
-                MovieRating.movie_id.in_(movie_ids),
-                MovieRating.active(),
-                MovieRating.rating.is_not(None),
-            )
-            result = await session.execute(statement)
-            average_rating, total_ratings = result.one()
-            return MovieRatingStats(
-                average_rating=float(average_rating or 0.0),
-                total_ratings=int(total_ratings or 0),
-            )

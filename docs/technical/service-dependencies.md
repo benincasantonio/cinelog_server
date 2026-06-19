@@ -11,7 +11,7 @@ Controllers receive services through FastAPI `Depends(...)`.
 
 ## Repository Providers
 
-`get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, and `get_log_repository()` return the PostgreSQL repository implementations (`MovieRepository`, `UserRepository`, `MovieRatingRepository`, `LogRepository`). Services type-hint against the `*RepositoryProtocol` interfaces in `app/repository/`.
+`get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, `get_log_repository()`, and `get_stats_repository()` return PostgreSQL repository implementations. `StatsRepository` is a cross-table read repository and does not correspond to a database table. Services type-hint against the `*RepositoryProtocol` interfaces in `app/repository/`.
 
 ## Service Providers
 
@@ -23,7 +23,7 @@ Controllers receive services through FastAPI `Depends(...)`.
 | `get_movie_service()` | `MovieService` |
 | `get_movie_rating_service()` | `MovieRatingService` |
 | `get_log_service()` | `LogService` (wraps the log repository with `LogCacheRepository`) |
-| `get_stats_service()` | `StatsService` (wraps the log repository with `LogCacheRepository`) |
+| `get_stats_service()` | `StatsService` with `StatsRepository`; response caching is composed through `StatsCacheService` |
 
 ## Endpoint Usage
 
@@ -88,4 +88,5 @@ def test_create_then_list(client):
 
 - [Redis Caching](redis-caching.md)
 - [TMDB Service](tmdb-service.md)
+- [Statistics Query](stats-query.md)
 - [Postgres Migration](postgres-migration.md)

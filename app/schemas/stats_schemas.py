@@ -1,5 +1,4 @@
-from typing import Literal
-from uuid import UUID
+from pydantic import ConfigDict, Field
 
 from app.schemas.base_schemas import BaseSchema
 
@@ -34,8 +33,7 @@ class StatsRequest(BaseSchema):
     year_from: int | None = None
     year_to: int | None = None
 
-    class Config:
-        schema_extra = {"example": {"year_from": 2020, "year_to": 2023}}
+    model_config = ConfigDict(json_schema_extra={"example": {"yearFrom": 2020, "yearTo": 2023}})
 
 
 class StatsResponse(BaseSchema):
@@ -44,13 +42,13 @@ class StatsResponse(BaseSchema):
     pace: StatsPace
 
 
-class LogDistributionEntry(BaseSchema):
-    watched_where: Literal["cinema", "streaming", "homeVideo", "tv", "other"] | None = None
-    count: int = 0
+class UserStatsAggregate(BaseSchema):
+    """Internal cross-table aggregate returned by the stats repository."""
 
-
-class LogStats(BaseSchema):
     total_watches: int = 0
     unique_titles: int = 0
-    unique_movie_ids: list[UUID] = []
-    distribution: list[LogDistributionEntry] = []
+    total_minutes: int = 0
+    vote_average: float | None = None
+    by_method: StatsByMethod = Field(
+        default_factory=lambda: StatsByMethod(cinema=0, streaming=0, home_video=0, tv=0, other=0)
+    )

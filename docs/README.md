@@ -12,6 +12,7 @@ User-facing documentation covering features, flows, and API usage from the consu
 | [Logs API](functional/logs-api.md) | Create, update, delete, and list viewing logs |
 | [Profile Visibility](functional/profile-visibility.md) | User profile visibility settings and public profile lookup |
 | [Rate Limiting](functional/rate-limiting.md) | Rate limits per endpoint, response headers, and 429 behavior |
+| [User Statistics API](functional/stats-api.md) | Viewing summary, distribution, ratings, and year filters |
 | [TMDB Movie Service](functional/tmdb-service.md) | Movie search and details endpoints, data flow, response fields |
 
 ## Technical Docs
@@ -32,6 +33,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Redis Caching](technical/redis-caching.md) | Cache layer configuration, design, and usage |
 | [Service Dependencies](technical/service-dependencies.md) | Service providers, FastAPI `Depends` wiring, test overrides |
 | [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
+| [Statistics Query](technical/stats-query.md) | PostgreSQL cross-table stats aggregation and semantics |
 | [TMDB Service](technical/tmdb-service.md) | Singleton lifecycle, HTTP client, cache keys, MovieService integration |
 | [Validation Error Sanitization](technical/validation-error-sanitization.md) | Why 422 responses never echo submitted request values |
 

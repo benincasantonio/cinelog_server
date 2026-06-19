@@ -4,7 +4,9 @@ This document covers the stats caching strategy implemented via `StatsCacheServi
 
 ## Overview
 
-User stats are expensive to compute — they aggregate data across logs and movie ratings. `StatsCacheService` wraps the low-level `CacheService` singleton to provide a domain-specific caching layer for stats, with automatic invalidation when underlying data changes.
+User stats aggregate logs, movies, and movie ratings. `StatsCacheService` wraps the low-level `CacheService` singleton to provide a domain-specific caching layer for the final `StatsResponse`, with automatic invalidation when underlying data changes.
+
+Caching remains at the service layer. `StatsRepository` is SQL-only and does not depend on Redis.
 
 ## Configuration
 
@@ -33,7 +35,8 @@ Each combination of user and year filters produces a unique cache entry.
 
 1. `StatsCacheService.get_stats()` checks Redis for a cached entry
 2. On **hit**: returns the cached `StatsResponse` — no database queries needed
-3. On **miss**: stats are computed from the database, then stored via `StatsCacheService.set_stats()`
+3. On **miss**: `StatsRepository` computes the cross-table aggregate with one PostgreSQL statement
+4. `StatsService` builds the final response and stores it via `StatsCacheService.set_stats()`
 
 ### Write path (invalidation)
 
@@ -55,3 +58,8 @@ Redis is required at application startup. `StatsCacheService` uses the shared `C
 - If Redis is unreachable during startup, the application fails fast.
 - If Redis becomes unavailable at runtime, Redis errors propagate from `StatsCacheService`.
 - Stats are computed from PostgreSQL only on cache misses, not as a fallback for Redis errors.
+
+## See Also
+
+- [User Statistics API](../functional/stats-api.md)
+- [Statistics Query Implementation](stats-query.md)

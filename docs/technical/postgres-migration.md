@@ -310,19 +310,9 @@ Unlike the other migrated repositories, logs preserve their current hard-delete 
 
 ### Stats aggregation port
 
-`PostgresLogRepository.get_log_stats(...)` preserves the current Mongo response shape:
+The migration initially preserved the Mongo aggregation shape in `LogRepository`, including a distinct movie-ID handoff to separate movie and rating queries.
 
-- `total_watches`
-- `unique_titles`
-- `unique_movie_ids`
-- `distribution`
-
-Implementation uses a shared filtered CTE and two PostgreSQL aggregation queries:
-
-- summary query: `COUNT(*)`, `COUNT(DISTINCT movie_id)`, `array_agg(DISTINCT movie_id)`
-- distribution query: `GROUP BY watched_where`
-
-`LogStats.unique_movie_ids` is widened during the migration window so it can safely carry Mongo `PydanticObjectId` values today and PostgreSQL UUIDs after cutover.
+After MongoDB removal, issue #191 replaced that compatibility flow with a dedicated SQL-only `StatsRepository`. The current implementation aggregates logs, movie runtime, ratings, and viewing-method distribution in one PostgreSQL statement. See [Statistics Query Implementation](stats-query.md).
 
 ### Data migration script
 

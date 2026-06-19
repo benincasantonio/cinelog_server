@@ -9,7 +9,6 @@ from app.repository.log_repository import LogRepository
 from app.repository.log_repository_protocol import LogRepositoryProtocol
 from app.schemas.cache_schemas import CachedLog
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
-from app.schemas.stats_schemas import LogStats
 from app.services.cache_service import CacheService
 
 logger = logging.getLogger(__name__)
@@ -229,11 +228,3 @@ class LogCacheRepository:
 
         await self._invalidate_log(deleted_log)
         return deleted_log
-
-    async def get_log_stats(
-        self,
-        user_id: UUID,
-        date_from: date | None = None,
-        date_to: date | None = None,
-    ) -> LogStats:
-        return await self.repository.get_log_stats(user_id, date_from=date_from, date_to=date_to)
