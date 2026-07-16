@@ -95,8 +95,8 @@ class TestGetVisibleProfile:
         assert result.handle == "johndoe"
 
     @pytest.mark.asyncio
-    async def test_friends_only_profile_hides_date_of_birth(self, user_service, mock_user_repository):
-        mock_user = create_mock_user(handle="johndoe", profile_visibility="friends_only")
+    async def test_followers_only_profile_hides_date_of_birth(self, user_service, mock_user_repository):
+        mock_user = create_mock_user(handle="johndoe", profile_visibility="followers_only")
         mock_user_repository.find_user_by_handle.return_value = mock_user
 
         result = await user_service.get_visible_profile(handle="johndoe", requester_id="other_user")

@@ -80,6 +80,18 @@ make db-schema-rollback
 
 Alembic is the only migration system. The Mongo→Postgres data migration targets (`db-data-migrate`, `migrate-all`, `postgres-migrate-all`, and their dry-run variants) were removed with the migration tooling once the production data migration completed.
 
+### Alembic migration test harness
+
+Migration tests use the shared `alembic_test_harness` pytest fixture from `tests/units/db/conftest.py`. The fixture provisions a unique PostgreSQL database with `pytest-postgresql`, points Alembic at that database, and removes it after the test.
+
+The `AlembicTestHarness` interface provides:
+
+- `upgrade(revision="head")` to run real Alembic upgrades
+- `downgrade(revision)` to test rollback behavior
+- `connect()` to seed legacy rows and inspect data or constraints with direct SQL
+
+A migration test should upgrade to the preceding revision, seed the old database shape, upgrade to the revision under test, and verify both data and schema behavior. Reversible migrations should also be downgraded and verified. Tests using this fixture remain part of `make test-unit` because they live under `tests/units/`.
+
 ## Production Compose Migration
 
 `docker-compose.prod.yml` includes a one-shot `db-migrate` service that runs before the API starts:

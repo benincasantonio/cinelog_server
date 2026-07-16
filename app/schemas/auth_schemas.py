@@ -18,7 +18,7 @@ class RegisterRequest(BaseSchema):
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
     profile_visibility: ProfileVisibilityStr = Field(
         default="private",
-        description="Profile visibility setting (public, friends_only, private)",
+        description="Profile visibility setting (public, followers_only, private)",
     )
     verification_code: str | None = Field(
         None,
@@ -47,7 +47,10 @@ class RegisterResponse(BaseSchema):
     email: EmailStr = Field(..., description="User's email address")
     handle: str = Field(..., description="User's unique handle")
     bio: str | None = Field(None, description="User biography")
-    profile_visibility: ProfileVisibilityStr = Field(..., description="Profile visibility setting")
+    profile_visibility: ProfileVisibilityStr = Field(
+        ...,
+        description="Profile visibility setting (public, followers_only, private)",
+    )
 
 
 class LoginRequest(BaseSchema):

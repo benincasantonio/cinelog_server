@@ -27,7 +27,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup and the completed MongoDB → PostgreSQL migration |
-| [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and friends-only stub |
+| [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and followers-only authorization stub |
 | [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |
 | [Rate Limiting](technical/rate-limiting.md) | slowapi setup, Redis backend, endpoint decoration, test strategy |
 | [Redis Caching](technical/redis-caching.md) | Cache layer configuration, design, and usage |

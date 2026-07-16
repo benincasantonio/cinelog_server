@@ -7,7 +7,7 @@ Users can control who sees their profile and movie logs through a visibility set
 | Level | Profile Info | Movie Logs |
 |---|---|---|
 | `public` | Full (name, handle, bio, date of birth) | Accessible to all authenticated users |
-| `friends_only` | Basic (name, handle, bio) — date of birth hidden | Hidden (same as private until friends system is built) |
+| `followers_only` | Basic (name, handle, bio) — date of birth hidden | Hidden (same as private until follower authorization is built) |
 | `private` | Basic (name, handle, bio) — date of birth hidden | Hidden |
 
 **Note:** Email and password are never exposed to other users.
@@ -29,7 +29,7 @@ POST /v1/auth/register
   "password": "securepassword123",
   "handle": "johndoe",
   "dateOfBirth": "1990-01-01",
-  "profileVisibility": "public"
+  "profileVisibility": "followers_only"
 }
 ```
 
@@ -40,9 +40,17 @@ Update visibility via the profile settings endpoint:
 ```json
 PUT /v1/users/settings/profile
 {
-  "profileVisibility": "private"
+  "profileVisibility": "followers_only"
 }
 ```
+
+## Coordinated Release
+
+`followers_only` is a breaking replacement for `friends_only`; clients must not send the old value after this backend revision is deployed. Backend issue #195 and [cinelog_web#70](https://github.com/benincasantonio/cinelog_web/issues/70) therefore ship as one coordinated release.
+
+Deploy the backend first so its automatic database migration completes, then deploy the matching frontend immediately afterward. If registration or profile settings must remain available without any temporary client/server mismatch, place those writes in a short maintenance or read-only window during the deployment.
+
+Rollback also requires a maintenance window and coordinated old backend/frontend deployment. Operators must downgrade the database with the new backend image before restoring the old images; see the technical guide for the exact commands.
 
 ## Viewing Other Users' Profiles
 
@@ -60,7 +68,7 @@ Returns a `UserProfileResponse` based on the target user's visibility setting. A
 GET /v1/logs/{handle}
 ```
 
-Returns the user's movie logs if their profile is public or the requester is the profile owner. Returns **403** (`PROFILE_NOT_PUBLIC`) for private/friends-only profiles.
+Returns the user's movie logs if their profile is public or the requester is the profile owner. Returns **403** (`PROFILE_NOT_PUBLIC`) for private/followers-only profiles.
 
 ### Error Responses
 

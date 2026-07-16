@@ -286,7 +286,7 @@ async def test_update_user_profile_only_changes_whitelisted_fields(
             "first_name": "Jane",
             "last_name": "Smith",
             "bio": "New bio",
-            "profile_visibility": "public",
+            "profile_visibility": "followers_only",
             "date_of_birth": date(1991, 2, 3),
             "email": "ignored@example.com",
         },
@@ -296,7 +296,7 @@ async def test_update_user_profile_only_changes_whitelisted_fields(
     assert updated.first_name == "Jane"
     assert updated.last_name == "Smith"
     assert updated.bio == "New bio"
-    assert updated.profile_visibility == "public"
+    assert updated.profile_visibility == "followers_only"
     assert updated.date_of_birth == date(1991, 2, 3)
 
     persisted = await seed_session.get(User, user.id)
@@ -305,14 +305,17 @@ async def test_update_user_profile_only_changes_whitelisted_fields(
 
 
 @pytest.mark.asyncio
-async def test_profile_visibility_check_constraint_rejects_invalid_value(seed_session: AsyncSession):
+@pytest.mark.parametrize("profile_visibility", ["friends_only", "hidden"])
+async def test_profile_visibility_check_constraint_rejects_invalid_value(
+    seed_session: AsyncSession, profile_visibility: str
+):
     invalid_user = User(
         email="invalid-visibility@example.com",
         handle="invalidvisibility",
         first_name="Invalid",
         last_name="Visibility",
         date_of_birth=date(1990, 1, 1),
-        profile_visibility="hidden",
+        profile_visibility=profile_visibility,
     )
 
     seed_session.add(invalid_user)

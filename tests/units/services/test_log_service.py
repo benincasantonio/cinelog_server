@@ -444,8 +444,8 @@ class TestGetUserLogsByHandle:
         assert exc_info.value.error.error_code == ErrorCodes.PROFILE_NOT_PUBLIC.error_code
 
     @pytest.mark.asyncio
-    async def test_friends_only_profile_blocks_access(self, log_service, mock_user_repository):
-        mock_user = self._create_mock_user(user_id="user456", handle="johndoe", profile_visibility="friends_only")
+    async def test_followers_only_profile_blocks_access(self, log_service, mock_user_repository):
+        mock_user = self._create_mock_user(user_id="user456", handle="johndoe", profile_visibility="followers_only")
         mock_user_repository.find_user_by_handle.return_value = mock_user
 
         request = LogListRequest()

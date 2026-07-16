@@ -9,7 +9,7 @@ Types:
     NameStr              — required name field (1–50 chars, validated characters)
     HandleStr            — required handle field (3–20 chars, alphanumeric + underscore)
     BioStr               — optional bio field (None or up to 500 chars, HTML stripped)
-    ProfileVisibilityStr — required profile visibility ("public", "friends_only", "private")
+    ProfileVisibilityStr — required profile visibility ("public", "followers_only", "private")
 """
 
 from typing import Annotated
@@ -18,7 +18,7 @@ from pydantic import AfterValidator, StringConstraints
 
 from app.utils.sanitize_utils import HANDLE_PATTERN, NAME_PATTERN, strip_html_tags
 
-PROFILE_VISIBILITY_CHOICES = ("public", "friends_only", "private")
+PROFILE_VISIBILITY_CHOICES = ("public", "followers_only", "private")
 
 
 def validate_name(v: str) -> str:

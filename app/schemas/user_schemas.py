@@ -21,7 +21,7 @@ class UserCreateRequest(BaseSchema):
     password_hash: str | None = Field(None, description="Hashed password for local auth")
     profile_visibility: ProfileVisibilityStr = Field(
         default="private",
-        description="Profile visibility setting (public, friends_only, private)",
+        description="Profile visibility setting (public, followers_only, private)",
     )
 
 
@@ -33,7 +33,10 @@ class UserCreateResponse(BaseSchema):
     handle: str
     bio: str | None = None
     date_of_birth: date
-    profile_visibility: ProfileVisibilityStr = Field(..., description="Profile visibility setting")
+    profile_visibility: ProfileVisibilityStr = Field(
+        ...,
+        description="Profile visibility setting (public, followers_only, private)",
+    )
 
 
 class UserResponse(BaseSchema):
@@ -44,7 +47,10 @@ class UserResponse(BaseSchema):
     handle: str
     bio: str | None = None
     date_of_birth: date | None = None
-    profile_visibility: ProfileVisibilityStr = Field(..., description="Profile visibility setting")
+    profile_visibility: ProfileVisibilityStr = Field(
+        ...,
+        description="Profile visibility setting (public, followers_only, private)",
+    )
 
 
 class UpdateProfileRequest(BaseSchema):
@@ -53,7 +59,7 @@ class UpdateProfileRequest(BaseSchema):
     bio: BioStr = Field(None, description="User biography")
     date_of_birth: date | None = Field(None, description="Date of birth in YYYY-MM-DD format")
     profile_visibility: ProfileVisibilityStr | None = Field(
-        None, description="Profile visibility setting (public, friends_only, private)"
+        None, description="Profile visibility setting (public, followers_only, private)"
     )
 
 
@@ -62,7 +68,10 @@ class UserProfileResponse(BaseSchema):
     last_name: str = Field(..., description="User's last name")
     handle: str = Field(..., description="User's unique handle")
     bio: str | None = Field(None, description="User biography")
-    profile_visibility: ProfileVisibilityStr = Field(..., description="Profile visibility setting")
+    profile_visibility: ProfileVisibilityStr = Field(
+        ...,
+        description="Profile visibility setting (public, followers_only, private)",
+    )
     date_of_birth: date | None = Field(
         None,
         description="Date of birth (visible on public profiles or to the profile owner)",

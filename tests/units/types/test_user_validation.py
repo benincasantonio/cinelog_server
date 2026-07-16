@@ -17,9 +17,17 @@ class TestProfileVisibilityValidation:
         model = ProfileVisibilityModel(visibility="private")
         assert model.visibility == "private"
 
-    def test_valid_friends_only(self):
-        model = ProfileVisibilityModel(visibility="friends_only")
-        assert model.visibility == "friends_only"
+    def test_valid_followers_only(self):
+        model = ProfileVisibilityModel(visibility="followers_only")
+        assert model.visibility == "followers_only"
+
+    def test_followers_only_is_normalized(self):
+        model = ProfileVisibilityModel(visibility=" FOLLOWERS_ONLY ")
+        assert model.visibility == "followers_only"
+
+    def test_friends_only_is_rejected(self):
+        with pytest.raises(ValidationError):
+            ProfileVisibilityModel(visibility="friends_only")
 
     def test_valid_uppercase_normalized(self):
         model = ProfileVisibilityModel(visibility="PUBLIC")
