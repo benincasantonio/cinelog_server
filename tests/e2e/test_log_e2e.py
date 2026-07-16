@@ -608,34 +608,35 @@ class TestLogE2E:
         response = await async_client.delete("/v1/logs/00000000-0000-4000-8000-000000000000")
         assert response.status_code in [401, 403]
 
-    async def test_friends_only_profile_other_user_logs(self, async_client):
-        """Test that a friends-only profile's logs are not accessible by a non-friend."""
-        # Create User A with friends_only profile (no login needed)
+    async def test_followers_only_profile_other_user_logs(self, async_client):
+        """Test that a followers-only profile's logs are not accessible by another user."""
+        # Create User A with followers_only profile (no login needed)
         user_a = {
-            "email": "usera_friends_only@example.com",
+            "email": "usera_followers_only@example.com",
             "password": "securepassword123",
             "firstName": "UserA",
             "lastName": "Test",
-            "handle": "userafriendsonly",
+            "handle": "userafollowersonly",
             "dateOfBirth": "1990-01-01",
-            "profile_visibility": "friends_only",
+            "profileVisibility": "followers_only",
         }
         user_not_logged = await register(async_client, user_a)
         handle_user_not_logged = user_not_logged["handle"]
-        assert handle_user_not_logged == "userafriendsonly"
+        assert handle_user_not_logged == "userafollowersonly"
+        assert user_not_logged["profileVisibility"] == "followers_only"
 
         # Create User B and login
         user_b = {
-            "email": "userb_friends_only@example.com",
+            "email": "userb_followers_only@example.com",
             "password": "securepassword123",
             "firstName": "UserB",
             "lastName": "Test",
-            "handle": "userbfriendsonly",
+            "handle": "userbfollowersonly",
             "dateOfBirth": "1990-01-01",
-            "profile_visibility": "friends_only",
+            "profileVisibility": "followers_only",
         }
         login_b = await register_and_login(async_client, user_b)
-        assert login_b["handle"] == "userbfriendsonly"
+        assert login_b["handle"] == "userbfollowersonly"
 
         response = await async_client.get(f"/v1/logs/{handle_user_not_logged}")
 

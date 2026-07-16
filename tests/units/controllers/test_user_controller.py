@@ -79,8 +79,8 @@ class TestGetVisibleProfile:
             last_name="Doe",
             handle="johndoe",
             bio="A bio",
-            profile_visibility="public",
-            date_of_birth=date(1990, 1, 1),
+            profile_visibility="followers_only",
+            date_of_birth=None,
         )
 
         response = client.get(
@@ -94,7 +94,7 @@ class TestGetVisibleProfile:
         data = response.json()
         assert data["firstName"] == "John"
         assert data["handle"] == "johndoe"
-        assert data["profileVisibility"] == "public"
+        assert data["profileVisibility"] == "followers_only"
         mock_get_visible_profile.assert_awaited_once_with(handle="johndoe", requester_id="user123")
 
     def test_get_visible_profile_unauthorized(self, client):
@@ -163,12 +163,12 @@ class TestUpdateProfileController:
             handle="johndoe",
             bio=None,
             date_of_birth=date(1990, 1, 1),
-            profile_visibility="public",
+            profile_visibility="followers_only",
         )
 
         response = client.put(
             "/v1/users/settings/profile",
-            json={"profileVisibility": "public"},
+            json={"profileVisibility": " FOLLOWERS_ONLY "},
             cookies={
                 "__Host-access_token": "token",
                 "__Host-csrf_token": "test-token",
@@ -180,7 +180,9 @@ class TestUpdateProfileController:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["profileVisibility"] == "public"
+        assert data["profileVisibility"] == "followers_only"
+        request = mock_update_profile.await_args.args[1]
+        assert request.profile_visibility == "followers_only"
 
     def test_update_profile_unauthorized(self, client):
         app.dependency_overrides = {}
@@ -228,6 +230,7 @@ class TestUpdateProfileController:
         app.dependency_overrides = {}
 
         assert response.status_code == 422
+        mock_update_profile.assert_not_awaited()
 
     @patch.object(get_user_service(), "update_profile", new_callable=AsyncMock)
     def test_update_profile_invalid_visibility(self, mock_update_profile, client, override_auth):
@@ -235,7 +238,7 @@ class TestUpdateProfileController:
 
         response = client.put(
             "/v1/users/settings/profile",
-            json={"profileVisibility": "hidden"},
+            json={"profileVisibility": "friends_only"},
             cookies={
                 "__Host-access_token": "token",
                 "__Host-csrf_token": "test-token",
@@ -246,6 +249,7 @@ class TestUpdateProfileController:
         app.dependency_overrides = {}
 
         assert response.status_code == 422
+        mock_update_profile.assert_not_awaited()
 
 
 class TestChangePasswordController:

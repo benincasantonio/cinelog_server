@@ -59,7 +59,7 @@ class TestAuthController:
             handle="johndoe",
             bio=None,
             user_id="user123",
-            profile_visibility="private",
+            profile_visibility="followers_only",
         )
 
         response = client.post(
@@ -71,7 +71,7 @@ class TestAuthController:
                 "lastName": "Doe",
                 "handle": "johndoe",
                 "dateOfBirth": "1990-01-01",
-                "profileVisibility": "private",
+                "profileVisibility": " FOLLOWERS_ONLY ",
                 "verificationCode": "ABC123",
             },
         )
@@ -81,7 +81,9 @@ class TestAuthController:
         assert data["email"] == "test@example.com"
         assert data["firstName"] == "John"
         assert data["handle"] == "johndoe"
-        mock_register.assert_called_once()
+        assert data["profileVisibility"] == "followers_only"
+        request = mock_register.await_args.kwargs["request"]
+        assert request.profile_visibility == "followers_only"
 
     @patch.object(get_auth_service(), "register", new_callable=AsyncMock)
     def test_register_with_exception(self, mock_register, client):

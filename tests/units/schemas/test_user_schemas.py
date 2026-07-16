@@ -18,14 +18,26 @@ def test_user_create_request_rejects_invalid_profile_visibility():
         )
 
 
-def test_user_create_request_normalizes_profile_visibility():
+def test_user_create_request_normalizes_followers_only_profile_visibility():
     request = UserCreateRequest(
         first_name="John",
         last_name="Doe",
         email="john@example.com",
         handle="johndoe",
         date_of_birth=date(1990, 1, 1),
-        profile_visibility=" PUBLIC ",
+        profile_visibility=" FOLLOWERS_ONLY ",
     )
 
-    assert request.profile_visibility == "public"
+    assert request.profile_visibility == "followers_only"
+
+
+def test_user_create_request_rejects_friends_only_profile_visibility():
+    with pytest.raises(ValidationError):
+        UserCreateRequest(
+            first_name="John",
+            last_name="Doe",
+            email="john@example.com",
+            handle="johndoe",
+            date_of_birth=date(1990, 1, 1),
+            profile_visibility="friends_only",
+        )
