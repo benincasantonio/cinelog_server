@@ -10,6 +10,7 @@ import app.controllers.auth_controller as auth_controller
 import app.controllers.log_controller as log_controller
 import app.controllers.movie_controller as movie_controller
 import app.controllers.movie_rating_controller as movie_rating_controller
+import app.controllers.notification_controller as notification_controller
 import app.controllers.stats_controller as stats_controller
 import app.controllers.user_controller as user_controller
 from app.config.cors import get_cors_config
@@ -90,6 +91,7 @@ app.include_router(log_controller.router, prefix="/v1/logs", tags=["Logs"])
 app.include_router(user_controller.router, prefix="/v1/users", tags=["Users"])
 app.include_router(movie_rating_controller.router, prefix="/v1/movie-ratings", tags=["Movie Ratings"])
 app.include_router(stats_controller.router, prefix="/v1/stats", tags=["Stats"])
+app.include_router(notification_controller.router, prefix="/v1/notifications", tags=["Notifications"])
 
 
 def create_app():

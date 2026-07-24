@@ -12,6 +12,7 @@ from app.dependencies.repository_dependency import (
     get_log_repository,
     get_movie_rating_repository,
     get_movie_repository,
+    get_notification_repository,
     get_stats_repository,
     get_user_repository,
 )
@@ -21,6 +22,7 @@ from app.services.auth_service import AuthService
 from app.services.log_service import LogService
 from app.services.movie_rating_service import MovieRatingService
 from app.services.movie_service import MovieService
+from app.services.notification_service import NotificationService
 from app.services.stats_service import StatsService
 from app.services.user_service import UserService
 
@@ -66,6 +68,11 @@ def get_log_service() -> LogService:
         movie_rating_repository=get_movie_rating_repository(),
         user_repository=get_user_repository(),
     )
+
+
+@lru_cache
+def get_notification_service() -> NotificationService:
+    return NotificationService(repository=get_notification_repository())
 
 
 @lru_cache

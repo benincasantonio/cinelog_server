@@ -21,10 +21,15 @@ from fastapi.testclient import TestClient
 import app.config.rate_limiter as rate_limiter_module
 from app import app
 from app.dependencies.auth_dependency import auth_dependency
-from app.dependencies.service_dependency import get_auth_service, get_log_service
+from app.dependencies.service_dependency import (
+    get_auth_service,
+    get_log_service,
+    get_notification_service,
+)
 from app.schemas.auth_schemas import RegisterResponse
 from app.schemas.log_schemas import LogCreateResponse
 from app.schemas.movie_schemas import MovieResponse
+from app.schemas.notification_schemas import MarkAllNotificationsReadResponse
 from app.schemas.tmdb_schemas import TMDBMovieSearchResult
 from app.services.auth_rate_limit_service import (
     AuthRateLimitService,
@@ -160,6 +165,16 @@ class TestRateLimitDecoratorsApplied:
         key = "app.controllers.log_controller.update_log"
         assert key in rate_limiter_module.limiter._route_limits, (
             "update_log endpoint must have @limiter.limit() decorator"
+        )
+
+    @pytest.mark.parametrize(
+        "endpoint",
+        ["list_notifications", "mark_notification_read", "mark_all_notifications_read"],
+    )
+    def test_notification_endpoints_have_rate_limits(self, endpoint: str):
+        key = f"app.controllers.notification_controller.{endpoint}"
+        assert key in rate_limiter_module.limiter._route_limits, (
+            f"{endpoint} endpoint must have @limiter.limit() decorator"
         )
 
 
@@ -1090,6 +1105,48 @@ class TestUpdateLogRateLimit:
                 json=self.LOG_UPDATE_PAYLOAD,
                 headers={"X-CSRF-Token": "test-token"},
             )
+            assert_429_response(response)
+        finally:
+            client.cookies.clear()
+            app.dependency_overrides = {}
+
+
+class TestMarkAllNotificationsReadRateLimit:
+    """Verify POST /v1/notifications/read-all is limited to 10 requests per minute."""
+
+    @patch.object(get_notification_service(), "mark_all_notifications_read", new_callable=AsyncMock)
+    def test_read_all_allows_requests_within_limit(self, mock_read_all, client, override_auth):
+        """First 10 requests should succeed (200) with rate limit headers."""
+        app.dependency_overrides[auth_dependency] = override_auth
+        client.cookies.set("__Host-access_token", "token")
+        client.cookies.set("__Host-csrf_token", "test-token")
+        mock_read_all.return_value = MarkAllNotificationsReadResponse(updated_count=0, unread_count=0)
+
+        try:
+            for _ in range(10):
+                response = client.post(
+                    "/v1/notifications/read-all",
+                    headers={"X-CSRF-Token": "test-token"},
+                )
+                assert response.status_code == 200
+                assert_rate_limit_headers(response)
+        finally:
+            client.cookies.clear()
+            app.dependency_overrides = {}
+
+    @patch.object(get_notification_service(), "mark_all_notifications_read", new_callable=AsyncMock)
+    def test_read_all_blocks_request_over_limit(self, mock_read_all, client, override_auth):
+        """11th request should be rate-limited (429) with proper headers and body."""
+        app.dependency_overrides[auth_dependency] = override_auth
+        client.cookies.set("__Host-access_token", "token")
+        client.cookies.set("__Host-csrf_token", "test-token")
+        mock_read_all.return_value = MarkAllNotificationsReadResponse(updated_count=0, unread_count=0)
+
+        try:
+            for _ in range(10):
+                client.post("/v1/notifications/read-all", headers={"X-CSRF-Token": "test-token"})
+
+            response = client.post("/v1/notifications/read-all", headers={"X-CSRF-Token": "test-token"})
             assert_429_response(response)
         finally:
             client.cookies.clear()

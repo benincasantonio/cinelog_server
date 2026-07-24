@@ -4,7 +4,7 @@ This document describes the reusable validation types system in Cinelog, located
 
 ## Overview
 
-The `app/types/` package provides reusable Pydantic `Annotated` types that bundle validation logic with field constraints. This eliminates the need for inline `@field_validator` methods in schema classes and ensures consistent validation across the codebase.
+The `app/types/` package provides reusable Pydantic `Annotated` types that bundle validation logic with field constraints, as well as closed enum types shared across application layers. This eliminates duplicate validation and enum declarations and ensures consistent contracts across the codebase.
 
 ## File Structure
 
@@ -12,6 +12,8 @@ The `app/types/` package provides reusable Pydantic `Annotated` types that bundl
 app/types/
 ├── __init__.py              # Re-exports all public types and functions
 ├── common_validation.py     # Cross-domain validators shared by multiple domains
+├── cursor_pagination_types.py # Reusable typed pagination cursor values
+├── notification_types.py    # Closed notification and action enums
 ├── user_validation.py       # User-related: NameStr, HandleStr, BioStr
 └── log_validation.py        # Log-related: WatchedWhereStr
 ```
@@ -46,6 +48,14 @@ Log-related validators used by `log_schemas`.
 ### common_validation.py
 
 Validators that span multiple domains. Currently empty — as cross-domain needs emerge (e.g., generic text sanitization), they go here.
+
+### notification_types.py
+
+Closed `NotificationType` and `NotificationAction` enums shared by persistence, services, schemas, and API contract tests. This module contains no validators.
+
+### cursor_pagination_types.py
+
+Reusable strongly typed cursor-pagination values shared by repositories and encoding utilities. Serialization and signing remain in `app/utils/cursor_pagination_utils.py`.
 
 ## Usage
 
