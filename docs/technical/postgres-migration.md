@@ -109,6 +109,8 @@ Required production Compose settings:
 | `DATABASE_URL` | External PostgreSQL database URL, required |
 | `JWT_SECRET_KEY` | API auth signing secret |
 | `RATE_LIMIT_HMAC_SECRET` | HMAC secret for account-based rate-limit identifiers |
+| `REGISTRATION_VERIFICATION_HMAC_SECRET` | HMAC secret for registration verification codes and keys |
+| `CURSOR_PAGINATION_HMAC_SECRET` | Dedicated HMAC secret for opaque pagination cursors |
 | `TMDB_API_KEY` | TMDB API key |
 
 Start production Compose after the required variables are present in the host environment or `.env`:

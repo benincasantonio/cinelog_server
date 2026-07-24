@@ -10,6 +10,7 @@ User-facing documentation covering features, flows, and API usage from the consu
 |----------|-------------|
 | [Authentication](functional/authentication.md) | Auth flows, API usage, CSRF guide |
 | [Logs API](functional/logs-api.md) | Create, update, delete, and list viewing logs |
+| [In-App Notifications](functional/notifications.md) | Inbox pagination, unread counts, and explicit read operations |
 | [Profile Visibility](functional/profile-visibility.md) | User profile visibility settings and public profile lookup |
 | [Rate Limiting](functional/rate-limiting.md) | Rate limits per endpoint, response headers, and 429 behavior |
 | [User Statistics API](functional/stats-api.md) | Viewing summary, distribution, ratings, and year filters |
@@ -26,6 +27,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [CORS Configuration](technical/cors-configuration.md) | CORS environment variables and behavior |
 | [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
+| [Notification Architecture](technical/notifications.md) | Typed persistence, service response mapping, deduplication, and extension contract |
 | [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup and the completed MongoDB → PostgreSQL migration |
 | [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and followers-only authorization stub |
 | [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |

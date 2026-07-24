@@ -11,6 +11,7 @@ import os
 os.environ.setdefault("REDIS_URL", "redis://localhost:6380/0")
 os.environ.setdefault("RATE_LIMIT_HMAC_SECRET", "test-rate-limit-hmac-secret")
 os.environ.setdefault("REGISTRATION_VERIFICATION_HMAC_SECRET", "test-registration-verification-hmac-secret")
+os.environ.setdefault("CURSOR_PAGINATION_HMAC_SECRET", "test-cursor-pagination-hmac-secret")
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db"
 
 import asyncio  # noqa: E402
@@ -34,7 +35,7 @@ from app.utils.auth_utils import normalize_email_identifier  # noqa: E402
 # existing environment variables by default.
 load_dotenv()
 
-POSTGRES_TABLES = ("logs", "movie_ratings", "movies", "users")
+POSTGRES_TABLES = ("notifications", "logs", "movie_ratings", "movies", "users")
 
 
 class RegistrationAwareAsyncClient:
@@ -63,6 +64,7 @@ def _clear_dependency_caches() -> None:
         get_log_repository,
         get_movie_rating_repository,
         get_movie_repository,
+        get_notification_repository,
         get_stats_repository,
         get_user_repository,
     )
@@ -71,6 +73,7 @@ def _clear_dependency_caches() -> None:
         get_log_service,
         get_movie_rating_service,
         get_movie_service,
+        get_notification_service,
         get_stats_service,
         get_user_service,
     )
@@ -80,11 +83,13 @@ def _clear_dependency_caches() -> None:
         get_log_service,
         get_movie_rating_service,
         get_movie_service,
+        get_notification_service,
         get_stats_service,
         get_user_service,
         get_log_repository,
         get_movie_rating_repository,
         get_movie_repository,
+        get_notification_repository,
         get_stats_repository,
         get_user_repository,
     ):

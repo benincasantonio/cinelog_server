@@ -8,6 +8,8 @@ from app.repository.movie_rating_repository import MovieRatingRepository
 from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
 from app.repository.movie_repository import MovieRepository
 from app.repository.movie_repository_protocol import MovieRepositoryProtocol
+from app.repository.notification_repository import NotificationRepository
+from app.repository.notification_repository_protocol import NotificationRepositoryProtocol
 from app.repository.stats_repository import StatsRepository
 from app.repository.stats_repository_protocol import StatsRepositoryProtocol
 from app.repository.user_repository import UserRepository
@@ -40,6 +42,13 @@ def get_log_repository() -> LogRepositoryProtocol:
     """Return the active log repository implementation."""
 
     return LogRepository()
+
+
+@lru_cache
+def get_notification_repository() -> NotificationRepositoryProtocol:
+    """Return the PostgreSQL notification repository."""
+
+    return NotificationRepository()
 
 
 @lru_cache

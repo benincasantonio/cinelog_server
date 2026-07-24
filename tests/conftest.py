@@ -7,6 +7,7 @@ import pytest
 os.environ["JWT_SECRET_KEY"] = "test-secret-key"
 os.environ["RATE_LIMIT_HMAC_SECRET"] = "test-rate-limit-hmac-secret"
 os.environ["REGISTRATION_VERIFICATION_HMAC_SECRET"] = "test-registration-verification-hmac-secret"
+os.environ["CURSOR_PAGINATION_HMAC_SECRET"] = "test-cursor-pagination-hmac-secret"
 os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "15"
 os.environ["REFRESH_TOKEN_EXPIRE_DAYS"] = "7"
 
@@ -20,6 +21,7 @@ def mock_env_vars():
             "JWT_SECRET_KEY": "test-secret-key",
             "RATE_LIMIT_HMAC_SECRET": "test-rate-limit-hmac-secret",
             "REGISTRATION_VERIFICATION_HMAC_SECRET": "test-registration-verification-hmac-secret",
+            "CURSOR_PAGINATION_HMAC_SECRET": "test-cursor-pagination-hmac-secret",
             "ACCESS_TOKEN_EXPIRE_MINUTES": "15",
             "REFRESH_TOKEN_EXPIRE_DAYS": "7",
         },

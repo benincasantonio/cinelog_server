@@ -1,3 +1,6 @@
+from app.types.cursor_pagination_types import (
+    TimestampUUIDCursor as TimestampUUIDCursor,
+)
 from app.types.log_validation import (
     WATCHED_WHERE_CHOICES as WATCHED_WHERE_CHOICES,
 )
@@ -6,6 +9,12 @@ from app.types.log_validation import (  # noqa: F401
 )
 from app.types.log_validation import (
     validate_watched_where as validate_watched_where,
+)
+from app.types.notification_types import (
+    NotificationAction as NotificationAction,
+)
+from app.types.notification_types import (
+    NotificationType as NotificationType,
 )
 from app.types.user_validation import (
     PROFILE_VISIBILITY_CHOICES as PROFILE_VISIBILITY_CHOICES,

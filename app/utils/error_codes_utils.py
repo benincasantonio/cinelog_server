@@ -112,6 +112,22 @@ class ErrorCodes:
         error_description="The requested log entry was not found.",
     )
 
+    # Notification Not Found Error
+    NOTIFICATION_NOT_FOUND = ErrorSchema(
+        error_code_name="NOTIFICATION_NOT_FOUND",
+        error_code=404,
+        error_message="Notification not found",
+        error_description="The requested notification was not found.",
+    )
+
+    # Pagination Errors
+    INVALID_PAGINATION_CURSOR = ErrorSchema(
+        error_code_name="INVALID_PAGINATION_CURSOR",
+        error_code=422,
+        error_message="Invalid pagination cursor",
+        error_description="The pagination cursor is malformed, expired, or was issued for another request.",
+    )
+
     # Profile Visibility Errors
     PROFILE_NOT_PUBLIC = ErrorSchema(
         error_code_name="PROFILE_NOT_PUBLIC",

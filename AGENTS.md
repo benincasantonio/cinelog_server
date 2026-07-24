@@ -79,6 +79,7 @@ Required environment variables (see `.env`):
 - `JWT_SECRET_KEY`: Secret key for JWT token generation
 - `RATE_LIMIT_HMAC_SECRET`: Secret key used to HMAC account-based rate-limit identifiers
 - `REGISTRATION_VERIFICATION_HMAC_SECRET`: Secret key used to HMAC registration email-verification codes and keys
+- `CURSOR_PAGINATION_HMAC_SECRET`: Dedicated secret key used to sign opaque pagination cursors
 - `TMDB_API_KEY`: The Movie Database API key
 - `DATABASE_URL`: PostgreSQL connection string (e.g., `postgresql+asyncpg://cinelog:cinelog@localhost:5432/cinelog_db`) — required
 - `REDIS_URL`: Redis connection URL (default: `redis://localhost:6379/0`)

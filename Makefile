@@ -31,6 +31,7 @@ test-e2e:
 		JWT_SECRET_KEY=test-jwt-secret-key-for-e2e-1234567890 \
 		RATE_LIMIT_HMAC_SECRET=test-rate-limit-hmac-secret \
 		REGISTRATION_VERIFICATION_HMAC_SECRET=test-registration-verification-hmac-secret \
+		CURSOR_PAGINATION_HMAC_SECRET=test-cursor-pagination-hmac-secret \
 		DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db \
 		uv run alembic upgrade head; \
 		status=$$?; \
@@ -39,6 +40,7 @@ test-e2e:
 		JWT_SECRET_KEY=test-jwt-secret-key-for-e2e-1234567890 \
 		RATE_LIMIT_HMAC_SECRET=test-rate-limit-hmac-secret \
 		REGISTRATION_VERIFICATION_HMAC_SECRET=test-registration-verification-hmac-secret \
+		CURSOR_PAGINATION_HMAC_SECRET=test-cursor-pagination-hmac-secret \
 		DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db \
 		uv run pytest tests/e2e/ -v; \
 		status=$$?; \
