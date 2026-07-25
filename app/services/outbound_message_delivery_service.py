@@ -10,13 +10,10 @@ import logging
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import timedelta
 
-from app.config.outbound_message_config import (
-    OutboundMessageWorkerConfig,
-    compute_retry_delay,
-    get_outbound_message_worker_config,
-)
+from app.config.outbound_message_config import OutboundMessageWorkerConfig, compute_retry_delay
 from app.repository.outbound_message_repository_protocol import (
     ClaimedMessage,
+    LeaseRenewal,
     OutboundMessageRepositoryProtocol,
     StaleLockRecoveryResult,
 )
@@ -33,12 +30,12 @@ class OutboundMessageDeliveryService:
     def __init__(
         self,
         outbound_message_repository: OutboundMessageRepositoryProtocol,
-        email_service: EmailService | None = None,
-        worker_config: OutboundMessageWorkerConfig | None = None,
+        email_service: EmailService,
+        worker_config: OutboundMessageWorkerConfig,
     ) -> None:
         self.outbound_message_repository = outbound_message_repository
-        self.email_service = email_service or EmailService()
-        self.worker_config = worker_config or get_outbound_message_worker_config()
+        self.email_service = email_service
+        self.worker_config = worker_config
         self._channel_senders: dict[str, Callable[[ClaimedMessage], Awaitable[None]]] = {
             OutboundMessageChannel.EMAIL.value: self._send_email,
         }
@@ -61,7 +58,8 @@ class OutboundMessageDeliveryService:
         with its attempt refunded rather than left locked until the stale sweep.
         """
 
-        await self.fail_expired_messages()
+        await self.cancel_expired_messages()
+        await self.purge_settled_messages()
         await self.recover_stale_locks()
         claimed = await self.outbound_message_repository.claim_pending_messages(
             OutboundMessageChannel.EMAIL,
@@ -69,23 +67,44 @@ class OutboundMessageDeliveryService:
         )
 
         processed = 0
+        started = 0
         try:
             for message in claimed:
                 if shutdown is not None and shutdown.is_set():
                     break
+                # Count the message as started *before* delivery. Once SMTP may have
+                # run, the row must never be released: releasing refunds the attempt, so
+                # a settlement that failed after a successful send would be re-claimed
+                # and re-sent every cycle, unbounded by max_attempts.
+                started += 1
                 await self._deliver(message)
                 processed += 1
         finally:
-            await self._release_unprocessed(claimed[processed:])
+            await self._release_unprocessed(claimed[started:])
         return processed
 
-    async def fail_expired_messages(self) -> int:
+    async def cancel_expired_messages(self) -> int:
         """Retire pending messages whose content expired before it could be sent."""
 
-        retired = await self.outbound_message_repository.fail_expired_messages()
+        retired = await self.outbound_message_repository.cancel_expired_messages()
         if retired:
             logger.info("Retired %d outbound message(s) whose content had expired", retired)
         return retired
+
+    async def purge_settled_messages(self) -> int:
+        """Delete settled rows past their retention window.
+
+        Settled rows still hold a recipient address, so the outbox is pruned on a
+        schedule rather than growing without bound.
+        """
+
+        purged = await self.outbound_message_repository.purge_settled_messages(
+            delivered_retention=timedelta(days=self.worker_config.delivered_retention_days),
+            failed_retention=timedelta(days=self.worker_config.failed_retention_days),
+        )
+        if purged:
+            logger.info("Purged %d settled outbound message(s) past their retention window", purged)
+        return purged
 
     async def _release_unprocessed(self, remaining: Sequence[ClaimedMessage]) -> None:
         if not remaining:
@@ -100,6 +119,17 @@ class OutboundMessageDeliveryService:
         sender = self._channel_senders.get(message.channel)
         if sender is None:
             await self._record_failure(message, ValueError(f"No delivery handler for channel {message.channel!r}"))
+            return
+
+        # Refresh the lease and re-evaluate expiry against the database clock at the
+        # moment of sending: this message may have waited behind earlier sends in the
+        # same serial batch, long enough for its code to expire or its lock to lapse.
+        renewal = await self.outbound_message_repository.renew_lease(message.id, lock_token=message.lock_token)
+        if renewal is LeaseRenewal.EXPIRED:
+            logger.info("Message %s expired while queued; retired without sending", message.id)
+            return
+        if renewal is LeaseRenewal.LOST:
+            logger.warning("Lease for message %s was lost before sending; another attempt owns it", message.id)
             return
 
         try:

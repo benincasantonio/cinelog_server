@@ -6,19 +6,44 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 LOCAL_COMPOSE_FILE = REPO_ROOT / "docker-compose.local.yml"
 
 
+def _service_block(compose: str, service: str) -> str:
+    """Return one service's YAML block, so assertions cannot match a sibling service."""
+
+    lines = compose.splitlines()
+    start = next(index for index, line in enumerate(lines) if line.strip() == f"{service}:")
+    indent = len(lines[start]) - len(lines[start].lstrip(" "))
+    end = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if index > start and line.strip() and (len(line) - len(line.lstrip(" "))) <= indent
+        ),
+        len(lines),
+    )
+    return "\n".join(lines[start:end])
+
+
 def test_local_compose_runs_a_one_shot_db_migrate_service():
     compose = LOCAL_COMPOSE_FILE.read_text()
 
-    assert "db-migrate:" in compose
-    assert 'command: sh -c "uv run alembic upgrade head"' in compose
-    assert 'restart: "no"' in compose
+    db_migrate = _service_block(compose, "db-migrate")
+    assert 'command: sh -c "uv run alembic upgrade head"' in db_migrate
+    assert 'restart: "no"' in db_migrate
+
+
+def test_local_email_worker_has_a_shutdown_grace_period():
+    compose = LOCAL_COMPOSE_FILE.read_text()
+
+    # Docker's default 10s SIGKILL window is shorter than an SMTP timeout plus
+    # settlement, which would strand a row locked until the stale sweep.
+    assert "stop_grace_period: 30s" in _service_block(compose, "email-worker")
 
 
 def test_local_api_no_longer_runs_migrations_inline_and_waits_for_db_migrate():
     compose = LOCAL_COMPOSE_FILE.read_text()
 
     assert "alembic upgrade head && uv run uvicorn" not in compose
-    assert 'command: sh -c "uv run uvicorn app:app' in compose
+    assert 'command: sh -c "uv run uvicorn app.api:app' in compose
 
     lines = compose.splitlines()
     start = next(index for index, line in enumerate(lines) if line.strip() == "api:")

@@ -66,7 +66,7 @@ services:
       - SMTP_PORT=1025
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@postgres:5432/cinelog_db
-    command: sh -c "uv run uvicorn app:app --host 0.0.0.0 --port 5009 --reload --reload-dir app"
+    command: sh -c "uv run uvicorn app.api:app --host 0.0.0.0 --port 5009 --reload --reload-dir app"
     depends_on:
       db-migrate:
         condition: service_completed_successfully
@@ -92,6 +92,9 @@ services:
       - SMTP_PORT=1025
       - DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@postgres:5432/cinelog_db
     command: sh -c "uv run python worker.py"
+    # SMTP timeout plus settlement round-trips exceed Docker's default 10s SIGKILL
+    # window; without this a deploy can strand a row locked for the full lock timeout.
+    stop_grace_period: 30s
     depends_on:
       db-migrate:
         condition: service_completed_successfully

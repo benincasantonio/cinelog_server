@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app import app as app  # noqa: E402, F401
+from app.api import app as app  # noqa: E402, F401
 
 if __name__ == "__main__":
     import uvicorn

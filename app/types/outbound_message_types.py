@@ -32,3 +32,7 @@ class OutboundMessageStatus(StrEnum):
     PROCESSING = "processing"
     DELIVERED = "delivered"
     FAILED = "failed"
+    # Retired without ever being a delivery problem: the content expired, or a newer
+    # message superseded it. Kept distinct from ``failed`` so the operational query for
+    # real delivery failures is not swamped by routine code reissues.
+    CANCELLED = "cancelled"

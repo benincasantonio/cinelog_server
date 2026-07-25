@@ -18,6 +18,7 @@ from app.models.notification_model import Notification
 from app.models.outbound_message_model import OutboundMessage
 from app.models.user_model import User
 from app.repository.outbound_message_repository import OutboundMessageRepository
+from app.repository.outbound_message_repository_protocol import LeaseRenewal
 from app.schemas.outbound_message_schemas import OutboundMessageCreateData
 from app.types import NotificationType, OutboundMessageChannel, OutboundMessageKind, OutboundMessageStatus
 
@@ -610,14 +611,14 @@ async def test_expired_messages_are_never_claimed_and_are_retired(
     claimed = await repository.claim_pending_messages(OutboundMessageChannel.EMAIL, batch_size=10)
     assert {message.destination for message in claimed} == {"live@example.com", "forever@example.com"}
 
-    retired = await repository.fail_expired_messages()
+    retired = await repository.cancel_expired_messages()
 
     assert retired == 1
     seed_session.expire_all()
     persisted = (
         await seed_session.execute(select(OutboundMessage).where(OutboundMessage.id == expired_id))
     ).scalar_one()
-    assert persisted.status == OutboundMessageStatus.FAILED.value
+    assert persisted.status == OutboundMessageStatus.CANCELLED.value
     assert persisted.text_body is None
     assert persisted.html_body is None
     assert persisted.last_error is not None
@@ -670,9 +671,156 @@ async def test_supersede_pending_messages_retires_only_matching_pending_rows(
             )
         ).scalars()
     }
-    assert persisted[superseded_id].status == OutboundMessageStatus.FAILED.value
+    assert persisted[superseded_id].status == OutboundMessageStatus.CANCELLED.value
     assert persisted[superseded_id].text_body is None
     assert persisted[other_destination_id].status == OutboundMessageStatus.PENDING.value
     assert persisted[other_kind_id].status == OutboundMessageStatus.PENDING.value
     # A row another worker is already sending is owned by its lease, not by the reissue.
     assert persisted[in_flight_id].status == OutboundMessageStatus.PROCESSING.value
+
+
+@pytest.mark.asyncio
+async def test_renew_lease_refreshes_the_lock_for_the_current_owner(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    lock_token = uuid4()
+    message = _message(
+        destination="renew@example.com",
+        status=OutboundMessageStatus.PROCESSING.value,
+        locked_at=datetime.now(UTC) - timedelta(minutes=2),
+        lock_token=lock_token,
+    )
+    await _add(seed_session, message)
+    message_id = message.id
+
+    assert await repository.renew_lease(message_id, lock_token=lock_token) is LeaseRenewal.RENEWED
+
+    seed_session.expire_all()
+    persisted = (
+        await seed_session.execute(select(OutboundMessage).where(OutboundMessage.id == message_id))
+    ).scalar_one()
+    assert persisted.locked_at > datetime.now(UTC) - timedelta(seconds=30)
+
+
+@pytest.mark.asyncio
+async def test_renew_lease_retires_content_that_expired_while_queued(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    """A code can be valid at claim time and dead by the time its turn to send arrives."""
+
+    lock_token = uuid4()
+    message = _message(
+        destination="expired-in-flight@example.com",
+        status=OutboundMessageStatus.PROCESSING.value,
+        locked_at=datetime.now(UTC),
+        lock_token=lock_token,
+        expires_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+    await _add(seed_session, message)
+    message_id = message.id
+
+    assert await repository.renew_lease(message_id, lock_token=lock_token) is LeaseRenewal.EXPIRED
+
+    seed_session.expire_all()
+    persisted = (
+        await seed_session.execute(select(OutboundMessage).where(OutboundMessage.id == message_id))
+    ).scalar_one()
+    assert persisted.status == OutboundMessageStatus.CANCELLED.value
+    assert persisted.text_body is None
+    assert persisted.lock_token is None
+
+
+@pytest.mark.asyncio
+async def test_renew_lease_reports_a_lost_lease(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    message = _message(
+        destination="lost@example.com",
+        status=OutboundMessageStatus.PROCESSING.value,
+        locked_at=datetime.now(UTC),
+        lock_token=uuid4(),
+    )
+    await _add(seed_session, message)
+
+    assert await repository.renew_lease(message.id, lock_token=uuid4()) is LeaseRenewal.LOST
+
+
+@pytest.mark.asyncio
+async def test_enqueue_superseding_is_atomic_under_concurrency(
+    session_factory,
+    seed_session: AsyncSession,
+):
+    """Two simultaneous reissues must leave exactly one pending message.
+
+    The advisory lock serializes them, so the second request's supersede observes the
+    first request's row instead of racing past it — otherwise both codes stay queued and
+    the older one delivers a code that no longer validates.
+    """
+
+    @asynccontextmanager
+    async def provider():
+        async with session_factory() as session:
+            yield session
+
+    first_repository = OutboundMessageRepository(provider)
+    second_repository = OutboundMessageRepository(provider)
+    destination = "concurrent-reset@example.com"
+
+    def _data(code: str) -> OutboundMessageCreateData:
+        return _create_data(
+            kind=OutboundMessageKind.PASSWORD_RESET,
+            destination=destination,
+            text_body=code,
+        )
+
+    await asyncio.gather(
+        first_repository.enqueue_superseding(_data("CODE-A")),
+        second_repository.enqueue_superseding(_data("CODE-B")),
+    )
+
+    rows = (
+        (
+            await seed_session.execute(
+                select(OutboundMessage).where(
+                    OutboundMessage.destination == destination,
+                    OutboundMessage.status == OutboundMessageStatus.PENDING.value,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_purge_settled_messages_respects_each_retention_window(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    old_delivered = _message(destination="old-delivered@example.com", status=OutboundMessageStatus.DELIVERED.value)
+    old_cancelled = _message(destination="old-cancelled@example.com", status=OutboundMessageStatus.CANCELLED.value)
+    recent_delivered = _message(destination="recent@example.com", status=OutboundMessageStatus.DELIVERED.value)
+    old_failed = _message(destination="old-failed@example.com", status=OutboundMessageStatus.FAILED.value)
+    pending = _message(destination="pending@example.com")
+    await _add(seed_session, old_delivered, old_cancelled, recent_delivered, old_failed, pending)
+    survivors = {recent_delivered.id, old_failed.id, pending.id}
+
+    await seed_session.execute(
+        update(OutboundMessage)
+        .where(OutboundMessage.id.in_([old_delivered.id, old_cancelled.id, old_failed.id]))
+        .values(updated_at=datetime.now(UTC) - timedelta(days=45))
+    )
+    await seed_session.commit()
+
+    purged = await repository.purge_settled_messages(
+        delivered_retention=timedelta(days=30),
+        failed_retention=timedelta(days=90),
+    )
+
+    assert purged == 2
+    remaining = {row.id for row in (await seed_session.execute(select(OutboundMessage))).scalars()}
+    assert remaining == survivors

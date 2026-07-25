@@ -138,11 +138,10 @@ async def test_enqueue_registration_verification_writes_expected_row(
     result = await service.enqueue_registration_verification("user@example.com", "ABC123", expires_at=expires_at)
 
     assert result is not None
-    # A reissued code invalidates the previous one, so its queued message must go.
-    outbound_message_repository.supersede_pending_messages.assert_awaited_once_with(
-        OutboundMessageKind.REGISTRATION_VERIFICATION, "user@example.com"
-    )
-    args, _ = outbound_message_repository.enqueue.call_args
+    # A reissued code invalidates the previous one, so supersede and insert happen in
+    # one serialized transaction rather than as two independently committed calls.
+    outbound_message_repository.enqueue.assert_not_awaited()
+    args, _ = outbound_message_repository.enqueue_superseding.call_args
     written = args[0]
     assert written.expires_at == expires_at
     assert written.kind is OutboundMessageKind.REGISTRATION_VERIFICATION
@@ -168,7 +167,8 @@ async def test_enqueue_registration_existing_account_writes_expected_row(
     assert written.destination == "user@example.com"
     assert written.subject == "Cinelog account already exists"
     assert written.expires_at is None
-    outbound_message_repository.supersede_pending_messages.assert_not_awaited()
+    # No code to invalidate: a plain insert, no supersede.
+    outbound_message_repository.enqueue_superseding.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -181,10 +181,8 @@ async def test_enqueue_password_reset_writes_expected_row(
     result = await service.enqueue_password_reset("user@example.com", "XYZ987", expires_at=expires_at)
 
     assert result is not None
-    outbound_message_repository.supersede_pending_messages.assert_awaited_once_with(
-        OutboundMessageKind.PASSWORD_RESET, "user@example.com"
-    )
-    args, _ = outbound_message_repository.enqueue.call_args
+    outbound_message_repository.enqueue.assert_not_awaited()
+    args, _ = outbound_message_repository.enqueue_superseding.call_args
     written = args[0]
     assert written.expires_at == expires_at
     assert written.kind is OutboundMessageKind.PASSWORD_RESET

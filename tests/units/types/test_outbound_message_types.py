@@ -24,6 +24,7 @@ def test_outbound_message_status_contains_only_registered_values():
         "processing",
         "delivered",
         "failed",
+        "cancelled",
     ]
 
 

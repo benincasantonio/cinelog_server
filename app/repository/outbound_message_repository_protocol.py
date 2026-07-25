@@ -2,7 +2,8 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
+from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
@@ -26,6 +27,16 @@ class ClaimedMessage:
     attempt_count: int
     # Fencing token for this claim; every settlement must present it.
     lock_token: UUID
+    # Deadline for code-bearing content, rechecked immediately before sending.
+    expires_at: datetime | None
+
+
+class LeaseRenewal(StrEnum):
+    """Outcome of refreshing a claim's lock immediately before sending."""
+
+    RENEWED = "renewed"
+    EXPIRED = "expired"
+    LOST = "lost"
 
 
 @dataclass(frozen=True)
@@ -59,6 +70,9 @@ class OutboundMessageRepositoryProtocol(Protocol):
     ) -> list[ClaimedMessage]:
         """Lock and claim up to ``batch_size`` due pending messages for one channel."""
 
+    async def renew_lease(self, message_id: UUID, *, lock_token: UUID) -> LeaseRenewal:
+        """Refresh the lock before sending; retire the row when its content has expired."""
+
     async def mark_delivered(self, message_id: UUID, *, lock_token: UUID) -> bool:
         """Record a successful delivery and clear rendered content.
 
@@ -85,8 +99,16 @@ class OutboundMessageRepositoryProtocol(Protocol):
         Takes ``(message_id, lock_token)`` pairs and is fenced on the token.
         """
 
-    async def fail_expired_messages(self) -> int:
+    async def cancel_expired_messages(self) -> int:
         """Terminally fail pending messages whose content has expired."""
+
+    async def enqueue_superseding(
+        self,
+        data: OutboundMessageCreateData,
+        *,
+        session: AsyncSession | None = None,
+    ) -> UUID | None:
+        """Supersede still-queued messages for this kind/destination and insert, atomically."""
 
     async def supersede_pending_messages(
         self,
@@ -96,6 +118,14 @@ class OutboundMessageRepositoryProtocol(Protocol):
         session: AsyncSession | None = None,
     ) -> int:
         """Retire earlier undelivered messages of one kind for one destination."""
+
+    async def purge_settled_messages(
+        self,
+        *,
+        delivered_retention: timedelta,
+        failed_retention: timedelta,
+    ) -> int:
+        """Delete settled rows past their retention window."""
 
     async def recover_stale_locks(
         self,

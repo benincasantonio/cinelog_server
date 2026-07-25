@@ -24,6 +24,11 @@ class OutboundMessageWorkerConfig:
     max_attempts: int
     retry_base_delay: int
     retry_max_delay: int
+    # Retention windows. Settled rows keep a recipient address, so they are pruned on a
+    # schedule rather than kept forever; terminal failures are kept longer because they
+    # are what an operator diagnoses.
+    delivered_retention_days: int
+    failed_retention_days: int
 
 
 def get_outbound_message_worker_config() -> OutboundMessageWorkerConfig:
@@ -36,6 +41,8 @@ def get_outbound_message_worker_config() -> OutboundMessageWorkerConfig:
         max_attempts=int(os.getenv("OUTBOUND_MESSAGE_MAX_ATTEMPTS", "5")),
         retry_base_delay=int(os.getenv("OUTBOUND_MESSAGE_RETRY_BASE_SECONDS", "60")),
         retry_max_delay=int(os.getenv("OUTBOUND_MESSAGE_RETRY_MAX_SECONDS", "3600")),
+        delivered_retention_days=int(os.getenv("OUTBOUND_MESSAGE_DELIVERED_RETENTION_DAYS", "30")),
+        failed_retention_days=int(os.getenv("OUTBOUND_MESSAGE_FAILED_RETENTION_DAYS", "90")),
     )
 
 

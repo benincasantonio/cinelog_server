@@ -52,3 +52,9 @@ def test_prod_email_worker_waits_for_migration_and_disables_the_http_healthcheck
     assert "healthcheck:" in email_worker_block
     assert "disable: true" in email_worker_block
     assert "restart: unless-stopped" in email_worker_block
+
+
+def test_prod_email_worker_has_a_shutdown_grace_period():
+    compose = PROD_COMPOSE_FILE.read_text()
+
+    assert "stop_grace_period: 30s" in compose

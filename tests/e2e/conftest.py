@@ -137,7 +137,7 @@ async def postgres_engine():
 @pytest_asyncio.fixture
 async def async_client(postgres_engine):
     """Async HTTP client using ASGITransport for direct app testing."""
-    from app import app
+    from app.api import app
     from app.config.redis import get_redis_config
 
     _clear_dependency_caches()

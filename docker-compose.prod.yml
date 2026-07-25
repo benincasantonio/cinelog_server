@@ -45,6 +45,9 @@ services:
       context: .
       dockerfile: Dockerfile.prod
     command: ["python", "worker.py"]
+    # SMTP timeout plus settlement round-trips exceed Docker's default 10s SIGKILL
+    # window; without this a deploy can strand a row locked for the full lock timeout.
+    stop_grace_period: 30s
     depends_on:
       db-migrate:
         condition: service_completed_successfully

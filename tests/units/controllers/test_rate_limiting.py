@@ -19,7 +19,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.config.rate_limiter as rate_limiter_module
-from app import app
+from app.api import app
 from app.dependencies.auth_dependency import auth_dependency
 from app.dependencies.service_dependency import (
     get_auth_service,

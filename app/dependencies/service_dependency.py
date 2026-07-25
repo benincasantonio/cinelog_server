@@ -8,6 +8,7 @@ Tests can swap a whole service through
 
 from functools import lru_cache
 
+from app.config.outbound_message_config import get_outbound_message_worker_config
 from app.dependencies.repository_dependency import (
     get_log_repository,
     get_movie_rating_repository,
@@ -22,6 +23,7 @@ from app.repository.notification_unit_of_work import NotificationUnitOfWork
 from app.repository.notification_unit_of_work_protocol import NotificationUnitOfWorkProtocol
 from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.services.auth_service import AuthService
+from app.services.email_service import EmailService
 from app.services.log_service import LogService
 from app.services.movie_rating_service import MovieRatingService
 from app.services.movie_service import MovieService
@@ -120,4 +122,8 @@ def get_outbound_message_delivery_service() -> OutboundMessageDeliveryService:
     worker has no reason to need.
     """
 
-    return OutboundMessageDeliveryService(outbound_message_repository=get_outbound_message_repository())
+    return OutboundMessageDeliveryService(
+        outbound_message_repository=get_outbound_message_repository(),
+        email_service=EmailService(),
+        worker_config=get_outbound_message_worker_config(),
+    )

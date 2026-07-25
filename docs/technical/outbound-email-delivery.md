@@ -74,7 +74,7 @@ delivers: the registration TTL (`REGISTRATION_VERIFICATION_TTL_SECONDS`) or the 
 `users.reset_password_expires`. This matters because the default backoff schedules the
 fifth attempt roughly 15 minutes after the first, which is the code's own lifetime — a
 successful final retry would otherwise deliver a code that no longer validates. Expired
-rows are never claimed, and `fail_expired_messages()` retires them each cycle, clearing
+rows are never claimed, and `cancel_expired_messages()` retires them each cycle, clearing
 the rendered body so a dead secret stops sitting in the table.
 
 Reissuing a code invalidates the previous one, so `_enqueue_auth_message` supersedes any
@@ -166,6 +166,31 @@ In short:
 | `FOR UPDATE SKIP LOCKED` | no two workers claim the same row concurrently |
 | `status` + `locked_at` | represent the lock after the claim commits |
 | `lock_token` | stops a superseded worker from mutating a newer attempt |
+
+### Terminal states
+
+`failed` means delivery was actually attempted and did not succeed — that is the status an
+operator investigates. `cancelled` means the message was retired without being a delivery
+problem: its content expired, or a newer message for the same recipient superseded it.
+Keeping them apart matters because users routinely re-request codes, which would otherwise
+swamp the failure query with routine reissues.
+
+Settled rows still hold a recipient address, so the worker prunes them on a schedule:
+`OUTBOUND_MESSAGE_DELIVERED_RETENTION_DAYS` (default 30) covers delivered and cancelled
+rows, and `OUTBOUND_MESSAGE_FAILED_RETENTION_DAYS` (default 90) keeps failures longer for
+diagnosis.
+
+### Lease budget
+
+The lock is refreshed per message (`renew_lease`) immediately before each send, so the
+lease tracks the send actually in progress rather than the moment the batch was claimed.
+That refresh is also where expiry is re-evaluated: a code valid at claim time can be dead
+by the time its turn arrives, and it is retired instead of delivered.
+
+Even with the refresh, keep a margin: a single send must finish well inside
+`OUTBOUND_MESSAGE_LOCK_TIMEOUT_SECONDS`, so `SMTP_TIMEOUT_SECONDS` (default 10s) must stay
+far below it (default 300s). Raising `OUTBOUND_MESSAGE_BATCH_SIZE` no longer risks the
+tail of a batch expiring mid-flight, because each message renews its own lease.
 
 ### Batch claims are released, not abandoned
 
@@ -267,9 +292,9 @@ message).
 
 - `enqueue_notification_email(notification, *, session=None)` — used by
   `NotificationUnitOfWork`.
-- `enqueue_registration_verification(email, code)`,
+- `enqueue_registration_verification(email, code, *, expires_at)`,
   `enqueue_registration_existing_account(email)`,
-  `enqueue_password_reset(email, code)` — used by `AuthService`.
+  `enqueue_password_reset(email, code, *, expires_at)` — used by `AuthService`.
 
 ### Notification creation is one transaction
 
@@ -290,7 +315,7 @@ to bind the follow repository into the same unit of work.
 ### Auth emails moved onto the outbox
 
 `AuthService` no longer holds an `EmailService`. `send_registration_verification_code()`,
-`register()`'s existing-account branch, and `forgot_password()` now call
+`send_registration_verification_code()`'s existing-account branch, and `forgot_password()` now call
 `OutboundMessageService.enqueue_*()` instead of sending inline. The API responses,
 status codes, rate limits, and enumeration-safety behavior are unchanged — only the
 send itself moved out of the request/response cycle and became durable. The enqueue for

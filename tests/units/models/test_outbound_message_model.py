@@ -41,7 +41,10 @@ def test_outbound_message_model_has_expected_check_constraints():
         "kind IN ('notification', 'registration_verification', 'registration_existing_account', 'password_reset')"
     )
     assert constraints["ck_outbound_messages_channel"] == "channel IN ('email')"
-    assert constraints["ck_outbound_messages_status"] == "status IN ('pending', 'processing', 'delivered', 'failed')"
+    assert (
+        constraints["ck_outbound_messages_status"]
+        == "status IN ('pending', 'processing', 'delivered', 'failed', 'cancelled')"
+    )
     assert constraints["ck_outbound_messages_notification_reference"] == (
         "(kind = 'notification') = (notification_id IS NOT NULL)"
     )

@@ -31,7 +31,7 @@ Both the `api` and `email-worker` services wait for that job to complete success
 The production container starts Uvicorn directly with the FastAPI app:
 
 ```bash
-python -m uvicorn app:app --host 0.0.0.0 --port 5009 --workers 2
+python -m uvicorn app.api:app --host 0.0.0.0 --port 5009 --workers 2
 ```
 
 `email-worker` is a separate long-running container that delivers the durable outbound-message outbox (registration/reset emails and notification emails):
@@ -71,7 +71,7 @@ Example optional `vercel.json`:
 }
 ```
 
-The backend exposes a generic ASGI application as `main:app`. This is not Vercel-specific; ASGI servers and hosting platforms can use the same entrypoint.
+The backend exposes a generic ASGI application as `app.api:app`. This is not Vercel-specific; ASGI servers and hosting platforms can use the same entrypoint.
 
 ### This recipe alone does not deliver email
 
@@ -130,6 +130,8 @@ Optional worker tuning (defaults in `app/config/outbound_message_config.py`):
 - `OUTBOUND_MESSAGE_MAX_ATTEMPTS`
 - `OUTBOUND_MESSAGE_RETRY_BASE_SECONDS`
 - `OUTBOUND_MESSAGE_RETRY_MAX_SECONDS`
+- `OUTBOUND_MESSAGE_DELIVERED_RETENTION_DAYS`
+- `OUTBOUND_MESSAGE_FAILED_RETENTION_DAYS`
 - `LOG_LEVEL`
 
 ## See Also

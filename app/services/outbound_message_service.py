@@ -133,18 +133,20 @@ class OutboundMessageService:
         older queued message would hand the recipient a code that no longer works.
         """
 
-        if expires_at is not None:
-            await self.outbound_message_repository.supersede_pending_messages(kind, email)
-
-        return await self.outbound_message_repository.enqueue(
-            OutboundMessageCreateData(
-                kind=kind,
-                notification_id=None,
-                channel=OutboundMessageChannel.EMAIL,
-                destination=email,
-                subject=content.subject,
-                text_body=content.text_body,
-                html_body=content.html_body,
-                expires_at=expires_at,
-            )
+        data = OutboundMessageCreateData(
+            kind=kind,
+            notification_id=None,
+            channel=OutboundMessageChannel.EMAIL,
+            destination=email,
+            subject=content.subject,
+            text_body=content.text_body,
+            html_body=content.html_body,
+            expires_at=expires_at,
         )
+        if expires_at is None:
+            # No code, nothing to invalidate: these notices may repeat freely.
+            return await self.outbound_message_repository.enqueue(data)
+
+        # Supersede and insert atomically, serialized per recipient, so two concurrent
+        # requests cannot both leave a pending message carrying a now-invalid code.
+        return await self.outbound_message_repository.enqueue_superseding(data)

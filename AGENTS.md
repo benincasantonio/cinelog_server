@@ -89,6 +89,7 @@ Required environment variables (see `.env`):
 - `SMTP_TIMEOUT_SECONDS`: Socket timeout for SMTP connections (default: `10`; must stay well below `OUTBOUND_MESSAGE_LOCK_TIMEOUT_SECONDS`)
 - `EMAIL_TRANSPORT`: `smtp` (default) or `console` — `console` prints instead of sending, for local dev without Mailpit; the outbound-message worker fails fast at startup if neither is usable
 - `OUTBOUND_MESSAGE_BATCH_SIZE`, `OUTBOUND_MESSAGE_POLL_INTERVAL_SECONDS`, `OUTBOUND_MESSAGE_LOCK_TIMEOUT_SECONDS`, `OUTBOUND_MESSAGE_MAX_ATTEMPTS`, `OUTBOUND_MESSAGE_RETRY_BASE_SECONDS`, `OUTBOUND_MESSAGE_RETRY_MAX_SECONDS`: outbound-message delivery worker tuning — see [Outbound Email Delivery](docs/technical/outbound-email-delivery.md)
+- `OUTBOUND_MESSAGE_DELIVERED_RETENTION_DAYS` / `OUTBOUND_MESSAGE_FAILED_RETENTION_DAYS`: how long settled outbox rows are kept before the worker prunes them (defaults `30` / `90`)
 
 ### Git Hooks
 

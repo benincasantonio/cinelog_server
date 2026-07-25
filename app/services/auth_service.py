@@ -128,7 +128,7 @@ class AuthService:
 
     async def forgot_password(self, email: str):
         """
-        Generate reset code and send email (mocked).
+        Generate a reset code and queue its email for durable delivery.
         """
         email_lowercase = normalize_email_identifier(email)
         user = await self.user_repository.find_user_by_email(email_lowercase)

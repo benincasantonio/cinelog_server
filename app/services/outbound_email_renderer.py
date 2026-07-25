@@ -29,6 +29,17 @@ from app.types import NotificationType
 NotificationRenderer = Callable[[Notification], OutboundEmailContent]
 
 
+def _header_safe(value: str) -> str:
+    """Collapse anything that could split a MIME header into extra headers.
+
+    The subject reaches ``message["Subject"]`` under the default ``compat32`` policy,
+    which does not reject embedded CR/LF. Notification titles are producer-supplied and
+    embed user handles and names, so they are flattened before they become a header.
+    """
+
+    return " ".join(value.split())
+
+
 def _render_persisted_text(notification: Notification) -> OutboundEmailContent:
     """Render a notification's persisted title/body as email content."""
 
@@ -36,7 +47,7 @@ def _render_persisted_text(notification: Notification) -> OutboundEmailContent:
     escaped_body = html.escape(notification.body)
     html_body = f"<html><body><p><strong>{escaped_title}</strong></p><p>{escaped_body}</p></body></html>"
     return OutboundEmailContent(
-        subject=notification.title,
+        subject=_header_safe(notification.title),
         text_body=notification.body,
         html_body=html_body,
     )

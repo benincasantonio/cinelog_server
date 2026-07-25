@@ -27,7 +27,7 @@ OUTBOUND_MESSAGE_KIND_CONSTRAINT = (
     "kind IN ('notification', 'registration_verification', 'registration_existing_account', 'password_reset')"
 )
 OUTBOUND_MESSAGE_CHANNEL_CONSTRAINT = "channel IN ('email')"
-OUTBOUND_MESSAGE_STATUS_CONSTRAINT = "status IN ('pending', 'processing', 'delivered', 'failed')"
+OUTBOUND_MESSAGE_STATUS_CONSTRAINT = "status IN ('pending', 'processing', 'delivered', 'failed', 'cancelled')"
 OUTBOUND_MESSAGE_NOTIFICATION_REFERENCE_CONSTRAINT = "(kind = 'notification') = (notification_id IS NOT NULL)"
 OUTBOUND_MESSAGE_ATTEMPT_COUNT_CONSTRAINT = "attempt_count >= 0"
 OUTBOUND_MESSAGE_LAST_ERROR_LENGTH_CONSTRAINT = "last_error IS NULL OR char_length(last_error) <= 500"

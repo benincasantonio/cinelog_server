@@ -50,7 +50,8 @@ The coarse IP and session limits are enforced via `slowapi` decorators in `app/c
 - `POST /v1/auth/register/send-code` normalizes the submitted email and always returns a generic success response.
 - If the email already has an account, `AuthService` enqueues an existing-account notice instead of issuing a code, via `OutboundMessageService.enqueue_registration_existing_account()`.
 - If the email can be registered, `RegistrationVerificationService` generates a 6-character code, stores only an HMAC hash in Redis, and `AuthService` enqueues the plaintext code for email delivery via `OutboundMessageService.enqueue_registration_verification()`.
-- Redis keys and stored code hashes are HMAC-derived using the dedicated `REGISTRATION_VERIFICATION_HMAC_SECRET` (separate from the rate-limiting secret) and use a 15-minute TTL. No verification-code table or migration is used.
+- Redis keys and stored code hashes are HMAC-derived using the dedicated `REGISTRATION_VERIFICATION_HMAC_SECRET` (separate from the rate-limiting secret) and use a 15-minute TTL. No verification-code table or migration is used for *validation* — the code is never validated against a database row.
+- The **rendered email**, however, does hold the plaintext code at rest until it is sent: durable delivery means the message body is stored in `outbound_messages` (see [Outbound Email Delivery](outbound-email-delivery.md)). The queued row carries the same 15-minute expiry as the code itself, its body is cleared the moment it reaches a terminal state, and reissuing a code cancels any still-queued predecessor. This is the trade made for not losing verification emails when SMTP fails.
 - `POST /v1/auth/register` requires `verificationCode`; the code must exist, be unexpired, match the email, and have fewer than 5 failed attempts.
 - After successful account creation, the verification key is deleted so the code is single-use. If Redis loses the temporary key, the user must request a new code.
 
