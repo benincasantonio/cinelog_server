@@ -43,7 +43,7 @@ def test_local_api_no_longer_runs_migrations_inline_and_waits_for_db_migrate():
     compose = LOCAL_COMPOSE_FILE.read_text()
 
     assert "alembic upgrade head && uv run uvicorn" not in compose
-    assert 'command: sh -c "uv run uvicorn app.api:app' in compose
+    assert 'command: sh -c "uv run uvicorn app.main:app' in compose
 
     lines = compose.splitlines()
     start = next(index for index, line in enumerate(lines) if line.strip() == "api:")

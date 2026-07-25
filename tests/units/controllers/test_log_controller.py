@@ -5,9 +5,9 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import app
 from app.dependencies.auth_dependency import auth_dependency
 from app.dependencies.service_dependency import get_log_service
+from app.main import app
 from app.schemas.log_schemas import (
     LogCreateResponse,
     LogListItem,

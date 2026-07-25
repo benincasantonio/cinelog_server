@@ -37,7 +37,7 @@ separate standalone process — it exposes no HTTP routes. See
 
 ## App Initialization
 
-`app/__init__.py` uses a FastAPI lifespan context manager:
+`app/main.py` uses a FastAPI lifespan context manager:
 
 **Startup:**
 1. Initialize the async SQLAlchemy engine from `DATABASE_URL` (`init_postgres_engine()` in `app/db/postgres.py`)
@@ -72,7 +72,7 @@ separate standalone process — it exposes no HTTP routes. See
 
 - Custom `AppException` class with structured `ErrorSchema` objects
 - Centralized error codes in `app/utils/error_codes_utils.py`
-- Global exception handler in `app/__init__.py` converts `AppException` to JSON responses
+- Global exception handler in `app/main.py` converts `AppException` to JSON responses
 
 **Singleton Pattern:**
 
@@ -182,6 +182,8 @@ Durable transactional-outbox row for a single channel delivery attempt stream. S
 | `locked_at` | `timestamptz \| null` | Set when claimed, cleared on settle; drives stale-lock recovery |
 | `delivered_at` | `timestamptz \| null` | |
 | `last_error` | `text \| null` | Sanitized and truncated to 500 characters (CHECK constraint) |
+| `expires_at` | `timestamptz \| null` | Deadline for code-bearing content; rechecked immediately before sending |
+| `lock_token` | `uuid \| null` | Per-claim fencing token required by every settlement |
 
 **Constraints/Indexes:** total unique `(notification_id, channel)` (NULLs are distinct, so auth-kind rows repeat freely); partial index `ix_outbound_messages_claimable` on `(channel, available_at, id) WHERE deleted IS FALSE AND status = 'pending'`; partial index `ix_outbound_messages_stale_locks` on `(locked_at) WHERE deleted IS FALSE AND status = 'processing'`. No ORM `relationship()` — the repository joins explicitly.
 
@@ -307,14 +309,14 @@ The user repository provides two deletion strategies:
 
 `CacheService` provides the shared Redis client:
 
-- **Required dependency:** Redis must be reachable during FastAPI startup. `app/__init__.py` initializes `CacheService`, pings Redis via `health_check()`, and raises `RuntimeError` if Redis is unavailable.
+- **Required dependency:** Redis must be reachable during FastAPI startup. `app/main.py` initializes `CacheService`, pings Redis via `health_check()`, and raises `RuntimeError` if Redis is unavailable.
 - **Configuration:** `REDIS_URL` selects the Redis instance and defaults to `redis://localhost:6379/0`; there is no `REDIS_ENABLED` toggle.
 - **Error behavior:** `CacheService` is a low-level wrapper and lets Redis errors propagate. Higher-level callers decide whether to fail open or fail closed. `LogCacheRepository` catches cache errors and falls back to PostgreSQL; registration verification, rate limiting, stats caching, and TMDB caching require Redis to remain healthy.
 - **Serialization:** Callers pass JSON-ready dicts to `set()` and revalidate after `get()` — keeps CacheService model-agnostic. `LogCacheRepository` serializes ORM rows through an internal Pydantic mirror model.
 - **Key naming:** `cinelog:{entity}:{identifier}` — key construction is the caller's responsibility
 - **Default TTL:** 300 seconds (5 minutes), configurable via `REDIS_DEFAULT_TTL`
 - **Pattern invalidation:** Uses `SCAN` (not `KEYS`) for production-safe pattern-based cache invalidation
-- **Lifecycle:** Initialized during app startup in `app/__init__.py`, closed during shutdown
+- **Lifecycle:** Initialized during app startup in `app/main.py`, closed during shutdown
 
 ## PostgreSQL Connection
 

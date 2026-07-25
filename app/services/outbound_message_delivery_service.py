@@ -7,6 +7,7 @@ here, free of ``asyncio.run``/signal handling, makes it directly unit-testable.
 
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import timedelta
 
@@ -39,6 +40,7 @@ class OutboundMessageDeliveryService:
         self._channel_senders: dict[str, Callable[[ClaimedMessage], Awaitable[None]]] = {
             OutboundMessageChannel.EMAIL.value: self._send_email,
         }
+        self._last_purge_at: float | None = None
 
     async def recover_stale_locks(self) -> StaleLockRecoveryResult:
         """Requeue or terminally fail ``processing`` rows whose lock has expired."""
@@ -59,7 +61,7 @@ class OutboundMessageDeliveryService:
         """
 
         await self.cancel_expired_messages()
-        await self.purge_settled_messages()
+        await self._purge_if_due()
         await self.recover_stale_locks()
         claimed = await self.outbound_message_repository.claim_pending_messages(
             OutboundMessageChannel.EMAIL,
@@ -72,11 +74,25 @@ class OutboundMessageDeliveryService:
             for message in claimed:
                 if shutdown is not None and shutdown.is_set():
                     break
-                # Count the message as started *before* delivery. Once SMTP may have
-                # run, the row must never be released: releasing refunds the attempt, so
-                # a settlement that failed after a successful send would be re-claimed
-                # and re-sent every cycle, unbounded by max_attempts.
+
+                # Renewing the lease is the last point at which the row is provably
+                # untouched: nothing has been sent, so a failure here leaves it safe to
+                # release. Everything after it may have reached SMTP.
+                renewal = await self.outbound_message_repository.renew_lease(message.id, lock_token=message.lock_token)
                 started += 1
+
+                if renewal is LeaseRenewal.EXPIRED:
+                    logger.info("Message %s expired while queued; retired without sending", message.id)
+                    processed += 1
+                    continue
+                if renewal is LeaseRenewal.LOST:
+                    logger.warning("Lease for message %s was lost before sending; another attempt owns it", message.id)
+                    processed += 1
+                    continue
+
+                # Past this line the row must never be released: releasing refunds the
+                # attempt, so a settlement that failed after a successful send would be
+                # re-claimed and re-sent every cycle, unbounded by max_attempts.
                 await self._deliver(message)
                 processed += 1
         finally:
@@ -90,6 +106,22 @@ class OutboundMessageDeliveryService:
         if retired:
             logger.info("Retired %d outbound message(s) whose content had expired", retired)
         return retired
+
+    async def _purge_if_due(self) -> int:
+        """Run the retention purge at most once per ``purge_interval``.
+
+        The purge predicate covers settled statuses, which no index serves — the two
+        partial indexes cover ``pending`` and ``processing`` — so it scans a table
+        deliberately holding weeks of history. The poll loop only sleeps on an idle
+        cycle, so running it before every claim would mean a full scan per batch.
+        """
+
+        now = time.monotonic()
+        if self._last_purge_at is not None and now - self._last_purge_at < self.worker_config.purge_interval:
+            return 0
+
+        self._last_purge_at = now
+        return await self.purge_settled_messages()
 
     async def purge_settled_messages(self) -> int:
         """Delete settled rows past their retention window.
@@ -119,17 +151,6 @@ class OutboundMessageDeliveryService:
         sender = self._channel_senders.get(message.channel)
         if sender is None:
             await self._record_failure(message, ValueError(f"No delivery handler for channel {message.channel!r}"))
-            return
-
-        # Refresh the lease and re-evaluate expiry against the database clock at the
-        # moment of sending: this message may have waited behind earlier sends in the
-        # same serial batch, long enough for its code to expire or its lock to lapse.
-        renewal = await self.outbound_message_repository.renew_lease(message.id, lock_token=message.lock_token)
-        if renewal is LeaseRenewal.EXPIRED:
-            logger.info("Message %s expired while queued; retired without sending", message.id)
-            return
-        if renewal is LeaseRenewal.LOST:
-            logger.warning("Lease for message %s was lost before sending; another attempt owns it", message.id)
             return
 
         try:

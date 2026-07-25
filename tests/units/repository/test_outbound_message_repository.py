@@ -769,16 +769,20 @@ async def test_enqueue_superseding_is_atomic_under_concurrency(
     second_repository = OutboundMessageRepository(provider)
     destination = "concurrent-reset@example.com"
 
-    def _data(code: str) -> OutboundMessageCreateData:
+    def _data(code: str, issued_offset_seconds: int) -> OutboundMessageCreateData:
         return _create_data(
             kind=OutboundMessageKind.PASSWORD_RESET,
             destination=destination,
             text_body=code,
+        ).model_copy(
+            # expires_at derives from when the code was issued, which is what decides
+            # which message is current — not which request reaches the outbox first.
+            update={"expires_at": datetime.now(UTC) + timedelta(minutes=15, seconds=issued_offset_seconds)}
         )
 
     await asyncio.gather(
-        first_repository.enqueue_superseding(_data("CODE-A")),
-        second_repository.enqueue_superseding(_data("CODE-B")),
+        first_repository.enqueue_superseding(_data("CODE-A", 0)),
+        second_repository.enqueue_superseding(_data("CODE-B", 1)),
     )
 
     rows = (
@@ -794,6 +798,84 @@ async def test_enqueue_superseding_is_atomic_under_concurrency(
         .all()
     )
     assert len(rows) == 1
+    # It must be the *newest* code that survives: the account only accepts the last one
+    # issued, so delivering the older message would hand the user a dead code.
+    assert rows[0].text_body == "CODE-B"
+
+
+@pytest.mark.asyncio
+async def test_a_stale_code_never_replaces_a_newer_queued_one(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    """Arrival order does not decide — the code was written to its own store first.
+
+    Two overlapping reset requests can reach the outbox in the opposite order to the
+    order their codes were issued. If the older request simply superseded and inserted,
+    the only deliverable message would carry a code the account has already replaced.
+    """
+
+    destination = "stale-vs-new@example.com"
+    newest = _create_data(
+        kind=OutboundMessageKind.PASSWORD_RESET,
+        destination=destination,
+        text_body="NEWEST",
+    ).model_copy(update={"expires_at": datetime.now(UTC) + timedelta(minutes=15)})
+    stale = _create_data(
+        kind=OutboundMessageKind.PASSWORD_RESET,
+        destination=destination,
+        text_body="STALE",
+    ).model_copy(update={"expires_at": datetime.now(UTC) + timedelta(minutes=14)})
+
+    assert await repository.enqueue_superseding(newest) is not None
+    # The older request arrives second and must not displace the newer message.
+    assert await repository.enqueue_superseding(stale) is None
+
+    rows = (
+        (
+            await seed_session.execute(
+                select(OutboundMessage).where(
+                    OutboundMessage.destination == destination,
+                    OutboundMessage.status == OutboundMessageStatus.PENDING.value,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].text_body == "NEWEST"
+
+
+@pytest.mark.asyncio
+async def test_purge_reaches_soft_deleted_rows_that_no_other_sweep_can(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    """A soft-deleted pending row keeps its plaintext body and is invisible to every sweep."""
+
+    cancelled_by_operator = _message(destination="soft-deleted@example.com")
+    await _add(seed_session, cancelled_by_operator)
+    row_id = cancelled_by_operator.id
+
+    await seed_session.execute(
+        update(OutboundMessage)
+        .where(OutboundMessage.id == row_id)
+        .values(deleted=True, updated_at=datetime.now(UTC) - timedelta(days=45))
+    )
+    await seed_session.commit()
+
+    assert await repository.cancel_expired_messages() == 0
+
+    purged = await repository.purge_settled_messages(
+        delivered_retention=timedelta(days=30),
+        failed_retention=timedelta(days=90),
+    )
+
+    assert purged == 1
+    assert (
+        await seed_session.execute(select(OutboundMessage).where(OutboundMessage.id == row_id))
+    ).scalar_one_or_none() is None
 
 
 @pytest.mark.asyncio

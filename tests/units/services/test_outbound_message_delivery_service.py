@@ -27,6 +27,7 @@ def _worker_config(**overrides) -> OutboundMessageWorkerConfig:
         "retry_max_delay": 3600,
         "delivered_retention_days": 30,
         "failed_retention_days": 90,
+        "purge_interval": 0,
     }
     defaults.update(overrides)
     return OutboundMessageWorkerConfig(**defaults)

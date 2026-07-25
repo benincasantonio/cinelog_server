@@ -88,4 +88,4 @@ Desktop.ini
 
 # DB 
 /data/db
-.claude/agent-memory/
+.claude/agent-memory/branch-code-reviewer/

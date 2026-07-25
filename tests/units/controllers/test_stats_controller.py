@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import app
 from app.dependencies.auth_dependency import auth_dependency
 from app.dependencies.service_dependency import get_stats_service
+from app.main import app
 
 
 @pytest.fixture

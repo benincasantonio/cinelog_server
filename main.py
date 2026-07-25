@@ -1,8 +1,14 @@
+"""Local development launcher.
+
+Loads ``.env`` before importing the application, which lives in ``app/main.py``
+(``app.main:app``) — the module Docker and uvicorn reference directly in production.
+"""
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.api import app as app  # noqa: E402, F401
+from app.main import app as app  # noqa: E402, F401
 
 if __name__ == "__main__":
     import uvicorn

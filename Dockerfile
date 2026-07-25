@@ -17,4 +17,4 @@ EXPOSE 5009
 
 # Run uvicorn
 # Note: --reload is removed for production; use docker-compose.local.yml for local development with reload
-CMD ["uv", "run", "uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "5009"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5009"]

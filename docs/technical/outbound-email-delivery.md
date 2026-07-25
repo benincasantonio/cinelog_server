@@ -36,7 +36,7 @@ truncates and the next migration fails with `StringDataRightTruncationError`.
 | `channel` | Closed `OutboundMessageChannel`: `email` only, for now |
 | `destination` | Delivery address, snapshotted at enqueue time |
 | `subject`, `text_body`, `html_body` | Rendered at enqueue; bodies are cleared once the row reaches a terminal status |
-| `status` | Closed `OutboundMessageStatus`: `pending`, `processing`, `delivered`, `failed` |
+| `status` | Closed `OutboundMessageStatus`: `pending`, `processing`, `delivered`, `failed`, `cancelled` |
 | `attempt_count` | Incremented at **claim** time, not send time |
 | `available_at` | Claimable once `now() >= available_at`; also the retry backoff clock |
 | `locked_at` | Set when claimed, cleared on settle; drives stale-lock recovery |
@@ -94,8 +94,11 @@ attempt) keeps its bodies, since the message still has to be sent.
 
 ```text
 pending -> processing -> delivered
-                       -> pending (retry, backoff applied)
-                       -> failed  (attempts exhausted)
+                       -> pending   (retry, backoff applied)
+                       -> failed    (attempts exhausted, or a stale lock with none left)
+                       -> cancelled (content expired, or superseded by a newer message)
+
+pending -> cancelled  (expiry sweep, supersede, or an operator cancelling)
 ```
 
 ## Claim Protocol
@@ -249,7 +252,9 @@ before claiming), in one transaction, two `UPDATE`s over
 
 1. Rows with `attempt_count >= max_attempts` are marked `failed` (exhausted rule — a
    crash-orphaned row does not get a free extra attempt beyond the configured limit).
-2. The remaining stale rows are requeued to `pending` with `available_at = now()`.
+2. The remaining stale rows are requeued to `pending` with `available_at = now()` — deliberately
+   without backoff, since a lock expiring means the worker vanished rather than the message
+   failing, and the attempt it consumed is already spent.
 
 The two updates share the same stale-lock predicate but disjoint attempt-count ranges,
 so a row can only match one of them, and a row with a fresh lock (still within
@@ -349,6 +354,9 @@ codes or reset copy — it is pure transport.
 | `OUTBOUND_MESSAGE_MAX_ATTEMPTS` | `5` | Attempts before a message is terminally `failed` |
 | `OUTBOUND_MESSAGE_RETRY_BASE_SECONDS` | `60` | First retry backoff |
 | `OUTBOUND_MESSAGE_RETRY_MAX_SECONDS` | `3600` | Backoff cap |
+| `OUTBOUND_MESSAGE_DELIVERED_RETENTION_DAYS` | `30` | How long delivered and cancelled rows are kept before pruning |
+| `OUTBOUND_MESSAGE_FAILED_RETENTION_DAYS` | `90` | How long terminal failures are kept for diagnosis |
+| `OUTBOUND_MESSAGE_PURGE_INTERVAL_SECONDS` | `3600` | How often the retention purge runs; it is an unindexed scan, so not every cycle |
 | `EMAIL_TRANSPORT` | `smtp` | `smtp` or `console` |
 | `SMTP_TIMEOUT_SECONDS` | `10` | Socket timeout for SMTP sends |
 | `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_USE_SSL` | — | Standard SMTP transport settings |
@@ -372,11 +380,23 @@ Or via the full local Docker stack (`make docker-up`), which starts `postgres` �
 
 - **Inspect failed rows**:
   `SELECT id, kind, destination, attempt_count, last_error, updated_at FROM outbound_messages WHERE status = 'failed' ORDER BY updated_at DESC;`
-- **Cancel a queued message**: soft-delete it (`UPDATE outbound_messages SET deleted = TRUE WHERE id = ...`).
-  The claim query filters on `deleted IS FALSE`, so a soft-deleted row is never picked
-  up again. Because the notification/channel uniqueness constraint is total (not
-  partial), this is a permanent cancel — the row cannot be recreated for that
-  notification/channel pair.
+- **Cancel a queued message**: retire it, clearing the rendered body with it:
+
+  ```sql
+  UPDATE outbound_messages
+  SET status = 'cancelled', text_body = NULL, html_body = NULL,
+      locked_at = NULL, lock_token = NULL, last_error = 'Cancelled by operator',
+      updated_at = now()
+  WHERE id = '...' AND status = 'pending';
+  ```
+
+  Do **not** cancel by soft-deleting (`SET deleted = TRUE`). A soft-deleted row stays
+  `pending`, and every cleanup path filters it out — `cancel_expired_messages` requires
+  an active row, so the body is never cleared, and the retention purge only matches
+  settled statuses. The row would keep a plaintext verification or reset code, and the
+  recipient's address, indefinitely. Because the notification/channel uniqueness
+  constraint is total (not partial), cancelling is permanent either way: the row cannot
+  be recreated for that notification/channel pair.
 - **Force a retry sooner**: `UPDATE outbound_messages SET available_at = now() WHERE id = ...`
   (only meaningful while `status = 'pending'`).
 

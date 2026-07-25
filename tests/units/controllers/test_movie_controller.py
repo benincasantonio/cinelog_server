@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import app
 from app.dependencies.auth_dependency import auth_dependency
+from app.main import app
 from app.schemas.tmdb_schemas import (
     TMDBGenre,
     TMDBMovieDetails,

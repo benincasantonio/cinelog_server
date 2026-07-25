@@ -1,10 +1,11 @@
-"""FastAPI application construction.
+"""FastAPI application construction — the ASGI entrypoint (``app.main:app``).
 
-Kept out of ``app/__init__.py`` on purpose. Importing anything under ``app`` executes
-the package ``__init__``, so building the ASGI application there forced every consumer
-of the package — including the delivery worker, which needs only PostgreSQL and SMTP
-settings — to import every controller and satisfy every API secret. The application is
-built here and exposed lazily by ``app/__init__.py``.
+Kept out of ``app/__init__.py`` on purpose. Python executes a package's ``__init__``
+before any submodule, so building the application there forced every consumer of
+``app.*`` — the outbound-message worker and Alembic included — to import every
+controller and satisfy every API secret. Naming follows FastAPI's own "Bigger
+Applications" layout; the repository-root ``main.py`` is the local dev launcher that
+loads ``.env`` before importing this module.
 """
 
 from contextlib import asynccontextmanager

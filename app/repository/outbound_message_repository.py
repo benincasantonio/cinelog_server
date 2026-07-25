@@ -363,19 +363,43 @@ class OutboundMessageRepository(RepositoryBase):
         *,
         session: AsyncSession | None = None,
     ) -> UUID | None:
-        """Retire still-queued messages of the same kind for this destination, then insert.
+        """Queue this message only if no newer one is already waiting for the recipient.
 
-        Both writes share one transaction, and a transaction-scoped advisory lock keyed
-        on ``(kind, destination)`` serializes concurrent requests for the same recipient.
-        Without the lock, two simultaneous reset requests can each supersede before
-        either inserts, leaving two pending messages of which only the newer code
-        validates — the older one delivers a code the recipient cannot use.
+        Both writes share one transaction under a transaction-scoped advisory lock keyed
+        on ``(kind, destination)``, so concurrent requests for the same recipient are
+        serialized. Serialization alone is not enough, though: the code is written to its
+        own store (``users.reset_password_code``, or Redis for registration) *before*
+        this call, so the request that wins the lock is not necessarily the request whose
+        code is now the valid one.
+
+        Recency therefore decides, not arrival order. ``expires_at`` is derived from the
+        moment the code was issued, so the message with the latest ``expires_at`` carries
+        the newest code. A message that finds a strictly newer one already queued is
+        already stale and is dropped; otherwise it supersedes the older ones and takes
+        their place. The recipient ends up with exactly one deliverable message, carrying
+        the code their account actually accepts.
         """
 
         async with self._unit_of_work(session) as active_session:
             await active_session.execute(
                 select(func.pg_advisory_xact_lock(func.hashtext(f"{data.kind.value}:{data.destination}")))
             )
+
+            if data.expires_at is not None:
+                newer = await active_session.execute(
+                    select(OutboundMessage.id)
+                    .where(
+                        OutboundMessage.kind == data.kind.value,
+                        OutboundMessage.destination == data.destination,
+                        OutboundMessage.status == OutboundMessageStatus.PENDING.value,
+                        OutboundMessage.active(),
+                        OutboundMessage.expires_at > data.expires_at,
+                    )
+                    .limit(1)
+                )
+                if newer.scalar_one_or_none() is not None:
+                    return None
+
             await self.supersede_pending_messages(data.kind, data.destination, session=active_session)
             return await self.enqueue(data, session=active_session)
 
@@ -445,6 +469,14 @@ class OutboundMessageRepository(RepositoryBase):
                         and_(
                             OutboundMessage.status == OutboundMessageStatus.FAILED.value,
                             OutboundMessage.updated_at < func.now() - failed_retention,
+                        ),
+                        # Soft-deleted rows keep their status, so no other sweep reaches
+                        # them: the expiry sweep requires an active row and the status
+                        # arms above never match a soft-deleted pending one. Left alone
+                        # they would retain a plaintext code and an address forever.
+                        and_(
+                            OutboundMessage.deleted.is_(True),
+                            OutboundMessage.updated_at < func.now() - delivered_retention,
                         ),
                     )
                 )

@@ -7,5 +7,5 @@ FastAPI application here therefore forced the worker to import every controller 
 supply every API secret (``JWT_SECRET_KEY``, the rate-limit, registration-verification
 and cursor secrets, plus Redis configuration read at import time).
 
-The ASGI application lives in ``app/api.py`` and is referenced as ``app.api:app``.
+The ASGI application lives in ``app/main.py`` and is referenced as ``app.main:app``.
 """

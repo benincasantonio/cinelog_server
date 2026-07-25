@@ -287,6 +287,31 @@ class TestAuthE2E:
         forgot_resp = await async_client.post("/v1/auth/forgot-password", json={"email": "reset@example.com"})
         assert forgot_resp.status_code == 200
 
+        # The request must leave a durable, deliverable row behind: this is the whole
+        # point of the outbox, and it is the only place the real enqueue path runs
+        # end to end (registration email is patched out to capture its code).
+        from sqlalchemy import select
+
+        from app.db.postgres import get_async_session
+        from app.models.outbound_message_model import OutboundMessage
+
+        async with get_async_session() as session:
+            queued = (
+                (
+                    await session.execute(
+                        select(OutboundMessage).where(OutboundMessage.destination == "reset@example.com")
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        assert len(queued) == 1
+        assert queued[0].kind == "password_reset"
+        assert queued[0].status == "pending"
+        assert queued[0].expires_at is not None
+        assert queued[0].text_body is not None
+
         # Fetch the reset code through the repository (it is only sent by email).
         from app.dependencies.repository_dependency import get_user_repository
 

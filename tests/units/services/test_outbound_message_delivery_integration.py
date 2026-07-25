@@ -89,6 +89,7 @@ def _worker_config(**overrides) -> OutboundMessageWorkerConfig:
         "retry_max_delay": 3600,
         "delivered_retention_days": 30,
         "failed_retention_days": 90,
+        "purge_interval": 0,
     }
     defaults.update(overrides)
     return OutboundMessageWorkerConfig(**defaults)
@@ -173,19 +174,19 @@ async def test_final_attempt_fails_terminally(service, seed_session, email_servi
 
 
 @pytest.mark.asyncio
-async def test_message_expiring_after_claim_is_retired_without_sending(service, seed_session, email_service):
+async def test_message_expiring_after_claim_is_retired_without_sending(
+    service, repository, seed_session, email_service, monkeypatch
+):
     """A code valid at claim time can be dead by the time its turn to send arrives.
 
-    Deliveries within a batch are serial, so the check that matters is the one taken
-    immediately before handing the message to SMTP.
+    Deliveries within a batch are serial, so the check that decides is the one taken
+    immediately before the message is handed to SMTP, not the one at claim time.
     """
 
     message = await _seed(seed_session, expires_at=datetime.now(UTC) + timedelta(minutes=15))
     message_id = message.id
 
-    claimed = await service.outbound_message_repository.claim_pending_messages(
-        OutboundMessageChannel.EMAIL, batch_size=10
-    )
+    claimed = await repository.claim_pending_messages(OutboundMessageChannel.EMAIL, batch_size=10)
     assert len(claimed) == 1
 
     # The message waits behind earlier sends until its code expires.
@@ -196,7 +197,12 @@ async def test_message_expiring_after_claim_is_retired_without_sending(service, 
     )
     await seed_session.commit()
 
-    await service._deliver(claimed[0])
+    async def already_claimed(*_args, **_kwargs):
+        return claimed
+
+    monkeypatch.setattr(repository, "claim_pending_messages", already_claimed)
+
+    await service.run_once()
 
     persisted = await _reload(seed_session, message_id)
     assert persisted.status == OutboundMessageStatus.CANCELLED.value

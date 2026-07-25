@@ -25,6 +25,7 @@ def test_get_outbound_message_worker_config_defaults(monkeypatch):
         "OUTBOUND_MESSAGE_RETRY_MAX_SECONDS",
         "OUTBOUND_MESSAGE_DELIVERED_RETENTION_DAYS",
         "OUTBOUND_MESSAGE_FAILED_RETENTION_DAYS",
+        "OUTBOUND_MESSAGE_PURGE_INTERVAL_SECONDS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -39,6 +40,7 @@ def test_get_outbound_message_worker_config_defaults(monkeypatch):
         retry_max_delay=3600,
         delivered_retention_days=30,
         failed_retention_days=90,
+        purge_interval=3600,
     )
 
 
@@ -52,6 +54,7 @@ def test_get_outbound_message_worker_config_reads_overrides():
         "OUTBOUND_MESSAGE_RETRY_MAX_SECONDS": "600",
         "OUTBOUND_MESSAGE_DELIVERED_RETENTION_DAYS": "7",
         "OUTBOUND_MESSAGE_FAILED_RETENTION_DAYS": "14",
+        "OUTBOUND_MESSAGE_PURGE_INTERVAL_SECONDS": "60",
     }
     with patch.dict(os.environ, overrides):
         config = get_outbound_message_worker_config()
@@ -65,6 +68,7 @@ def test_get_outbound_message_worker_config_reads_overrides():
         retry_max_delay=600,
         delivered_retention_days=7,
         failed_retention_days=14,
+        purge_interval=60,
     )
 
 
@@ -78,6 +82,7 @@ def test_compute_retry_delay_doubles_per_attempt_and_caps():
         retry_max_delay=3600,
         delivered_retention_days=30,
         failed_retention_days=90,
+        purge_interval=3600,
     )
 
     assert compute_retry_delay(1, config) == 60

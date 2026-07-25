@@ -29,6 +29,9 @@ class OutboundMessageWorkerConfig:
     # are what an operator diagnoses.
     delivered_retention_days: int
     failed_retention_days: int
+    # The purge is an unindexed scan over a table holding weeks of history, so it runs
+    # on its own schedule rather than before every claim.
+    purge_interval: int
 
 
 def get_outbound_message_worker_config() -> OutboundMessageWorkerConfig:
@@ -43,6 +46,7 @@ def get_outbound_message_worker_config() -> OutboundMessageWorkerConfig:
         retry_max_delay=int(os.getenv("OUTBOUND_MESSAGE_RETRY_MAX_SECONDS", "3600")),
         delivered_retention_days=int(os.getenv("OUTBOUND_MESSAGE_DELIVERED_RETENTION_DAYS", "30")),
         failed_retention_days=int(os.getenv("OUTBOUND_MESSAGE_FAILED_RETENTION_DAYS", "90")),
+        purge_interval=int(os.getenv("OUTBOUND_MESSAGE_PURGE_INTERVAL_SECONDS", "3600")),
     )
 
 
