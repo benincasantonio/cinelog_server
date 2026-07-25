@@ -92,7 +92,7 @@ class OutboundMessageDeliveryService:
             return
 
         released = await self.outbound_message_repository.release_claims(
-            [(message.id, message.attempt_count) for message in remaining]
+            [(message.id, message.lock_token) for message in remaining]
         )
         logger.info("Released %d unprocessed outbound message claim(s) back to the queue", released)
 
@@ -110,7 +110,7 @@ class OutboundMessageDeliveryService:
 
         settled = await self.outbound_message_repository.mark_delivered(
             message.id,
-            claimed_attempt=message.attempt_count,
+            lock_token=message.lock_token,
         )
         if not settled:
             logger.warning(
@@ -138,14 +138,14 @@ class OutboundMessageDeliveryService:
         if message.attempt_count >= self.worker_config.max_attempts:
             settled = await self.outbound_message_repository.mark_failed(
                 message.id,
-                claimed_attempt=message.attempt_count,
+                lock_token=message.lock_token,
                 failure_detail=failure_detail,
             )
         else:
             delay_seconds = compute_retry_delay(message.attempt_count, self.worker_config)
             settled = await self.outbound_message_repository.schedule_retry(
                 message.id,
-                claimed_attempt=message.attempt_count,
+                lock_token=message.lock_token,
                 delay=timedelta(seconds=delay_seconds),
                 failure_detail=failure_detail,
             )

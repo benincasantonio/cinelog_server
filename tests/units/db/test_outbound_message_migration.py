@@ -101,6 +101,7 @@ def test_outbound_message_migration_creates_expected_columns_and_indexes(
         "delivered_at",
         "last_error",
         "expires_at",
+        "lock_token",
         "deleted",
         "deleted_at",
         "created_at",

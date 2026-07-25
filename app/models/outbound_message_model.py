@@ -41,6 +41,11 @@ class OutboundMessage(BaseEntity):
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
     locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Fencing token minted fresh on every claim and required by every settlement. A
+    # random value cannot be reused, so a worker whose lock was declared stale can never
+    # settle a row that a later attempt now owns — unlike attempt_count, which is
+    # refunded on release and can therefore recur.
+    lock_token: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Deadline after which the payload is worthless — a verification code outlives its

@@ -24,6 +24,8 @@ class ClaimedMessage:
     text_body: str | None
     html_body: str | None
     attempt_count: int
+    # Fencing token for this claim; every settlement must present it.
+    lock_token: UUID
 
 
 @dataclass(frozen=True)
@@ -57,28 +59,31 @@ class OutboundMessageRepositoryProtocol(Protocol):
     ) -> list[ClaimedMessage]:
         """Lock and claim up to ``batch_size`` due pending messages for one channel."""
 
-    async def mark_delivered(self, message_id: UUID, *, claimed_attempt: int) -> bool:
+    async def mark_delivered(self, message_id: UUID, *, lock_token: UUID) -> bool:
         """Record a successful delivery and clear rendered content.
 
-        ``claimed_attempt`` fences the update to the attempt that claimed the row;
-        returns ``False`` when that lease was lost to a newer attempt.
+        ``lock_token`` fences the update to the claim that owns the row; returns
+        ``False`` when that lease was lost to a newer claim.
         """
 
     async def schedule_retry(
         self,
         message_id: UUID,
         *,
-        claimed_attempt: int,
+        lock_token: UUID,
         delay: timedelta,
         failure_detail: str,
     ) -> bool:
         """Requeue a message for a future attempt, retaining its rendered content."""
 
-    async def mark_failed(self, message_id: UUID, *, claimed_attempt: int, failure_detail: str) -> bool:
+    async def mark_failed(self, message_id: UUID, *, lock_token: UUID, failure_detail: str) -> bool:
         """Terminally fail a message and clear its rendered content."""
 
-    async def release_claims(self, leases: Sequence[tuple[UUID, int]]) -> int:
-        """Return unprocessed claims to the queue and refund their attempt."""
+    async def release_claims(self, leases: Sequence[tuple[UUID, UUID]]) -> int:
+        """Return unprocessed claims to the queue and refund their attempt.
+
+        Takes ``(message_id, lock_token)`` pairs and is fenced on the token.
+        """
 
     async def fail_expired_messages(self) -> int:
         """Terminally fail pending messages whose content has expired."""

@@ -105,6 +105,9 @@ class OutboundMessageRepository(RepositoryBase):
                 .values(
                     status=OutboundMessageStatus.PROCESSING.value,
                     locked_at=func.now(),
+                    # PostgreSQL mints the token so every row in the batch gets its own
+                    # value; a Python-side UUID would be shared across the whole UPDATE.
+                    lock_token=func.gen_random_uuid(),
                     attempt_count=OutboundMessage.attempt_count + 1,
                 )
                 .returning(
@@ -116,6 +119,7 @@ class OutboundMessageRepository(RepositoryBase):
                     OutboundMessage.text_body,
                     OutboundMessage.html_body,
                     OutboundMessage.attempt_count,
+                    OutboundMessage.lock_token,
                 )
             )
             rows = (await session.execute(claimed_statement)).all()
@@ -130,27 +134,33 @@ class OutboundMessageRepository(RepositoryBase):
                     text_body=row.text_body,
                     html_body=row.html_body,
                     attempt_count=row.attempt_count,
+                    lock_token=row.lock_token,
                 )
                 for row in rows
             ]
 
-    def _lease_predicate(self, message_id: UUID, claimed_attempt: int):
-        """Restrict a settlement to the exact attempt that claimed the row.
+    def _lease_predicate(self, message_id: UUID, lock_token: UUID):
+        """Restrict a settlement to the exact claim that owns the row.
 
-        ``attempt_count`` doubles as a fencing token: it increments on every claim, so a
-        worker whose lease was recovered and re-claimed by another attempt no longer
-        matches and cannot settle a row it no longer owns. Without this, a slow attempt
-        reporting failure could regress a row that a newer attempt had already delivered
-        and emptied, leaving a pending message with no rendered content to send.
+        ``FOR UPDATE SKIP LOCKED`` stops two workers claiming the same row at the same
+        moment, but it says nothing once the transaction commits: a worker that hangs
+        long enough for its lock to be declared stale wakes up believing it still owns a
+        row another attempt has since claimed. The per-claim ``lock_token`` closes that
+        window — it is minted fresh on every claim and cleared whenever a lock ends, so a
+        superseded worker matches zero rows.
+
+        Without it, a slow attempt reporting failure could regress a row that a newer
+        attempt had already delivered and emptied, leaving a pending message with no
+        rendered content for any later attempt to send.
         """
 
         return and_(
             OutboundMessage.id == message_id,
             OutboundMessage.status == OutboundMessageStatus.PROCESSING.value,
-            OutboundMessage.attempt_count == claimed_attempt,
+            OutboundMessage.lock_token == lock_token,
         )
 
-    async def mark_delivered(self, message_id: UUID, *, claimed_attempt: int) -> bool:
+    async def mark_delivered(self, message_id: UUID, *, lock_token: UUID) -> bool:
         """Record a successful delivery and clear rendered content.
 
         Returns ``False`` when the lease was lost — the row had already been recovered
@@ -161,11 +171,12 @@ class OutboundMessageRepository(RepositoryBase):
         async with self._session_provider() as session:
             result = await session.execute(
                 update(OutboundMessage)
-                .where(self._lease_predicate(message_id, claimed_attempt))
+                .where(self._lease_predicate(message_id, lock_token))
                 .values(
                     status=OutboundMessageStatus.DELIVERED.value,
                     delivered_at=func.now(),
                     locked_at=None,
+                    lock_token=None,
                     last_error=None,
                     text_body=None,
                     html_body=None,
@@ -178,7 +189,7 @@ class OutboundMessageRepository(RepositoryBase):
         self,
         message_id: UUID,
         *,
-        claimed_attempt: int,
+        lock_token: UUID,
         delay: timedelta,
         failure_detail: str,
     ) -> bool:
@@ -192,18 +203,19 @@ class OutboundMessageRepository(RepositoryBase):
         async with self._session_provider() as session:
             result = await session.execute(
                 update(OutboundMessage)
-                .where(self._lease_predicate(message_id, claimed_attempt))
+                .where(self._lease_predicate(message_id, lock_token))
                 .values(
                     status=OutboundMessageStatus.PENDING.value,
                     available_at=func.now() + delay,
                     locked_at=None,
+                    lock_token=None,
                     last_error=failure_detail,
                 )
             )
             await session.commit()
             return cast("CursorResult[tuple[object, ...]]", result).rowcount > 0
 
-    async def mark_failed(self, message_id: UUID, *, claimed_attempt: int, failure_detail: str) -> bool:
+    async def mark_failed(self, message_id: UUID, *, lock_token: UUID, failure_detail: str) -> bool:
         """Terminally fail a message and clear its rendered content.
 
         Returns ``False`` when the lease was lost.
@@ -212,10 +224,11 @@ class OutboundMessageRepository(RepositoryBase):
         async with self._session_provider() as session:
             result = await session.execute(
                 update(OutboundMessage)
-                .where(self._lease_predicate(message_id, claimed_attempt))
+                .where(self._lease_predicate(message_id, lock_token))
                 .values(
                     status=OutboundMessageStatus.FAILED.value,
                     locked_at=None,
+                    lock_token=None,
                     last_error=failure_detail,
                     text_body=None,
                     html_body=None,
@@ -224,13 +237,14 @@ class OutboundMessageRepository(RepositoryBase):
             await session.commit()
             return cast("CursorResult[tuple[object, ...]]", result).rowcount > 0
 
-    async def release_claims(self, leases: Sequence[tuple[UUID, int]]) -> int:
+    async def release_claims(self, leases: Sequence[tuple[UUID, UUID]]) -> int:
         """Return unprocessed claims to the queue and refund their attempt.
 
         A batch claim locks every row and burns an attempt up front, so rows the worker
         never reached — because it is shutting down, or the cycle failed — would
         otherwise sit locked until the stale sweep and lose an attempt they never spent.
-        Fenced on the claiming attempt, so a row already re-claimed elsewhere is skipped.
+        Takes ``(message_id, lock_token)`` pairs and is fenced on the token, so a row
+        whose lock was recovered and re-claimed elsewhere is left to its new owner.
         """
 
         if not leases:
@@ -240,12 +254,13 @@ class OutboundMessageRepository(RepositoryBase):
             result = await session.execute(
                 update(OutboundMessage)
                 .where(
-                    tuple_(OutboundMessage.id, OutboundMessage.attempt_count).in_(leases),
+                    tuple_(OutboundMessage.id, OutboundMessage.lock_token).in_(leases),
                     OutboundMessage.status == OutboundMessageStatus.PROCESSING.value,
                 )
                 .values(
                     status=OutboundMessageStatus.PENDING.value,
                     locked_at=None,
+                    lock_token=None,
                     available_at=func.now(),
                     attempt_count=OutboundMessage.attempt_count - 1,
                 )
@@ -272,6 +287,7 @@ class OutboundMessageRepository(RepositoryBase):
                 .values(
                     status=OutboundMessageStatus.FAILED.value,
                     locked_at=None,
+                    lock_token=None,
                     last_error=_EXPIRED_ERROR,
                     text_body=None,
                     html_body=None,
@@ -306,6 +322,7 @@ class OutboundMessageRepository(RepositoryBase):
                 .values(
                     status=OutboundMessageStatus.FAILED.value,
                     locked_at=None,
+                    lock_token=None,
                     last_error=_SUPERSEDED_ERROR,
                     text_body=None,
                     html_body=None,
@@ -339,6 +356,7 @@ class OutboundMessageRepository(RepositoryBase):
                 .values(
                     status=OutboundMessageStatus.FAILED.value,
                     locked_at=None,
+                    lock_token=None,
                     last_error=_STALE_LOCK_EXHAUSTED_ERROR,
                     text_body=None,
                     html_body=None,
@@ -352,6 +370,7 @@ class OutboundMessageRepository(RepositoryBase):
                     status=OutboundMessageStatus.PENDING.value,
                     available_at=func.now(),
                     locked_at=None,
+                    lock_token=None,
                 )
                 .execution_options(synchronize_session=False)
             )

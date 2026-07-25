@@ -36,6 +36,7 @@ def _claimed_message(**overrides) -> ClaimedMessage:
         "text_body": "text",
         "html_body": "<p>html</p>",
         "attempt_count": 1,
+        "lock_token": uuid4(),
     }
     defaults.update(overrides)
     return ClaimedMessage(**defaults)
@@ -99,7 +100,7 @@ async def test_run_once_delivers_a_successful_message(service, repository, email
         text=message.text_body,
         html=message.html_body,
     )
-    repository.mark_delivered.assert_awaited_once_with(message.id, claimed_attempt=message.attempt_count)
+    repository.mark_delivered.assert_awaited_once_with(message.id, lock_token=message.lock_token)
 
 
 @pytest.mark.asyncio
@@ -132,6 +133,7 @@ async def test_retryable_failure_schedules_retry_with_exact_backoff(service, rep
     _, kwargs = repository.schedule_retry.await_args
     assert kwargs["delay"] == timedelta(seconds=120)
     assert kwargs["failure_detail"] == "smtp exploded"
+    assert kwargs["lock_token"] == message.lock_token
 
 
 @pytest.mark.asyncio
@@ -144,7 +146,7 @@ async def test_exhausted_attempts_marks_failed_instead_of_retrying(service, repo
 
     repository.schedule_retry.assert_not_awaited()
     repository.mark_failed.assert_awaited_once_with(
-        message.id, claimed_attempt=message.attempt_count, failure_detail="smtp exploded"
+        message.id, lock_token=message.lock_token, failure_detail="smtp exploded"
     )
 
 
@@ -189,10 +191,10 @@ async def test_run_once_stops_between_rows_when_shutdown_is_set(service, reposit
     processed = await service.run_once(shutdown)
 
     assert processed == 1
-    repository.mark_delivered.assert_awaited_once_with(first.id, claimed_attempt=first.attempt_count)
+    repository.mark_delivered.assert_awaited_once_with(first.id, lock_token=first.lock_token)
     # The row the worker never reached goes back to the queue with its attempt
     # refunded, rather than sitting locked until the stale sweep.
-    repository.release_claims.assert_awaited_once_with([(second.id, second.attempt_count)])
+    repository.release_claims.assert_awaited_once_with([(second.id, second.lock_token)])
 
 
 @pytest.mark.asyncio
@@ -214,9 +216,7 @@ async def test_run_once_releases_the_remaining_batch_when_a_cycle_raises(service
     with pytest.raises(RuntimeError):
         await service.run_once()
 
-    repository.release_claims.assert_awaited_once_with(
-        [(first.id, first.attempt_count), (second.id, second.attempt_count)]
-    )
+    repository.release_claims.assert_awaited_once_with([(first.id, first.lock_token), (second.id, second.lock_token)])
 
 
 @pytest.mark.asyncio

@@ -10,7 +10,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from pytest_postgresql.janitor import DatabaseJanitor
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base_model import Base
@@ -285,15 +285,17 @@ async def test_mark_delivered_clears_bodies_and_sets_delivered_at(
     repository: OutboundMessageRepository,
     seed_session: AsyncSession,
 ):
+    lock_token = uuid4()
     message = _message(
         destination="deliver@example.com",
         status=OutboundMessageStatus.PROCESSING.value,
         locked_at=datetime.now(UTC),
+        lock_token=lock_token,
     )
     await _add(seed_session, message)
     message_id = message.id
 
-    assert await repository.mark_delivered(message_id, claimed_attempt=0) is True
+    assert await repository.mark_delivered(message_id, lock_token=lock_token) is True
 
     seed_session.expire_all()
     persisted = (
@@ -312,18 +314,20 @@ async def test_schedule_retry_sets_future_available_at_and_retains_bodies(
     repository: OutboundMessageRepository,
     seed_session: AsyncSession,
 ):
+    lock_token = uuid4()
     message = _message(
         destination="retry@example.com",
         status=OutboundMessageStatus.PROCESSING.value,
         locked_at=datetime.now(UTC),
         attempt_count=1,
+        lock_token=lock_token,
     )
     await _add(seed_session, message)
     message_id = message.id
     before = datetime.now(UTC)
 
     settled = await repository.schedule_retry(
-        message_id, claimed_attempt=1, delay=timedelta(seconds=60), failure_detail="boom"
+        message_id, lock_token=lock_token, delay=timedelta(seconds=60), failure_detail="boom"
     )
     assert settled is True
 
@@ -345,16 +349,18 @@ async def test_mark_failed_clears_bodies_and_sets_last_error(
     repository: OutboundMessageRepository,
     seed_session: AsyncSession,
 ):
+    lock_token = uuid4()
     message = _message(
         destination="fail@example.com",
         status=OutboundMessageStatus.PROCESSING.value,
         locked_at=datetime.now(UTC),
         attempt_count=5,
+        lock_token=lock_token,
     )
     await _add(seed_session, message)
     message_id = message.id
 
-    assert await repository.mark_failed(message_id, claimed_attempt=5, failure_detail="exhausted") is True
+    assert await repository.mark_failed(message_id, lock_token=lock_token, failure_detail="exhausted") is True
 
     seed_session.expire_all()
     persisted = (
@@ -431,35 +437,50 @@ async def test_recover_stale_locks_requeues_fails_and_leaves_fresh_locks_untouch
 
 
 @pytest.mark.asyncio
-async def test_settlement_is_rejected_when_another_attempt_owns_the_lease(
+async def test_a_recovered_worker_cannot_settle_a_row_another_worker_reclaimed(
     repository: OutboundMessageRepository,
     seed_session: AsyncSession,
 ):
-    """A recovered-and-reclaimed row must not be settled by its previous attempt.
+    """Worker A stalls, its lock goes stale, worker B reclaims and delivers.
 
-    Without the fence, a slow first attempt reporting failure would regress a row the
-    second attempt had already delivered and emptied, leaving a pending message with no
-    rendered content for any later attempt to send.
+    A then wakes up still holding its own claim data. Its lock token no longer matches,
+    so every settlement it attempts touches zero rows. Without the token, A could regress
+    a row B had already delivered and emptied, leaving a pending message with no rendered
+    content for any later attempt to send.
     """
 
-    message = _message(
-        destination="fenced@example.com",
-        status=OutboundMessageStatus.PROCESSING.value,
-        locked_at=datetime.now(UTC),
-        attempt_count=2,
-    )
+    message = _message(destination="fenced@example.com")
     await _add(seed_session, message)
     message_id = message.id
 
-    # Attempt 1 lost its lease: the row now belongs to attempt 2.
-    assert await repository.mark_delivered(message_id, claimed_attempt=1) is False
+    # A claims the row.
+    claimed_by_a = (await repository.claim_pending_messages(OutboundMessageChannel.EMAIL, batch_size=10))[0]
+
+    # A stalls long enough for its lock to be declared stale.
+    async with seed_session.begin_nested():
+        await seed_session.execute(
+            update(OutboundMessage)
+            .where(OutboundMessage.id == message_id)
+            .values(locked_at=datetime.now(UTC) - timedelta(minutes=10))
+        )
+    await seed_session.commit()
+    recovery = await repository.recover_stale_locks(lock_timeout=timedelta(minutes=5), max_attempts=5)
+    assert recovery.requeued == 1
+
+    # B claims the same row and receives a different token.
+    claimed_by_b = (await repository.claim_pending_messages(OutboundMessageChannel.EMAIL, batch_size=10))[0]
+    assert claimed_by_b.lock_token != claimed_by_a.lock_token
+
+    # A wakes up: none of its settlements may touch the row.
+    assert await repository.mark_delivered(message_id, lock_token=claimed_by_a.lock_token) is False
     assert (
         await repository.schedule_retry(
-            message_id, claimed_attempt=1, delay=timedelta(seconds=60), failure_detail="stale"
+            message_id, lock_token=claimed_by_a.lock_token, delay=timedelta(seconds=60), failure_detail="stale"
         )
         is False
     )
-    assert await repository.mark_failed(message_id, claimed_attempt=1, failure_detail="stale") is False
+    assert await repository.mark_failed(message_id, lock_token=claimed_by_a.lock_token, failure_detail="stale") is False
+    assert await repository.release_claims([(message_id, claimed_by_a.lock_token)]) == 0
 
     seed_session.expire_all()
     persisted = (
@@ -469,8 +490,33 @@ async def test_settlement_is_rejected_when_another_attempt_owns_the_lease(
     assert persisted.last_error is None
     assert persisted.text_body == "text"
 
-    # The owning attempt still settles normally.
-    assert await repository.mark_delivered(message_id, claimed_attempt=2) is True
+    # B, the current owner, still settles normally.
+    assert await repository.mark_delivered(message_id, lock_token=claimed_by_b.lock_token) is True
+
+
+@pytest.mark.asyncio
+async def test_stale_recovery_clears_the_lock_token(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    message = _message(
+        destination="recovered@example.com",
+        status=OutboundMessageStatus.PROCESSING.value,
+        locked_at=datetime.now(UTC) - timedelta(minutes=10),
+        lock_token=uuid4(),
+        attempt_count=1,
+    )
+    await _add(seed_session, message)
+    message_id = message.id
+
+    await repository.recover_stale_locks(lock_timeout=timedelta(minutes=5), max_attempts=5)
+
+    seed_session.expire_all()
+    persisted = (
+        await seed_session.execute(select(OutboundMessage).where(OutboundMessage.id == message_id))
+    ).scalar_one()
+    assert persisted.status == OutboundMessageStatus.PENDING.value
+    assert persisted.lock_token is None
 
 
 @pytest.mark.asyncio
@@ -478,14 +524,16 @@ async def test_settlement_is_rejected_once_the_row_is_no_longer_processing(
     repository: OutboundMessageRepository,
     seed_session: AsyncSession,
 ):
+    lock_token = uuid4()
     message = _message(
         destination="requeued@example.com",
         status=OutboundMessageStatus.PENDING.value,
+        lock_token=lock_token,
         attempt_count=1,
     )
     await _add(seed_session, message)
 
-    assert await repository.mark_delivered(message.id, claimed_attempt=1) is False
+    assert await repository.mark_delivered(message.id, lock_token=lock_token) is False
 
 
 @pytest.mark.asyncio
@@ -493,16 +541,19 @@ async def test_release_claims_requeues_and_refunds_the_attempt(
     repository: OutboundMessageRepository,
     seed_session: AsyncSession,
 ):
+    held_token = uuid4()
     claimed = _message(
         destination="released@example.com",
         status=OutboundMessageStatus.PROCESSING.value,
         locked_at=datetime.now(UTC),
+        lock_token=held_token,
         attempt_count=2,
     )
     reclaimed_elsewhere = _message(
         destination="reclaimed@example.com",
         status=OutboundMessageStatus.PROCESSING.value,
         locked_at=datetime.now(UTC),
+        lock_token=uuid4(),
         attempt_count=3,
     )
     await _add(seed_session, claimed, reclaimed_elsewhere)
@@ -510,7 +561,7 @@ async def test_release_claims_requeues_and_refunds_the_attempt(
     reclaimed_id = reclaimed_elsewhere.id
 
     released = await repository.release_claims(
-        [(claimed_id, 2), (reclaimed_id, 1)],
+        [(claimed_id, held_token), (reclaimed_id, uuid4())],
     )
 
     assert released == 1
@@ -527,8 +578,9 @@ async def test_release_claims_requeues_and_refunds_the_attempt(
     }
     assert persisted[claimed_id].status == OutboundMessageStatus.PENDING.value
     assert persisted[claimed_id].locked_at is None
+    assert persisted[claimed_id].lock_token is None
     assert persisted[claimed_id].attempt_count == 1
-    # Fenced out: this row belongs to a newer attempt.
+    # Fenced out: this row belongs to a different claim.
     assert persisted[reclaimed_id].status == OutboundMessageStatus.PROCESSING.value
     assert persisted[reclaimed_id].attempt_count == 3
 

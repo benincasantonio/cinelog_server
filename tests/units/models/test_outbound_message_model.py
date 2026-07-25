@@ -22,6 +22,7 @@ def test_outbound_message_model_contains_expected_columns():
         "delivered_at",
         "last_error",
         "expires_at",
+        "lock_token",
         "deleted",
         "deleted_at",
         "created_at",
