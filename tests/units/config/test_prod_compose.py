@@ -29,7 +29,7 @@ def test_prod_compose_runs_email_worker_service():
     compose = PROD_COMPOSE_FILE.read_text()
 
     assert "email-worker:" in compose
-    assert 'command: ["python", "-m", "app.workers.outbound_message_worker"]' in compose
+    assert 'command: ["python", "worker.py"]' in compose
 
 
 def test_prod_email_worker_waits_for_migration_and_disables_the_http_healthcheck():

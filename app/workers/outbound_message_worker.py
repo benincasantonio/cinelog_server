@@ -4,15 +4,16 @@ Lives under ``app/workers/`` (not ``app/services/``) — everything in this modu
 process concern: signal handling, the poll loop, and logging setup. All delivery logic
 lives in ``OutboundMessageDeliveryService``, which this module only calls.
 
-``load_dotenv()`` runs before any ``app.*`` import, mirroring ``alembic/env.py``:
-several config modules (e.g. ``app/config/registration_verification_config.py``) read
-and raise at import time, so environment variables must already be in place.
+Start it through the root-level ``worker.py`` launcher (``make run-email-worker``), not
+with ``python -m app.workers.outbound_message_worker``: importing this module imports the
+``app`` package first, and several config modules read environment variables and raise at
+import time, so ``load_dotenv()`` has to run in a launcher outside the package — exactly
+as ``main.py`` does for the API.
 
 This module deliberately never imports ``NotificationService`` or anything from
 ``app/dependencies/service_dependency.py`` — that import chain requires
 ``CURSOR_PAGINATION_HMAC_SECRET`` (used only by notification cursor pagination) and the
-worker needs no Redis either. It ships in the production image as-is because
-``Dockerfile.prod`` already does ``COPY app/ ./app/``.
+worker needs no Redis either.
 """
 
 import asyncio
@@ -21,15 +22,11 @@ import logging
 import os
 import signal
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from app.config.outbound_message_config import get_outbound_message_worker_config  # noqa: E402
-from app.db.postgres import close_postgres_engine, init_postgres_engine  # noqa: E402
-from app.dependencies.repository_dependency import get_outbound_message_repository  # noqa: E402
-from app.services.email_service import EmailService  # noqa: E402
-from app.services.outbound_message_delivery_service import OutboundMessageDeliveryService  # noqa: E402
+from app.config.outbound_message_config import get_outbound_message_worker_config
+from app.db.postgres import close_postgres_engine, init_postgres_engine
+from app.dependencies.repository_dependency import get_outbound_message_repository
+from app.services.email_service import EmailService
+from app.services.outbound_message_delivery_service import OutboundMessageDeliveryService
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +102,3 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     asyncio.run(_main_async())
-
-
-if __name__ == "__main__":
-    main()

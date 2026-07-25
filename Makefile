@@ -71,7 +71,7 @@ run:
 	uv run python main.py
 
 run-email-worker:
-	uv run python -m app.workers.outbound_message_worker
+	uv run python worker.py
 
 docker-up:
 	docker compose -f docker-compose.local.yml up --build -d

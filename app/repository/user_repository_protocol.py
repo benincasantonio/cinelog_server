@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Any, Protocol, TypeVar
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.schemas.user_schemas import UserCreateRequest
 
 IdType = TypeVar("IdType", contravariant=True)
@@ -22,8 +24,8 @@ class UserRepositoryProtocol(Protocol[IdType, UserType]):
     async def find_user_by_email_or_handle(self, email_or_handle: str) -> UserType | None:
         """Find a user by email or handle."""
 
-    async def find_user_by_id(self, user_id: IdType) -> UserType | None:
-        """Find a user by ID."""
+    async def find_user_by_id(self, user_id: IdType, *, session: AsyncSession | None = None) -> UserType | None:
+        """Find a user by ID, optionally reading through a caller-supplied session."""
 
     async def delete_user(self, user_id: IdType) -> bool:
         """Delete a user logically by ID."""

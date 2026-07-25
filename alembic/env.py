@@ -30,7 +30,10 @@ from app.models.user_model import User  # noqa: E402, F401
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Alembic's logging config must not silence the application's own loggers: the
+    # default disables every logger that already exists, which mutes app logging for the
+    # rest of any process that runs a migration in-band (the test suite, for instance).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 DATABASE_URL_ENV = "DATABASE_URL"

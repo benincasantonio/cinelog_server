@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.config.registration_verification_config import REGISTRATION_VERIFICATION_TTL_SECONDS
 from app.schemas.auth_schemas import RegisterRequest
 from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.services.auth_service import AuthService
@@ -47,9 +48,13 @@ class TestAuthService:
 
         mock_user_repo.find_user_by_email.assert_awaited_once_with("user@example.com")
         mock_registration_verification_service.issue_code.assert_awaited_once_with("user@example.com")
-        mock_outbound_message_service.enqueue_registration_verification.assert_awaited_once_with(
-            "user@example.com", "ABC123"
-        )
+        mock_outbound_message_service.enqueue_registration_verification.assert_awaited_once()
+        args, kwargs = mock_outbound_message_service.enqueue_registration_verification.call_args
+        assert args == ("user@example.com", "ABC123")
+        # The queued message has to die with the code itself, or a late retry
+        # delivers a code Redis has already dropped.
+        assert kwargs["expires_at"] > datetime.now(UTC)
+        assert kwargs["expires_at"] <= datetime.now(UTC) + timedelta(seconds=REGISTRATION_VERIFICATION_TTL_SECONDS)
         mock_outbound_message_service.enqueue_registration_existing_account.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -87,6 +92,10 @@ class TestAuthService:
         reset_code_email = email_call_args[1]
 
         assert reset_code_repo == reset_code_email
+
+        stored_expiry = repo_call_args[2]
+        queued_expiry = mock_outbound_message_service.enqueue_password_reset.call_args.kwargs["expires_at"]
+        assert queued_expiry == stored_expiry
 
     @pytest.mark.asyncio
     async def test_register_success(self, auth_service, mock_user_repo, mock_registration_verification_service):

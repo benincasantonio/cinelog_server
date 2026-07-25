@@ -22,6 +22,7 @@ COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY main.py ./
+COPY worker.py ./
 
 RUN chown -R appuser:appuser /app
 

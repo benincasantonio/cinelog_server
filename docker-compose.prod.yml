@@ -44,7 +44,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
-    command: ["python", "-m", "app.workers.outbound_message_worker"]
+    command: ["python", "worker.py"]
     depends_on:
       db-migrate:
         condition: service_completed_successfully

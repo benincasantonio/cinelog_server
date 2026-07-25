@@ -7,6 +7,7 @@ service has no SMTP dependency: it can be constructed and exercised with nothing
 the outbound-message repository and the user repository.
 """
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,7 +58,10 @@ class OutboundMessageService:
         if content is None:
             raise ValueError(f"No email renderer registered for notification type {notification.type!r}")
 
-        recipient = await self.user_repository.find_user_by_id(notification.recipient_id)
+        # Reuse the caller's transaction for the lookup: the notification unit of work
+        # already holds a connection, and opening a second one per enqueue lets
+        # concurrent creations occupy every pool slot while each waits for its partner.
+        recipient = await self.user_repository.find_user_by_id(notification.recipient_id, session=session)
         if recipient is None:
             raise ValueError(f"Notification {notification.id} recipient {notification.recipient_id} was not found")
 
@@ -74,11 +78,22 @@ class OutboundMessageService:
             session=session,
         )
 
-    async def enqueue_registration_verification(self, email: str, code: str) -> UUID | None:
+    async def enqueue_registration_verification(
+        self,
+        email: str,
+        code: str,
+        *,
+        expires_at: datetime,
+    ) -> UUID | None:
         """Render and enqueue a registration verification code email."""
 
         content = render_registration_verification(code)
-        return await self._enqueue_auth_message(OutboundMessageKind.REGISTRATION_VERIFICATION, email, content)
+        return await self._enqueue_auth_message(
+            OutboundMessageKind.REGISTRATION_VERIFICATION,
+            email,
+            content,
+            expires_at=expires_at,
+        )
 
     async def enqueue_registration_existing_account(self, email: str) -> UUID | None:
         """Render and enqueue an existing-account registration notice email."""
@@ -86,19 +101,40 @@ class OutboundMessageService:
         content = render_registration_existing_account()
         return await self._enqueue_auth_message(OutboundMessageKind.REGISTRATION_EXISTING_ACCOUNT, email, content)
 
-    async def enqueue_password_reset(self, email: str, code: str) -> UUID | None:
+    async def enqueue_password_reset(
+        self,
+        email: str,
+        code: str,
+        *,
+        expires_at: datetime,
+    ) -> UUID | None:
         """Render and enqueue a password reset code email."""
 
         content = render_password_reset(code)
-        return await self._enqueue_auth_message(OutboundMessageKind.PASSWORD_RESET, email, content)
+        return await self._enqueue_auth_message(
+            OutboundMessageKind.PASSWORD_RESET,
+            email,
+            content,
+            expires_at=expires_at,
+        )
 
     async def _enqueue_auth_message(
         self,
         kind: OutboundMessageKind,
         email: str,
         content: OutboundEmailContent,
+        *,
+        expires_at: datetime | None = None,
     ) -> UUID | None:
-        """Enqueue a notification-less (auth-kind) message; these may repeat freely."""
+        """Enqueue a notification-less (auth-kind) message; these may repeat freely.
+
+        Code-bearing kinds carry an expiry and supersede their own still-queued
+        predecessors: reissuing a code invalidates the previous one, so delivering an
+        older queued message would hand the recipient a code that no longer works.
+        """
+
+        if expires_at is not None:
+            await self.outbound_message_repository.supersede_pending_messages(kind, email)
 
         return await self.outbound_message_repository.enqueue(
             OutboundMessageCreateData(
@@ -109,5 +145,6 @@ class OutboundMessageService:
                 subject=content.subject,
                 text_body=content.text_body,
                 html_body=content.html_body,
+                expires_at=expires_at,
             )
         )

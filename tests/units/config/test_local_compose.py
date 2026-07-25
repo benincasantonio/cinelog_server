@@ -47,7 +47,7 @@ def test_local_compose_runs_an_email_worker_service_against_mailpit():
     )
     email_worker_block = "\n".join(lines[start:end])
 
-    assert 'command: sh -c "uv run python -m app.workers.outbound_message_worker"' in email_worker_block
+    assert 'command: sh -c "uv run python worker.py"' in email_worker_block
     assert "SMTP_SERVER=mailpit" in email_worker_block
     assert "db-migrate:" in email_worker_block
     assert "condition: service_completed_successfully" in email_worker_block

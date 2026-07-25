@@ -91,7 +91,7 @@ services:
       - SMTP_SERVER=mailpit
       - SMTP_PORT=1025
       - DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@postgres:5432/cinelog_db
-    command: sh -c "uv run python -m app.workers.outbound_message_worker"
+    command: sh -c "uv run python worker.py"
     depends_on:
       db-migrate:
         condition: service_completed_successfully

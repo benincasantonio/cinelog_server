@@ -6,7 +6,8 @@ here, free of ``asyncio.run``/signal handling, makes it directly unit-testable.
 """
 
 import asyncio
-from collections.abc import Awaitable, Callable
+import logging
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import timedelta
 
 from app.config.outbound_message_config import (
@@ -22,6 +23,8 @@ from app.repository.outbound_message_repository_protocol import (
 from app.services.email_service import EmailService
 from app.types import OutboundMessageChannel
 from app.utils.sanitize_utils import sanitize_failure_detail
+
+logger = logging.getLogger(__name__)
 
 
 class OutboundMessageDeliveryService:
@@ -49,14 +52,16 @@ class OutboundMessageDeliveryService:
         )
 
     async def run_once(self, shutdown: asyncio.Event | None = None) -> int:
-        """Recover stale locks, claim one batch, and deliver each claimed message.
+        """Retire expired rows, recover stale locks, claim one batch, and deliver it.
 
-        Returns the number of messages processed (delivered or failed/retried), so
-        the caller's poll loop can decide whether to sleep. Stops between rows when
-        ``shutdown`` is set — a message already claimed but not yet delivered is
-        picked up again by the next stale-lock sweep.
+        Returns the number of messages processed (delivered or failed/retried), so the
+        caller's poll loop can decide whether to sleep. A claim locks the whole batch and
+        spends an attempt on every row up front, so anything left unprocessed — because
+        the worker is shutting down, or the cycle raised — is released back to the queue
+        with its attempt refunded rather than left locked until the stale sweep.
         """
 
+        await self.fail_expired_messages()
         await self.recover_stale_locks()
         claimed = await self.outbound_message_repository.claim_pending_messages(
             OutboundMessageChannel.EMAIL,
@@ -64,12 +69,32 @@ class OutboundMessageDeliveryService:
         )
 
         processed = 0
-        for message in claimed:
-            if shutdown is not None and shutdown.is_set():
-                break
-            await self._deliver(message)
-            processed += 1
+        try:
+            for message in claimed:
+                if shutdown is not None and shutdown.is_set():
+                    break
+                await self._deliver(message)
+                processed += 1
+        finally:
+            await self._release_unprocessed(claimed[processed:])
         return processed
+
+    async def fail_expired_messages(self) -> int:
+        """Retire pending messages whose content expired before it could be sent."""
+
+        retired = await self.outbound_message_repository.fail_expired_messages()
+        if retired:
+            logger.info("Retired %d outbound message(s) whose content had expired", retired)
+        return retired
+
+    async def _release_unprocessed(self, remaining: Sequence[ClaimedMessage]) -> None:
+        if not remaining:
+            return
+
+        released = await self.outbound_message_repository.release_claims(
+            [(message.id, message.attempt_count) for message in remaining]
+        )
+        logger.info("Released %d unprocessed outbound message claim(s) back to the queue", released)
 
     async def _deliver(self, message: ClaimedMessage) -> None:
         sender = self._channel_senders.get(message.channel)
@@ -83,7 +108,16 @@ class OutboundMessageDeliveryService:
             await self._record_failure(message, error)
             return
 
-        await self.outbound_message_repository.mark_delivered(message.id)
+        settled = await self.outbound_message_repository.mark_delivered(
+            message.id,
+            claimed_attempt=message.attempt_count,
+        )
+        if not settled:
+            logger.warning(
+                "Delivered message %s but its lease had already been recovered; "
+                "another attempt owns the outcome and may resend",
+                message.id,
+            )
 
     async def _send_email(self, message: ClaimedMessage) -> None:
         if message.text_body is None or message.html_body is None:
@@ -102,12 +136,22 @@ class OutboundMessageDeliveryService:
     async def _record_failure(self, message: ClaimedMessage, error: Exception) -> None:
         failure_detail = sanitize_failure_detail(str(error))
         if message.attempt_count >= self.worker_config.max_attempts:
-            await self.outbound_message_repository.mark_failed(message.id, failure_detail=failure_detail)
-            return
+            settled = await self.outbound_message_repository.mark_failed(
+                message.id,
+                claimed_attempt=message.attempt_count,
+                failure_detail=failure_detail,
+            )
+        else:
+            delay_seconds = compute_retry_delay(message.attempt_count, self.worker_config)
+            settled = await self.outbound_message_repository.schedule_retry(
+                message.id,
+                claimed_attempt=message.attempt_count,
+                delay=timedelta(seconds=delay_seconds),
+                failure_detail=failure_detail,
+            )
 
-        delay_seconds = compute_retry_delay(message.attempt_count, self.worker_config)
-        await self.outbound_message_repository.schedule_retry(
-            message.id,
-            delay=timedelta(seconds=delay_seconds),
-            failure_detail=failure_detail,
-        )
+        if not settled:
+            logger.warning(
+                "Failure for message %s was not recorded; its lease had already been recovered",
+                message.id,
+            )

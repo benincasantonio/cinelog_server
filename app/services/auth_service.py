@@ -1,6 +1,7 @@
 import secrets
 from datetime import UTC, datetime, timedelta
 
+from app.config.registration_verification_config import REGISTRATION_VERIFICATION_TTL_SECONDS
 from app.dependencies.repository_dependency import get_outbound_message_service
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.auth_schemas import (
@@ -42,7 +43,13 @@ class AuthService:
             return
 
         verification_code = await self.registration_verification_service.issue_code(email_lowercase)
-        await self.outbound_message_service.enqueue_registration_verification(email_lowercase, verification_code)
+        # The queued message must expire with the code itself: the retry schedule can
+        # otherwise deliver a code that Redis has already dropped.
+        await self.outbound_message_service.enqueue_registration_verification(
+            email_lowercase,
+            verification_code,
+            expires_at=datetime.now(UTC) + timedelta(seconds=REGISTRATION_VERIFICATION_TTL_SECONDS),
+        )
 
     async def register(self, request: RegisterRequest) -> RegisterResponse:
         """
@@ -138,7 +145,13 @@ class AuthService:
         await self.user_repository.set_reset_password_code(user, reset_code, expires_at)
 
         # Enqueue for durable, asynchronous delivery via the outbound message worker.
-        await self.outbound_message_service.enqueue_password_reset(email_lowercase, reset_code)
+        # The message carries the same deadline as the stored code, so a late retry
+        # discards it rather than delivering a code that reset_password already rejects.
+        await self.outbound_message_service.enqueue_password_reset(
+            email_lowercase,
+            reset_code,
+            expires_at=expires_at,
+        )
 
     async def reset_password(self, email: str, code: str, new_password: str):
         """

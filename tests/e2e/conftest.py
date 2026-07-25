@@ -15,6 +15,7 @@ os.environ.setdefault("CURSOR_PAGINATION_HMAC_SECRET", "test-cursor-pagination-h
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db"
 
 import asyncio  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
 from unittest.mock import patch  # noqa: E402
 
 import httpx  # noqa: E402
@@ -144,7 +145,8 @@ async def async_client(postgres_engine):
     CacheService.initialize(get_redis_config())
     registration_codes: dict[str, str] = {}
 
-    async def capture_registration_code(self, email: str, code: str) -> None:
+    async def capture_registration_code(self, email: str, code: str, *, expires_at: datetime) -> None:
+        assert expires_at > datetime.now(UTC)
         registration_codes[normalize_email_identifier(email)] = code
 
     async def capture_existing_account_notice(self, email: str) -> None:

@@ -99,7 +99,7 @@ async def test_run_once_delivers_a_successful_message(service, repository, email
         text=message.text_body,
         html=message.html_body,
     )
-    repository.mark_delivered.assert_awaited_once_with(message.id)
+    repository.mark_delivered.assert_awaited_once_with(message.id, claimed_attempt=message.attempt_count)
 
 
 @pytest.mark.asyncio
@@ -143,7 +143,9 @@ async def test_exhausted_attempts_marks_failed_instead_of_retrying(service, repo
     await service.run_once()
 
     repository.schedule_retry.assert_not_awaited()
-    repository.mark_failed.assert_awaited_once_with(message.id, failure_detail="smtp exploded")
+    repository.mark_failed.assert_awaited_once_with(
+        message.id, claimed_attempt=message.attempt_count, failure_detail="smtp exploded"
+    )
 
 
 @pytest.mark.asyncio
@@ -187,4 +189,46 @@ async def test_run_once_stops_between_rows_when_shutdown_is_set(service, reposit
     processed = await service.run_once(shutdown)
 
     assert processed == 1
-    repository.mark_delivered.assert_awaited_once_with(first.id)
+    repository.mark_delivered.assert_awaited_once_with(first.id, claimed_attempt=first.attempt_count)
+    # The row the worker never reached goes back to the queue with its attempt
+    # refunded, rather than sitting locked until the stale sweep.
+    repository.release_claims.assert_awaited_once_with([(second.id, second.attempt_count)])
+
+
+@pytest.mark.asyncio
+async def test_run_once_retires_expired_messages_before_claiming(service, repository):
+    repository.fail_expired_messages.return_value = 2
+
+    await service.run_once()
+
+    repository.fail_expired_messages.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_run_once_releases_the_remaining_batch_when_a_cycle_raises(service, repository, email_service):
+    first = _claimed_message(destination="first@example.com")
+    second = _claimed_message(destination="second@example.com")
+    repository.claim_pending_messages.return_value = [first, second]
+    repository.mark_delivered.side_effect = RuntimeError("database went away")
+
+    with pytest.raises(RuntimeError):
+        await service.run_once()
+
+    repository.release_claims.assert_awaited_once_with(
+        [(first.id, first.attempt_count), (second.id, second.attempt_count)]
+    )
+
+
+@pytest.mark.asyncio
+async def test_lost_lease_on_success_is_logged_and_not_retried(service, repository, caplog):
+    message = _claimed_message()
+    repository.claim_pending_messages.return_value = [message]
+    repository.mark_delivered.return_value = False
+
+    with caplog.at_level("WARNING"):
+        processed = await service.run_once()
+
+    assert processed == 1
+    repository.schedule_retry.assert_not_awaited()
+    repository.mark_failed.assert_not_awaited()
+    assert "lease" in caplog.text

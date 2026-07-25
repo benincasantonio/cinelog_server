@@ -57,6 +57,7 @@ def upgrade() -> None:
         sa.Column("locked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("delivered_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("deleted", sa.Boolean(), nullable=False, server_default=sa.text("FALSE")),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),

@@ -187,7 +187,7 @@ Durable transactional-outbox row for a single channel delivery attempt stream. S
 
 ## Background Workers
 
-`app/workers/outbound_message_worker.py` is a standalone process (`make run-email-worker` / `python -m app.workers.outbound_message_worker`) that repeatedly claims due `outbound_messages` rows with `FOR UPDATE SKIP LOCKED` and delivers them. It never imports `NotificationService` or anything from `app/dependencies/service_dependency.py` — that import chain requires `CURSOR_PAGINATION_HMAC_SECRET`, which the worker has no reason to need, and the worker needs no Redis. It fails fast at startup (`RuntimeError`) if `EmailService.is_configured()` is `False`. See [Outbound Email Delivery](docs/technical/outbound-email-delivery.md) for the full design.
+`app/workers/outbound_message_worker.py` is a standalone process (`make run-email-worker`, i.e. the root `worker.py` launcher) that repeatedly claims due `outbound_messages` rows with `FOR UPDATE SKIP LOCKED` and delivers them. It never imports `NotificationService` or anything from `app/dependencies/service_dependency.py` — that import chain requires `CURSOR_PAGINATION_HMAC_SECRET`, which the worker has no reason to need, and the worker needs no Redis. It fails fast at startup (`RuntimeError`) if `EmailService.is_configured()` is `False`. See [Outbound Email Delivery](docs/technical/outbound-email-delivery.md) for the full design.
 
 ## Authentication Flow
 

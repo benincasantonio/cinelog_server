@@ -293,7 +293,7 @@ async def test_mark_delivered_clears_bodies_and_sets_delivered_at(
     await _add(seed_session, message)
     message_id = message.id
 
-    await repository.mark_delivered(message_id)
+    assert await repository.mark_delivered(message_id, claimed_attempt=0) is True
 
     seed_session.expire_all()
     persisted = (
@@ -322,7 +322,10 @@ async def test_schedule_retry_sets_future_available_at_and_retains_bodies(
     message_id = message.id
     before = datetime.now(UTC)
 
-    await repository.schedule_retry(message_id, delay=timedelta(seconds=60), failure_detail="boom")
+    settled = await repository.schedule_retry(
+        message_id, claimed_attempt=1, delay=timedelta(seconds=60), failure_detail="boom"
+    )
+    assert settled is True
 
     seed_session.expire_all()
     persisted = (
@@ -351,7 +354,7 @@ async def test_mark_failed_clears_bodies_and_sets_last_error(
     await _add(seed_session, message)
     message_id = message.id
 
-    await repository.mark_failed(message_id, failure_detail="exhausted")
+    assert await repository.mark_failed(message_id, claimed_attempt=5, failure_detail="exhausted") is True
 
     seed_session.expire_all()
     persisted = (
@@ -425,3 +428,199 @@ async def test_recover_stale_locks_requeues_fails_and_leaves_fresh_locks_untouch
     fresh_row = persisted[fresh_lock_id]
     assert fresh_row.status == OutboundMessageStatus.PROCESSING.value
     assert fresh_row.locked_at is not None
+
+
+@pytest.mark.asyncio
+async def test_settlement_is_rejected_when_another_attempt_owns_the_lease(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    """A recovered-and-reclaimed row must not be settled by its previous attempt.
+
+    Without the fence, a slow first attempt reporting failure would regress a row the
+    second attempt had already delivered and emptied, leaving a pending message with no
+    rendered content for any later attempt to send.
+    """
+
+    message = _message(
+        destination="fenced@example.com",
+        status=OutboundMessageStatus.PROCESSING.value,
+        locked_at=datetime.now(UTC),
+        attempt_count=2,
+    )
+    await _add(seed_session, message)
+    message_id = message.id
+
+    # Attempt 1 lost its lease: the row now belongs to attempt 2.
+    assert await repository.mark_delivered(message_id, claimed_attempt=1) is False
+    assert (
+        await repository.schedule_retry(
+            message_id, claimed_attempt=1, delay=timedelta(seconds=60), failure_detail="stale"
+        )
+        is False
+    )
+    assert await repository.mark_failed(message_id, claimed_attempt=1, failure_detail="stale") is False
+
+    seed_session.expire_all()
+    persisted = (
+        await seed_session.execute(select(OutboundMessage).where(OutboundMessage.id == message_id))
+    ).scalar_one()
+    assert persisted.status == OutboundMessageStatus.PROCESSING.value
+    assert persisted.last_error is None
+    assert persisted.text_body == "text"
+
+    # The owning attempt still settles normally.
+    assert await repository.mark_delivered(message_id, claimed_attempt=2) is True
+
+
+@pytest.mark.asyncio
+async def test_settlement_is_rejected_once_the_row_is_no_longer_processing(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    message = _message(
+        destination="requeued@example.com",
+        status=OutboundMessageStatus.PENDING.value,
+        attempt_count=1,
+    )
+    await _add(seed_session, message)
+
+    assert await repository.mark_delivered(message.id, claimed_attempt=1) is False
+
+
+@pytest.mark.asyncio
+async def test_release_claims_requeues_and_refunds_the_attempt(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    claimed = _message(
+        destination="released@example.com",
+        status=OutboundMessageStatus.PROCESSING.value,
+        locked_at=datetime.now(UTC),
+        attempt_count=2,
+    )
+    reclaimed_elsewhere = _message(
+        destination="reclaimed@example.com",
+        status=OutboundMessageStatus.PROCESSING.value,
+        locked_at=datetime.now(UTC),
+        attempt_count=3,
+    )
+    await _add(seed_session, claimed, reclaimed_elsewhere)
+    claimed_id = claimed.id
+    reclaimed_id = reclaimed_elsewhere.id
+
+    released = await repository.release_claims(
+        [(claimed_id, 2), (reclaimed_id, 1)],
+    )
+
+    assert released == 1
+    seed_session.expire_all()
+    persisted = {
+        row.id: row
+        for row in (
+            await seed_session.execute(
+                select(OutboundMessage).where(
+                    OutboundMessage.id.in_([claimed_id, reclaimed_id]),
+                )
+            )
+        ).scalars()
+    }
+    assert persisted[claimed_id].status == OutboundMessageStatus.PENDING.value
+    assert persisted[claimed_id].locked_at is None
+    assert persisted[claimed_id].attempt_count == 1
+    # Fenced out: this row belongs to a newer attempt.
+    assert persisted[reclaimed_id].status == OutboundMessageStatus.PROCESSING.value
+    assert persisted[reclaimed_id].attempt_count == 3
+
+
+@pytest.mark.asyncio
+async def test_release_claims_without_leases_is_a_no_op(repository: OutboundMessageRepository):
+    assert await repository.release_claims([]) == 0
+
+
+@pytest.mark.asyncio
+async def test_expired_messages_are_never_claimed_and_are_retired(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    expired = _message(
+        destination="expired@example.com",
+        expires_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+    live = _message(
+        destination="live@example.com",
+        expires_at=datetime.now(UTC) + timedelta(minutes=15),
+    )
+    never_expires = _message(destination="forever@example.com")
+    await _add(seed_session, expired, live, never_expires)
+    expired_id = expired.id
+
+    claimed = await repository.claim_pending_messages(OutboundMessageChannel.EMAIL, batch_size=10)
+    assert {message.destination for message in claimed} == {"live@example.com", "forever@example.com"}
+
+    retired = await repository.fail_expired_messages()
+
+    assert retired == 1
+    seed_session.expire_all()
+    persisted = (
+        await seed_session.execute(select(OutboundMessage).where(OutboundMessage.id == expired_id))
+    ).scalar_one()
+    assert persisted.status == OutboundMessageStatus.FAILED.value
+    assert persisted.text_body is None
+    assert persisted.html_body is None
+    assert persisted.last_error is not None
+
+
+@pytest.mark.asyncio
+async def test_supersede_pending_messages_retires_only_matching_pending_rows(
+    repository: OutboundMessageRepository,
+    seed_session: AsyncSession,
+):
+    superseded = _message(
+        kind=OutboundMessageKind.PASSWORD_RESET.value,
+        destination="reset@example.com",
+    )
+    other_destination = _message(
+        kind=OutboundMessageKind.PASSWORD_RESET.value,
+        destination="someone-else@example.com",
+    )
+    other_kind = _message(
+        kind=OutboundMessageKind.REGISTRATION_VERIFICATION.value,
+        destination="reset@example.com",
+    )
+    in_flight = _message(
+        kind=OutboundMessageKind.PASSWORD_RESET.value,
+        destination="reset@example.com",
+        status=OutboundMessageStatus.PROCESSING.value,
+        locked_at=datetime.now(UTC),
+        attempt_count=1,
+    )
+    await _add(seed_session, superseded, other_destination, other_kind, in_flight)
+    superseded_id = superseded.id
+    other_destination_id = other_destination.id
+    other_kind_id = other_kind.id
+    in_flight_id = in_flight.id
+
+    retired = await repository.supersede_pending_messages(
+        OutboundMessageKind.PASSWORD_RESET,
+        "reset@example.com",
+    )
+
+    assert retired == 1
+    seed_session.expire_all()
+    persisted = {
+        row.id: row
+        for row in (
+            await seed_session.execute(
+                select(OutboundMessage).where(
+                    OutboundMessage.id.in_([superseded_id, other_destination_id, other_kind_id, in_flight_id])
+                )
+            )
+        ).scalars()
+    }
+    assert persisted[superseded_id].status == OutboundMessageStatus.FAILED.value
+    assert persisted[superseded_id].text_body is None
+    assert persisted[other_destination_id].status == OutboundMessageStatus.PENDING.value
+    assert persisted[other_kind_id].status == OutboundMessageStatus.PENDING.value
+    # A row another worker is already sending is owned by its lease, not by the reissue.
+    assert persisted[in_flight_id].status == OutboundMessageStatus.PROCESSING.value

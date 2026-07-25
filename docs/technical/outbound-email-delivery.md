@@ -55,11 +55,32 @@ truncates and the next migration fails with `StringDataRightTruncationError`.
 
 ### Why content is rendered and stored at enqueue
 
-Content cannot be reconstructed later. A registration or password-reset code exists
-only as an HMAC hash in Redis once issued
-(`app/services/registration_verification_service.py`) — the plaintext code has to be
-captured into the rendered body before the message is queued. Rendering therefore
-happens once, at enqueue time, and the result is persisted on the row.
+Content cannot be reconstructed later. A registration verification code is stored only
+as an HMAC hash in Redis once issued (`app/services/registration_verification_service.py`),
+so nothing outside the originating request can recover the plaintext. Password-reset
+codes are different: `forgot_password` writes the plaintext into
+`users.reset_password_code` with `users.reset_password_expires`. Even there, the outbox
+does not read it back — the message is rendered from the code the request already holds,
+which keeps one rendering path for every kind and avoids a second read of a credential
+column that `reset_password` clears on use.
+
+Rendering therefore happens once, at enqueue time, and the result is persisted on the row.
+
+### Expiry and supersede
+
+A code-bearing message carries `expires_at`, set from the same deadline as the code it
+delivers: the registration TTL (`REGISTRATION_VERIFICATION_TTL_SECONDS`) or the stored
+`users.reset_password_expires`. This matters because the default backoff schedules the
+fifth attempt roughly 15 minutes after the first, which is the code's own lifetime — a
+successful final retry would otherwise deliver a code that no longer validates. Expired
+rows are never claimed, and `fail_expired_messages()` retires them each cycle, clearing
+the rendered body so a dead secret stops sitting in the table.
+
+Reissuing a code invalidates the previous one, so `_enqueue_auth_message` supersedes any
+still-`pending` message of the same kind for the same destination before inserting the
+new row. A message already `processing` is left alone: it belongs to its lease holder and
+settles normally. Kinds without a code (the existing-account notice) neither expire nor
+supersede.
 
 ### Why bodies are cleared on terminal status
 
@@ -96,14 +117,35 @@ without any external coordination.
 crashes mid-send still burns an attempt, so a poison message cannot loop forever even
 across worker restarts.
 
+### Lease fencing
+
+`attempt_count` doubles as a fencing token. Every settlement — `mark_delivered()`,
+`schedule_retry()`, `mark_failed()` — takes the `claimed_attempt` it was handed at claim
+time and updates only `WHERE id = ... AND status = 'processing' AND attempt_count =
+claimed_attempt`, returning `False` when that lease is gone.
+
+Without the fence, this sequence corrupts a row: attempt A stalls, the stale sweep
+requeues it, attempt B claims and delivers it and clears its bodies, then A finally
+reports failure and regresses the delivered row to `pending` — now with no rendered
+content, so every later attempt fails on missing content until it exhausts. The fence
+makes A's late settlement a no-op, logged as a lost lease.
+
+### Batch claims are released, not abandoned
+
+A claim locks the whole batch and spends an attempt on every row up front, while delivery
+is serial. Rows the worker never reaches — it is shutting down, or the cycle raised — are
+handed back by `release_claims()`, which returns them to `pending` and **refunds** the
+attempt, fenced on the claiming attempt so a row already re-claimed elsewhere is skipped.
+Without that refund, repeated deploys could exhaust a message's five attempts without a
+single send ever being attempted.
+
 ## At-Least-Once Delivery
 
 `OutboundMessageDeliveryService._deliver()` sends first, then calls `mark_delivered()`
-only after a successful send. There is no guard requiring `status = 'processing'` on
-`mark_delivered()`: if a stale-lock sweep (see below) already requeued the row
-concurrently, the mail was still sent, and recording delivery here is exactly what
-prevents a duplicate send on the next claim. The accepted trade-off is a rare
-duplicate delivery, never a lost one.
+only after a successful send. If the lease was lost in between, the settlement is
+rejected and the newer attempt owns the outcome — the mail was still sent, so the
+recipient may receive a duplicate. The accepted trade-off is a rare duplicate delivery,
+never a lost one.
 
 Sending itself runs off the event loop
 (`await asyncio.to_thread(email_service.send_transactional_email, ...)`), since
@@ -257,7 +299,7 @@ of silently discarding mail.
 ## Running Locally
 
 ```bash
-make run-email-worker     # uv run python -m app.workers.outbound_message_worker
+make run-email-worker     # uv run python worker.py
 ```
 
 Or via the full local Docker stack (`make docker-up`), which starts `postgres` →

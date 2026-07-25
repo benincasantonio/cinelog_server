@@ -1,5 +1,6 @@
 """Unit tests for the outbound-message enqueue service (repository + renderers only)."""
 
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -48,7 +49,7 @@ async def test_enqueue_notification_email_renders_and_writes_expected_row(
     result = await service.enqueue_notification_email(notification)
 
     assert result is not None
-    user_repository.find_user_by_id.assert_awaited_once_with(recipient_id)
+    user_repository.find_user_by_id.assert_awaited_once_with(recipient_id, session=None)
     outbound_message_repository.enqueue.assert_awaited_once()
     args, kwargs = outbound_message_repository.enqueue.call_args
     written = args[0]
@@ -132,11 +133,18 @@ async def test_enqueue_registration_verification_writes_expected_row(
     service: OutboundMessageService,
     outbound_message_repository: AsyncMock,
 ):
-    result = await service.enqueue_registration_verification("user@example.com", "ABC123")
+    expires_at = datetime.now(UTC) + timedelta(minutes=15)
+
+    result = await service.enqueue_registration_verification("user@example.com", "ABC123", expires_at=expires_at)
 
     assert result is not None
+    # A reissued code invalidates the previous one, so its queued message must go.
+    outbound_message_repository.supersede_pending_messages.assert_awaited_once_with(
+        OutboundMessageKind.REGISTRATION_VERIFICATION, "user@example.com"
+    )
     args, _ = outbound_message_repository.enqueue.call_args
     written = args[0]
+    assert written.expires_at == expires_at
     assert written.kind is OutboundMessageKind.REGISTRATION_VERIFICATION
     assert written.notification_id is None
     assert written.channel is OutboundMessageChannel.EMAIL
@@ -159,6 +167,8 @@ async def test_enqueue_registration_existing_account_writes_expected_row(
     assert written.notification_id is None
     assert written.destination == "user@example.com"
     assert written.subject == "Cinelog account already exists"
+    assert written.expires_at is None
+    outbound_message_repository.supersede_pending_messages.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -166,11 +176,17 @@ async def test_enqueue_password_reset_writes_expected_row(
     service: OutboundMessageService,
     outbound_message_repository: AsyncMock,
 ):
-    result = await service.enqueue_password_reset("user@example.com", "XYZ987")
+    expires_at = datetime.now(UTC) + timedelta(minutes=15)
+
+    result = await service.enqueue_password_reset("user@example.com", "XYZ987", expires_at=expires_at)
 
     assert result is not None
+    outbound_message_repository.supersede_pending_messages.assert_awaited_once_with(
+        OutboundMessageKind.PASSWORD_RESET, "user@example.com"
+    )
     args, _ = outbound_message_repository.enqueue.call_args
     written = args[0]
+    assert written.expires_at == expires_at
     assert written.kind is OutboundMessageKind.PASSWORD_RESET
     assert written.notification_id is None
     assert written.destination == "user@example.com"

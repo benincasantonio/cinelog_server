@@ -1,5 +1,6 @@
 """Outbound-message (transactional email outbox) internal schemas."""
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import ConfigDict
@@ -32,3 +33,6 @@ class OutboundMessageCreateData(StrictOutboundMessageSchema):
     subject: str
     text_body: str
     html_body: str
+    # Set for code-bearing messages so an expired code is discarded rather than
+    # delivered by a late retry. ``None`` means the content never goes stale.
+    expires_at: datetime | None = None

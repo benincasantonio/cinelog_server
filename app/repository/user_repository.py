@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user_model import User
 from app.repository.repository_base import RepositoryBase
@@ -84,15 +85,19 @@ class UserRepository(RepositoryBase):
             result = await session.execute(statement)
             return result.scalar_one_or_none()
 
-    async def find_user_by_id(self, user_id: UUID) -> User | None:
-        """Find an active user by UUID."""
+    async def find_user_by_id(self, user_id: UUID, *, session: AsyncSession | None = None) -> User | None:
+        """Find an active user by UUID.
 
-        async with self._session_provider() as session:
+        Accepts an optional ``session`` so a caller already inside a transaction reads
+        through the same connection instead of taking a second one from the pool.
+        """
+
+        async with self._unit_of_work(session) as active_session:
             statement = select(User).where(
                 User.id == user_id,
                 User.active(),
             )
-            result = await session.execute(statement)
+            result = await active_session.execute(statement)
             return result.scalar_one_or_none()
 
     async def delete_user(self, user_id: UUID) -> bool:

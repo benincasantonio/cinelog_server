@@ -43,6 +43,10 @@ class OutboundMessage(BaseEntity):
     locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Deadline after which the payload is worthless — a verification code outlives its
+    # own message otherwise, because the default backoff schedules the final attempt at
+    # roughly the code's own TTL. NULL means the content does not expire.
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     _kind_sql = ", ".join(f"'{kind.value}'" for kind in OutboundMessageKind)
     _channel_sql = ", ".join(f"'{channel.value}'" for channel in OutboundMessageChannel)
