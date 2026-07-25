@@ -99,4 +99,18 @@ class OutboundMessage(BaseEntity):
             "locked_at",
             postgresql_where=text("deleted IS FALSE AND status = 'processing'"),
         ),
+        # The expiry sweep looks for due, code-bearing rows; without this it falls back
+        # to the claimable index and filters, which degrades as the backlog grows.
+        Index(
+            "ix_outbound_messages_expiring",
+            "expires_at",
+            postgresql_where=text("deleted IS FALSE AND status = 'pending' AND expires_at IS NOT NULL"),
+        ),
+        # The retention purge selects settled rows by age; the two indexes above cover
+        # only pending and processing, so it would otherwise scan weeks of history.
+        Index(
+            "ix_outbound_messages_retention",
+            "updated_at",
+            postgresql_where=text("status IN ('delivered', 'cancelled', 'failed') OR deleted IS TRUE"),
+        ),
     )

@@ -77,7 +77,7 @@ def test_create_log_success(mock_create_log, client):
 ```python
 from unittest.mock import AsyncMock, MagicMock
 
-from app import app
+from app.main import app
 from app.dependencies.service_dependency import get_log_service
 
 

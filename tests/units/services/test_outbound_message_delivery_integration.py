@@ -84,12 +84,14 @@ def _worker_config(**overrides) -> OutboundMessageWorkerConfig:
         "batch_size": 10,
         "poll_interval": 5,
         "lock_timeout": 300,
-        "max_attempts": 5,
+        "max_retries": 4,
         "retry_base_delay": 60,
         "retry_max_delay": 3600,
         "delivered_retention_days": 30,
         "failed_retention_days": 90,
         "purge_interval": 0,
+        "purge_batch_size": 1000,
+        "retry_jitter_ratio": 0.0,
     }
     defaults.update(overrides)
     return OutboundMessageWorkerConfig(**defaults)

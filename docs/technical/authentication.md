@@ -92,3 +92,13 @@ worker fail fast at startup (`RuntimeError`) instead of silently discarding mail
 - [Technical: Outbound Email Delivery](outbound-email-delivery.md) — the durable outbox, delivery worker, and `EMAIL_TRANSPORT`/`SMTP_*` configuration
 - [CORS Configuration](cors-configuration.md) — Related cross-origin settings
 - [ARCHITECTURE.md](../../ARCHITECTURE.md) — Codebase architecture reference
+
+## Forgot-Password Enqueue Failures
+
+`forgot_password` returns success for an unknown email without touching the database, so
+letting an outbox write fail loudly for a *known* account would answer "does this account
+exist?" with a 500 against a 200. The enqueue is therefore wrapped: a failure is logged
+and the response is unchanged. The email is lost in that rare case — the same outcome as
+before the outbox existed — which is the trade made to keep the endpoint
+enumeration-safe. Registration is unaffected: both of its branches enqueue, so their
+failure modes already match.

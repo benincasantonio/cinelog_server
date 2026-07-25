@@ -133,6 +133,7 @@ class OutboundMessageDeliveryService:
         purged = await self.outbound_message_repository.purge_settled_messages(
             delivered_retention=timedelta(days=self.worker_config.delivered_retention_days),
             failed_retention=timedelta(days=self.worker_config.failed_retention_days),
+            batch_size=self.worker_config.purge_batch_size,
         )
         if purged:
             logger.info("Purged %d settled outbound message(s) past their retention window", purged)

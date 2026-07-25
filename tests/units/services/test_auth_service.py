@@ -75,6 +75,22 @@ class TestAuthService:
         mock_outbound_message_service.enqueue_registration_verification.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_forgot_password_hides_outbox_failures_to_stay_enumeration_safe(
+        self, auth_service, mock_user_repo, mock_outbound_message_service
+    ):
+        """An unknown email returns success without any write.
+
+        If a known account answered with a 500 when the outbox write failed, the
+        difference between the two responses would reveal whether the account exists.
+        """
+
+        mock_user_repo.find_user_by_email.return_value = SimpleNamespace(email="known@example.com")
+        mock_outbound_message_service.enqueue_password_reset.side_effect = RuntimeError("database went away")
+
+        # Must not raise: the unknown-account branch returns None, so this one must too.
+        assert await auth_service.forgot_password("known@example.com") is None
+
+    @pytest.mark.asyncio
     async def test_forgot_password_success(self, auth_service, mock_user_repo, mock_outbound_message_service):
         email = "test@example.com"
         mock_user = SimpleNamespace(email=email)

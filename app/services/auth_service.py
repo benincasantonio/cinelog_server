@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -14,6 +15,8 @@ from app.services.registration_verification_service import RegistrationVerificat
 from app.utils.auth_utils import normalize_email_identifier
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -41,13 +44,16 @@ class AuthService:
             await self.outbound_message_service.enqueue_registration_existing_account(email_lowercase)
             return
 
+        # Compute the deadline *before* issuing, because Redis starts its TTL when the
+        # code is written. Deriving it afterwards would place the queued message's expiry
+        # slightly later than Redis's, leaving a window in which an already-dropped code
+        # is still considered deliverable.
+        expires_at = datetime.now(UTC) + timedelta(seconds=REGISTRATION_VERIFICATION_TTL_SECONDS)
         verification_code = await self.registration_verification_service.issue_code(email_lowercase)
-        # The queued message must expire with the code itself: the retry schedule can
-        # otherwise deliver a code that Redis has already dropped.
         await self.outbound_message_service.enqueue_registration_verification(
             email_lowercase,
             verification_code,
-            expires_at=datetime.now(UTC) + timedelta(seconds=REGISTRATION_VERIFICATION_TTL_SECONDS),
+            expires_at=expires_at,
         )
 
     async def register(self, request: RegisterRequest) -> RegisterResponse:
@@ -146,11 +152,19 @@ class AuthService:
         # Enqueue for durable, asynchronous delivery via the outbound message worker.
         # The message carries the same deadline as the stored code, so a late retry
         # discards it rather than delivering a code that reset_password already rejects.
-        await self.outbound_message_service.enqueue_password_reset(
-            email_lowercase,
-            reset_code,
-            expires_at=expires_at,
-        )
+        #
+        # A failure here must not surface: the unknown-account branch above returns
+        # early with success, so letting this raise would answer "does this account
+        # exist?" with a 500 versus a 200. The email is lost in that case, which is the
+        # same outcome as before the outbox existed, and it is logged for operators.
+        try:
+            await self.outbound_message_service.enqueue_password_reset(
+                email_lowercase,
+                reset_code,
+                expires_at=expires_at,
+            )
+        except Exception:
+            logger.exception("Failed to enqueue the password reset email")
 
     async def reset_password(self, email: str, code: str, new_password: str):
         """

@@ -218,6 +218,12 @@ Sending itself runs off the event loop
 
 ## Retry and Backoff
 
+`OUTBOUND_MESSAGE_MAX_RETRIES` counts retries *after* the first delivery, matching the
+ticket's "retry at most five times": the default allows six attempts in total. Each
+computed delay is then shortened by up to `OUTBOUND_MESSAGE_RETRY_JITTER_RATIO`, because
+an SMTP outage fails an entire batch at once and identical delays would re-create the
+same herd on every wave.
+
 On failure, `_record_failure()`:
 
 - If `attempt_count >= max_attempts`: `mark_failed()` — terminal, bodies cleared.
@@ -228,13 +234,13 @@ On failure, `_record_failure()`:
 `compute_retry_delay()` (`app/config/outbound_message_config.py`) doubles per attempt
 with no jitter, capped at `retry_max_delay`:
 
-| Attempt that just failed | Delay before next attempt (defaults) |
+| Attempt that just failed | Delay before next attempt (defaults, before jitter) |
 |---|---|
 | 1 | 60s |
 | 2 | 120s |
 | 3 | 240s |
 | 4 | 480s |
-| 5 (exhausted at default `max_attempts=5`) | terminal `failed` |
+| 6 (exhausted at default `OUTBOUND_MESSAGE_MAX_RETRIES=5`) | terminal `failed` |
 
 Every failure detail is passed through `sanitize_failure_detail()`
 (`app/utils/sanitize_utils.py`) before being persisted: whitespace is collapsed, email
@@ -351,9 +357,11 @@ codes or reset copy — it is pure transport.
 | `OUTBOUND_MESSAGE_BATCH_SIZE` | `10` | Rows claimed per delivery cycle |
 | `OUTBOUND_MESSAGE_POLL_INTERVAL_SECONDS` | `5` | Worker sleep after an empty cycle |
 | `OUTBOUND_MESSAGE_LOCK_TIMEOUT_SECONDS` | `300` | Age at which a `processing` lock is considered stale |
-| `OUTBOUND_MESSAGE_MAX_ATTEMPTS` | `5` | Attempts before a message is terminally `failed` |
+| `OUTBOUND_MESSAGE_MAX_RETRIES` | `5` | Attempts before a message is terminally `failed` |
 | `OUTBOUND_MESSAGE_RETRY_BASE_SECONDS` | `60` | First retry backoff |
 | `OUTBOUND_MESSAGE_RETRY_MAX_SECONDS` | `3600` | Backoff cap |
+| `OUTBOUND_MESSAGE_RETRY_JITTER_RATIO` | `0.25` | Fraction by which a backoff may be randomly shortened, so a batch failing together does not retry in lockstep |
+| `OUTBOUND_MESSAGE_PURGE_BATCH_SIZE` | `1000` | Rows deleted per purge run, bounding the DELETE |
 | `OUTBOUND_MESSAGE_DELIVERED_RETENTION_DAYS` | `30` | How long delivered and cancelled rows are kept before pruning |
 | `OUTBOUND_MESSAGE_FAILED_RETENTION_DAYS` | `90` | How long terminal failures are kept for diagnosis |
 | `OUTBOUND_MESSAGE_PURGE_INTERVAL_SECONDS` | `3600` | How often the retention purge runs; it is an unindexed scan, so not every cycle |

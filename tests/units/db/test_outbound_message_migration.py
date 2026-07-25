@@ -113,7 +113,19 @@ def test_outbound_message_migration_creates_expected_columns_and_indexes(
     assert nullability["status"] == "NO"
     assert nullability["attempt_count"] == "NO"
 
-    assert set(indexes) >= {"ix_outbound_messages_claimable", "ix_outbound_messages_stale_locks"}
+    assert set(indexes) >= {
+        "ix_outbound_messages_claimable",
+        "ix_outbound_messages_stale_locks",
+        "ix_outbound_messages_expiring",
+        "ix_outbound_messages_retention",
+    }
+    # The maintenance sweeps run on a live table, so each needs its own partial index
+    # rather than falling back to a sequential scan over weeks of history.
+    assert (
+        "WHERE ((deleted IS FALSE) AND (status = 'pending'::text) AND (expires_at IS NOT NULL))"
+        in (indexes["ix_outbound_messages_expiring"])
+    )
+    assert "updated_at" in indexes["ix_outbound_messages_retention"]
     claimable_def = indexes["ix_outbound_messages_claimable"]
     assert "deleted IS FALSE" in claimable_def
     assert "status = 'pending'" in claimable_def

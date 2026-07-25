@@ -68,7 +68,14 @@ def test_outbound_message_model_has_total_unique_constraint_on_notification_and_
 def test_outbound_message_model_has_expected_partial_indexes():
     indexes = {index.name: index for index in OutboundMessage.__table__.indexes}
 
-    assert set(indexes) == {"ix_outbound_messages_claimable", "ix_outbound_messages_stale_locks"}
+    assert set(indexes) == {
+        "ix_outbound_messages_claimable",
+        "ix_outbound_messages_stale_locks",
+        # Both maintenance sweeps need their own index: neither the claimable nor the
+        # stale-lock index covers settled rows or expiry, so they would scan the table.
+        "ix_outbound_messages_expiring",
+        "ix_outbound_messages_retention",
+    }
 
     claimable = indexes["ix_outbound_messages_claimable"]
     assert [column.name for column in claimable.columns] == ["channel", "available_at", "id"]

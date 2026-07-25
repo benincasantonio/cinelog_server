@@ -443,6 +443,7 @@ class OutboundMessageRepository(RepositoryBase):
         *,
         delivered_retention: timedelta,
         failed_retention: timedelta,
+        batch_size: int = 1000,
     ) -> int:
         """Delete settled rows past their retention window.
 
@@ -453,32 +454,36 @@ class OutboundMessageRepository(RepositoryBase):
         address, and a soft-deleted row keeps it.
         """
 
+        purgeable = or_(
+            and_(
+                OutboundMessage.status.in_(
+                    [
+                        OutboundMessageStatus.DELIVERED.value,
+                        OutboundMessageStatus.CANCELLED.value,
+                    ]
+                ),
+                OutboundMessage.updated_at < func.now() - delivered_retention,
+            ),
+            and_(
+                OutboundMessage.status == OutboundMessageStatus.FAILED.value,
+                OutboundMessage.updated_at < func.now() - failed_retention,
+            ),
+            # Soft-deleted rows keep their status, so no other sweep reaches them: the
+            # expiry sweep requires an active row, and the status arms above never match
+            # a soft-deleted pending one. Left alone they would retain a plaintext code
+            # and a recipient address forever.
+            and_(
+                OutboundMessage.deleted.is_(True),
+                OutboundMessage.updated_at < func.now() - delivered_retention,
+            ),
+        )
+
         async with self._session_provider() as session:
+            # Delete a bounded batch: a long-neglected outbox would otherwise produce one
+            # enormous DELETE holding locks across the whole table.
             result = await session.execute(
                 delete(OutboundMessage).where(
-                    or_(
-                        and_(
-                            OutboundMessage.status.in_(
-                                [
-                                    OutboundMessageStatus.DELIVERED.value,
-                                    OutboundMessageStatus.CANCELLED.value,
-                                ]
-                            ),
-                            OutboundMessage.updated_at < func.now() - delivered_retention,
-                        ),
-                        and_(
-                            OutboundMessage.status == OutboundMessageStatus.FAILED.value,
-                            OutboundMessage.updated_at < func.now() - failed_retention,
-                        ),
-                        # Soft-deleted rows keep their status, so no other sweep reaches
-                        # them: the expiry sweep requires an active row and the status
-                        # arms above never match a soft-deleted pending one. Left alone
-                        # they would retain a plaintext code and an address forever.
-                        and_(
-                            OutboundMessage.deleted.is_(True),
-                            OutboundMessage.updated_at < func.now() - delivered_retention,
-                        ),
-                    )
+                    OutboundMessage.id.in_(select(OutboundMessage.id).where(purgeable).limit(batch_size))
                 )
             )
             await session.commit()

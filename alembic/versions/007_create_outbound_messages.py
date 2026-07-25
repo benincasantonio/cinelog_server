@@ -89,11 +89,25 @@ def upgrade() -> None:
         ["locked_at"],
         postgresql_where=sa.text("deleted IS FALSE AND status = 'processing'"),
     )
+    op.create_index(
+        "ix_outbound_messages_expiring",
+        "outbound_messages",
+        ["expires_at"],
+        postgresql_where=sa.text("deleted IS FALSE AND status = 'pending' AND expires_at IS NOT NULL"),
+    )
+    op.create_index(
+        "ix_outbound_messages_retention",
+        "outbound_messages",
+        ["updated_at"],
+        postgresql_where=sa.text("status IN ('delivered', 'cancelled', 'failed') OR deleted IS TRUE"),
+    )
 
 
 def downgrade() -> None:
     """Drop the transactional-outbox table."""
 
+    op.drop_index("ix_outbound_messages_retention", table_name="outbound_messages")
+    op.drop_index("ix_outbound_messages_expiring", table_name="outbound_messages")
     op.drop_index("ix_outbound_messages_stale_locks", table_name="outbound_messages")
     op.drop_index("ix_outbound_messages_claimable", table_name="outbound_messages")
     op.drop_table("outbound_messages")

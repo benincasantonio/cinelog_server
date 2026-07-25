@@ -124,8 +124,9 @@ class OutboundMessageRepositoryProtocol(Protocol):
         *,
         delivered_retention: timedelta,
         failed_retention: timedelta,
+        batch_size: int = 1000,
     ) -> int:
-        """Delete settled rows past their retention window."""
+        """Delete a bounded batch of settled rows past their retention window."""
 
     async def recover_stale_locks(
         self,
