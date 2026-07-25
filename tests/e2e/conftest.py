@@ -66,9 +66,7 @@ def _clear_dependency_caches() -> None:
         get_movie_rating_repository,
         get_movie_repository,
         get_notification_repository,
-        get_notification_unit_of_work,
         get_outbound_message_repository,
-        get_outbound_message_service,
         get_stats_repository,
         get_user_repository,
     )
@@ -78,7 +76,9 @@ def _clear_dependency_caches() -> None:
         get_movie_rating_service,
         get_movie_service,
         get_notification_service,
+        get_notification_unit_of_work,
         get_outbound_message_delivery_service,
+        get_outbound_message_service,
         get_stats_service,
         get_user_service,
     )
@@ -89,6 +89,8 @@ def _clear_dependency_caches() -> None:
         get_movie_rating_service,
         get_movie_service,
         get_notification_service,
+        get_notification_unit_of_work,
+        get_outbound_message_service,
         get_outbound_message_delivery_service,
         get_stats_service,
         get_user_service,
@@ -96,9 +98,7 @@ def _clear_dependency_caches() -> None:
         get_movie_rating_repository,
         get_movie_repository,
         get_notification_repository,
-        get_notification_unit_of_work,
         get_outbound_message_repository,
-        get_outbound_message_service,
         get_stats_repository,
         get_user_repository,
     ):

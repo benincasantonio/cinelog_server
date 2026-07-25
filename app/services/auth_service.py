@@ -2,7 +2,6 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from app.config.registration_verification_config import REGISTRATION_VERIFICATION_TTL_SECONDS
-from app.dependencies.repository_dependency import get_outbound_message_service
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.auth_schemas import (
     RegisterRequest,
@@ -25,11 +24,11 @@ class AuthService:
     def __init__(
         self,
         user_repository: UserRepositoryProtocol,
-        outbound_message_service: OutboundMessageService | None = None,
+        outbound_message_service: OutboundMessageService,
         registration_verification_service: RegistrationVerificationService | None = None,
     ):
         self.user_repository = user_repository
-        self.outbound_message_service = outbound_message_service or get_outbound_message_service()
+        self.outbound_message_service = outbound_message_service
         self.registration_verification_service = registration_verification_service or RegistrationVerificationService()
 
     async def send_registration_verification_code(self, email: str) -> None:

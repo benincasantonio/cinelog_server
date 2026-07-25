@@ -2,11 +2,14 @@
 
 from app.dependencies.repository_dependency import (
     get_notification_repository,
-    get_notification_unit_of_work,
     get_outbound_message_repository,
+)
+from app.dependencies.service_dependency import (
+    get_notification_service,
+    get_notification_unit_of_work,
+    get_outbound_message_delivery_service,
     get_outbound_message_service,
 )
-from app.dependencies.service_dependency import get_notification_service, get_outbound_message_delivery_service
 from app.repository.notification_repository import NotificationRepository
 from app.repository.notification_unit_of_work import NotificationUnitOfWork
 from app.repository.outbound_message_repository import OutboundMessageRepository

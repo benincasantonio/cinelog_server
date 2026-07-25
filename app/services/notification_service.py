@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from app.config.notification_config import notification_list_cursor_scope
-from app.dependencies.repository_dependency import get_notification_repository, get_notification_unit_of_work
 from app.models.notification_model import Notification
 from app.repository.notification_repository_protocol import (
     NotificationCreateResult,
@@ -33,11 +32,14 @@ class NotificationService:
 
     def __init__(
         self,
-        repository: NotificationRepositoryProtocol | None = None,
-        unit_of_work: NotificationUnitOfWorkProtocol | None = None,
+        repository: NotificationRepositoryProtocol,
+        unit_of_work: NotificationUnitOfWorkProtocol,
     ) -> None:
-        self.repository = repository or get_notification_repository()
-        self.unit_of_work = unit_of_work or get_notification_unit_of_work()
+        # Both collaborators are injected rather than self-defaulted from the dependency
+        # module: a service that imports its own providers forces those providers to live
+        # in the repository layer to avoid an import cycle.
+        self.repository = repository
+        self.unit_of_work = unit_of_work
 
     @staticmethod
     def _to_response(notification: Notification) -> NotificationBaseResponse:

@@ -13,7 +13,13 @@ Controllers receive services through FastAPI `Depends(...)`.
 
 `get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, `get_log_repository()`, `get_notification_repository()`, `get_outbound_message_repository()`, and `get_stats_repository()` return PostgreSQL repository implementations. `StatsRepository` is a cross-table read repository and does not correspond to a database table. Services type-hint against the `*RepositoryProtocol` interfaces in `app/repository/`.
 
-`get_outbound_message_service()` and `get_notification_unit_of_work()` also live in `app/dependencies/repository_dependency.py` rather than `service_dependency.py`, even though they return service/orchestration objects — `app/services/notification_service.py` needs a unit-of-work provider and already imports from this module, and importing it from `service_dependency.py` instead would create an import cycle (that module imports `NotificationService`).
+## Services Do Not Import Their Own Providers
+
+`NotificationService`, `AuthService`, and `OutboundMessageService` take every collaborator as a required constructor argument instead of falling back to `get_*()` inside `__init__`.
+
+That is a deliberate constraint, not a style preference. A service that imports `app/dependencies/*` to self-default forces its own providers into whichever dependency module it imports: `get_outbound_message_service()` and `get_notification_unit_of_work()` initially had to live in `repository_dependency.py`, despite returning service and orchestration objects, purely because `NotificationService` imported that module and `service_dependency.py` imports `NotificationService` — placing them correctly would have closed an import cycle. Removing the self-defaulting removed the cycle, and both providers now live in `service_dependency.py` where they belong.
+
+`LogService` and `StatsService` still self-default from `repository_dependency.py`. They are unaffected today because only repository providers are involved, but the same constraint applies to them if a service-layer provider is ever needed there.
 
 ## Service Providers
 

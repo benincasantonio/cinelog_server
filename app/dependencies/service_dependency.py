@@ -13,13 +13,13 @@ from app.dependencies.repository_dependency import (
     get_movie_rating_repository,
     get_movie_repository,
     get_notification_repository,
-    get_notification_unit_of_work,
     get_outbound_message_repository,
-    get_outbound_message_service,
     get_stats_repository,
     get_user_repository,
 )
 from app.repository.log_cache_repository import LogCacheRepository
+from app.repository.notification_unit_of_work import NotificationUnitOfWork
+from app.repository.notification_unit_of_work_protocol import NotificationUnitOfWorkProtocol
 from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.services.auth_service import AuthService
 from app.services.log_service import LogService
@@ -27,12 +27,33 @@ from app.services.movie_rating_service import MovieRatingService
 from app.services.movie_service import MovieService
 from app.services.notification_service import NotificationService
 from app.services.outbound_message_delivery_service import OutboundMessageDeliveryService
+from app.services.outbound_message_service import OutboundMessageService
 from app.services.stats_service import StatsService
 from app.services.user_service import UserService
 
 
 def _get_runtime_log_repository():
     return LogCacheRepository(get_log_repository())
+
+
+@lru_cache
+def get_outbound_message_service() -> OutboundMessageService:
+    """Return the cached outbound-message enqueue service (repository + renderers only)."""
+
+    return OutboundMessageService(
+        outbound_message_repository=get_outbound_message_repository(),
+        user_repository=get_user_repository(),
+    )
+
+
+@lru_cache
+def get_notification_unit_of_work() -> NotificationUnitOfWorkProtocol:
+    """Return the cached unit of work that creates a notification and its deliveries atomically."""
+
+    return NotificationUnitOfWork(
+        notification_repository=get_notification_repository(),
+        outbound_message_service=get_outbound_message_service(),
+    )
 
 
 @lru_cache
