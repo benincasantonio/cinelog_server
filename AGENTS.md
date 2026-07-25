@@ -6,6 +6,12 @@ This file provides operational guidance for AI coding agents working with this r
 
 Cinelog is a FastAPI-based movie logging application that allows users to track movies they've watched, rate them, and manage their viewing history. The backend integrates with The Movie Database (TMDB) API for movie information and uses PostgreSQL with async SQLAlchemy for data persistence.
 
+### Related Frontend Project
+
+The frontend for this backend is the [`cinelog_web`](https://github.com/benincasantonio/cinelog_web) repository. Do not modify frontend files while working from the `cinelog_server` project.
+
+When frontend context is needed, inspect the remote `cinelog_web` repository with the GitHub CLI (`gh`). If local frontend access is required, ask the user for the checkout path instead of searching for or assuming one. Frontend changes must be made from the frontend project after reading its `AGENTS.md` and must follow that repository's own issue, branch, testing, documentation, and review workflows.
+
 ## Development Commands
 
 **Important:** Always check the `Makefile` for available scripts before running raw commands. The `Makefile` wraps common operations and ensures consistent usage across local dev and CI.
