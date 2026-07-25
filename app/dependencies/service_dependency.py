@@ -13,6 +13,9 @@ from app.dependencies.repository_dependency import (
     get_movie_rating_repository,
     get_movie_repository,
     get_notification_repository,
+    get_notification_unit_of_work,
+    get_outbound_message_repository,
+    get_outbound_message_service,
     get_stats_repository,
     get_user_repository,
 )
@@ -23,6 +26,7 @@ from app.services.log_service import LogService
 from app.services.movie_rating_service import MovieRatingService
 from app.services.movie_service import MovieService
 from app.services.notification_service import NotificationService
+from app.services.outbound_message_delivery_service import OutboundMessageDeliveryService
 from app.services.stats_service import StatsService
 from app.services.user_service import UserService
 
@@ -33,7 +37,7 @@ def _get_runtime_log_repository():
 
 @lru_cache
 def get_auth_service() -> AuthService:
-    return AuthService(get_user_repository())
+    return AuthService(get_user_repository(), outbound_message_service=get_outbound_message_service())
 
 
 @lru_cache
@@ -72,7 +76,10 @@ def get_log_service() -> LogService:
 
 @lru_cache
 def get_notification_service() -> NotificationService:
-    return NotificationService(repository=get_notification_repository())
+    return NotificationService(
+        repository=get_notification_repository(),
+        unit_of_work=get_notification_unit_of_work(),
+    )
 
 
 @lru_cache
@@ -80,3 +87,16 @@ def get_stats_service() -> StatsService:
     return StatsService(
         stats_repository=get_stats_repository(),
     )
+
+
+@lru_cache
+def get_outbound_message_delivery_service() -> OutboundMessageDeliveryService:
+    """Return the cached delivery-cycle service (used by tests/tooling, not the worker).
+
+    The worker process constructs its own instance directly instead of using this
+    provider, because importing this module transitively imports ``NotificationService``,
+    whose import chain requires ``CURSOR_PAGINATION_HMAC_SECRET`` — an env var the
+    worker has no reason to need.
+    """
+
+    return OutboundMessageDeliveryService(outbound_message_repository=get_outbound_message_repository())

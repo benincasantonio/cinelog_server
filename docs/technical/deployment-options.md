@@ -20,19 +20,27 @@ Typical setup:
 - Put a reverse proxy such as Nginx, Caddy, or a cloud load balancer in front of the API
 - Terminate TLS at the reverse proxy or load balancer
 
-On `docker-compose.prod.yml` startup, Compose runs the `db-migrate` one-shot service before the API:
+On `docker-compose.prod.yml` startup, Compose runs the `db-migrate` one-shot service before the API and the email worker:
 
 ```bash
 alembic upgrade head
 ```
 
-The API waits for that service to complete successfully, so failed PostgreSQL schema migrations block startup instead of allowing a partially migrated deployment.
+Both the `api` and `email-worker` services wait for that job to complete successfully, so failed PostgreSQL schema migrations block startup instead of allowing a partially migrated deployment.
 
 The production container starts Uvicorn directly with the FastAPI app:
 
 ```bash
 python -m uvicorn app:app --host 0.0.0.0 --port 5009 --workers 2
 ```
+
+`email-worker` is a separate long-running container that delivers the durable outbound-message outbox (registration/reset emails and notification emails):
+
+```bash
+python -m app.workers.outbound_message_worker
+```
+
+It has its `healthcheck` disabled in `docker-compose.prod.yml` — the image-level `HEALTHCHECK` in `Dockerfile.prod` curls `http://localhost:5009/`, which the worker does not serve. It has no Redis dependency and fails fast at startup if its email transport (`EMAIL_TRANSPORT`/`SMTP_SERVER`) is misconfigured. See [Outbound Email Delivery](outbound-email-delivery.md).
 
 ## Vercel
 

@@ -23,6 +23,8 @@ from app.models.base_model import Base  # noqa: E402
 from app.models.log_model import Log  # noqa: E402, F401
 from app.models.movie_model import Movie  # noqa: E402, F401
 from app.models.movie_rating_model import MovieRating  # noqa: E402, F401
+from app.models.notification_model import Notification  # noqa: E402, F401
+from app.models.outbound_message_model import OutboundMessage  # noqa: E402, F401
 from app.models.user_model import User  # noqa: E402, F401
 
 config = context.config

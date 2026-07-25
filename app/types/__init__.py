@@ -16,6 +16,15 @@ from app.types.notification_types import (
 from app.types.notification_types import (
     NotificationType as NotificationType,
 )
+from app.types.outbound_message_types import (
+    OutboundMessageChannel as OutboundMessageChannel,
+)
+from app.types.outbound_message_types import (
+    OutboundMessageKind as OutboundMessageKind,
+)
+from app.types.outbound_message_types import (
+    OutboundMessageStatus as OutboundMessageStatus,
+)
 from app.types.user_validation import (
     PROFILE_VISIBILITY_CHOICES as PROFILE_VISIBILITY_CHOICES,
 )

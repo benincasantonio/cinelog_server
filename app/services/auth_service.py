@@ -1,13 +1,14 @@
 import secrets
 from datetime import UTC, datetime, timedelta
 
+from app.dependencies.repository_dependency import get_outbound_message_service
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.auth_schemas import (
     RegisterRequest,
     RegisterResponse,
 )
 from app.schemas.user_schemas import UserCreateRequest
-from app.services.email_service import EmailService
+from app.services.outbound_message_service import OutboundMessageService
 from app.services.password_service import PasswordService
 from app.services.registration_verification_service import RegistrationVerificationService
 from app.utils.auth_utils import normalize_email_identifier
@@ -17,17 +18,17 @@ from app.utils.exceptions_utils import AppException
 
 class AuthService:
     user_repository: UserRepositoryProtocol
-    email_service: EmailService
+    outbound_message_service: OutboundMessageService
     registration_verification_service: RegistrationVerificationService
 
     def __init__(
         self,
         user_repository: UserRepositoryProtocol,
-        email_service: EmailService | None = None,
+        outbound_message_service: OutboundMessageService | None = None,
         registration_verification_service: RegistrationVerificationService | None = None,
     ):
         self.user_repository = user_repository
-        self.email_service = email_service or EmailService()
+        self.outbound_message_service = outbound_message_service or get_outbound_message_service()
         self.registration_verification_service = registration_verification_service or RegistrationVerificationService()
 
     async def send_registration_verification_code(self, email: str) -> None:
@@ -37,11 +38,11 @@ class AuthService:
         email_lowercase = normalize_email_identifier(email)
         existing_user_by_email = await self.user_repository.find_user_by_email(email_lowercase)
         if existing_user_by_email:
-            self.email_service.send_registration_existing_account_email(email_lowercase)
+            await self.outbound_message_service.enqueue_registration_existing_account(email_lowercase)
             return
 
         verification_code = await self.registration_verification_service.issue_code(email_lowercase)
-        self.email_service.send_registration_verification_email(email_lowercase, verification_code)
+        await self.outbound_message_service.enqueue_registration_verification(email_lowercase, verification_code)
 
     async def register(self, request: RegisterRequest) -> RegisterResponse:
         """
@@ -136,8 +137,8 @@ class AuthService:
 
         await self.user_repository.set_reset_password_code(user, reset_code, expires_at)
 
-        # Send email via EmailService
-        self.email_service.send_reset_password_email(email_lowercase, reset_code)
+        # Enqueue for durable, asynchronous delivery via the outbound message worker.
+        await self.outbound_message_service.enqueue_password_reset(email_lowercase, reset_code)
 
     async def reset_password(self, email: str, code: str, new_password: str):
         """

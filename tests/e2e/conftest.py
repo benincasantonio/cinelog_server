@@ -35,7 +35,7 @@ from app.utils.auth_utils import normalize_email_identifier  # noqa: E402
 # existing environment variables by default.
 load_dotenv()
 
-POSTGRES_TABLES = ("notifications", "logs", "movie_ratings", "movies", "users")
+POSTGRES_TABLES = ("outbound_messages", "notifications", "logs", "movie_ratings", "movies", "users")
 
 
 class RegistrationAwareAsyncClient:
@@ -65,6 +65,9 @@ def _clear_dependency_caches() -> None:
         get_movie_rating_repository,
         get_movie_repository,
         get_notification_repository,
+        get_notification_unit_of_work,
+        get_outbound_message_repository,
+        get_outbound_message_service,
         get_stats_repository,
         get_user_repository,
     )
@@ -74,6 +77,7 @@ def _clear_dependency_caches() -> None:
         get_movie_rating_service,
         get_movie_service,
         get_notification_service,
+        get_outbound_message_delivery_service,
         get_stats_service,
         get_user_service,
     )
@@ -84,12 +88,16 @@ def _clear_dependency_caches() -> None:
         get_movie_rating_service,
         get_movie_service,
         get_notification_service,
+        get_outbound_message_delivery_service,
         get_stats_service,
         get_user_service,
         get_log_repository,
         get_movie_rating_repository,
         get_movie_repository,
         get_notification_repository,
+        get_notification_unit_of_work,
+        get_outbound_message_repository,
+        get_outbound_message_service,
         get_stats_repository,
         get_user_repository,
     ):
@@ -136,20 +144,20 @@ async def async_client(postgres_engine):
     CacheService.initialize(get_redis_config())
     registration_codes: dict[str, str] = {}
 
-    def capture_registration_code(self, to_email: str, code: str) -> None:
-        registration_codes[normalize_email_identifier(to_email)] = code
+    async def capture_registration_code(self, email: str, code: str) -> None:
+        registration_codes[normalize_email_identifier(email)] = code
 
-    def capture_existing_account_notice(self, to_email: str) -> None:
+    async def capture_existing_account_notice(self, email: str) -> None:
         return None
 
     transport = httpx.ASGITransport(app=app)
     with (
         patch(
-            "app.services.email_service.EmailService.send_registration_verification_email",
+            "app.services.outbound_message_service.OutboundMessageService.enqueue_registration_verification",
             capture_registration_code,
         ),
         patch(
-            "app.services.email_service.EmailService.send_registration_existing_account_email",
+            "app.services.outbound_message_service.OutboundMessageService.enqueue_registration_existing_account",
             capture_existing_account_notice,
         ),
     ):

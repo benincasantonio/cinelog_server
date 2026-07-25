@@ -19,6 +19,10 @@ As of February 2026, Cinelog Server uses a self-hosted authentication solution (
 
 Rate limits: 6 requests per hour per IP, 3 requests per hour per anonymous session, 5 requests per 30 minutes per email-hash account bucket.
 
+The verification code (or the existing-account notice) is queued for durable,
+asynchronous delivery rather than sent inline — the endpoint returns before the email
+is actually sent. See [Technical: Outbound Email Delivery](../technical/outbound-email-delivery.md).
+
 **Step 2 Endpoint**: `POST /v1/auth/register`
 
 1. Client sends user details plus `verificationCode`.
@@ -109,7 +113,7 @@ fetch("/v1/logs", {
 ## Password Recovery
 
 1. **Request Reset**: `POST /v1/auth/forgot-password` with `{ "email": "..." }`.
-    - Server generates a 6-character code (valid for 15 minutes) and sends it via email.
+    - Server generates a 6-character code (valid for 15 minutes) and queues it for delivery by email — the endpoint returns before the message is actually sent (see [Technical: Outbound Email Delivery](../technical/outbound-email-delivery.md)).
     - Rate limits: 6 requests per hour per IP, 3 requests per hour per anonymous session, 5 requests per 30 minutes per email-hash account bucket.
 2. **Reset Password**: `POST /v1/auth/reset-password` with `{ "email": "...", "code": "...", "newPassword": "..." }`.
     - Server verifies code and updates the password.
@@ -120,3 +124,4 @@ fetch("/v1/logs", {
 ## See Also
 
 - [Technical Authentication Details](../technical/authentication.md) — Implementation internals, middleware, cookie configuration
+- [Technical: Outbound Email Delivery](../technical/outbound-email-delivery.md) — how registration and password-reset emails are queued and delivered

@@ -1,4 +1,4 @@
-from app.utils.sanitize_utils import strip_html_tags
+from app.utils.sanitize_utils import sanitize_failure_detail, strip_html_tags
 
 
 class TestStripHtmlTags:
@@ -169,3 +169,48 @@ class TestStripHtmlTags:
     def test_path_traversal_not_affected(self):
         """Path traversal strings contain no HTML, so they pass through unchanged."""
         assert strip_html_tags("../../../etc/passwd") == "../../../etc/passwd"
+
+
+class TestSanitizeFailureDetail:
+    """Tests for the sanitize_failure_detail utility function."""
+
+    def test_collapses_internal_whitespace(self):
+        assert sanitize_failure_detail("line one\n\n  line   two\t\tline three") == "line one line two line three"
+
+    def test_strips_leading_and_trailing_whitespace(self):
+        assert sanitize_failure_detail("   boom   ") == "boom"
+
+    def test_redacts_embedded_email_addresses(self):
+        result = sanitize_failure_detail("delivery to user@example.com failed: connection refused")
+        assert "user@example.com" not in result
+        assert "[redacted]" in result
+
+    def test_redacts_multiple_email_addresses(self):
+        result = sanitize_failure_detail("from admin@example.com to user@example.org failed")
+        assert "admin@example.com" not in result
+        assert "user@example.org" not in result
+
+    def test_redacts_password_fragment(self):
+        result = sanitize_failure_detail("auth failed for password=hunter2")
+        assert "hunter2" not in result
+        assert "password=[redacted]" in result
+
+    def test_redacts_auth_fragment(self):
+        result = sanitize_failure_detail("rejected auth:supersecrettoken by server")
+        assert "supersecrettoken" not in result
+        assert "auth=[redacted]" in result
+
+    def test_redaction_is_case_insensitive(self):
+        result = sanitize_failure_detail("PASSWORD=hunter2")
+        assert "hunter2" not in result
+
+    def test_truncates_to_max_length(self):
+        result = sanitize_failure_detail("x" * 1000, max_length=500)
+        assert len(result) == 500
+
+    def test_uses_max_failure_detail_length_by_default(self):
+        result = sanitize_failure_detail("x" * 1000)
+        assert len(result) == 500
+
+    def test_short_message_is_unaffected_by_truncation(self):
+        assert sanitize_failure_detail("connection refused") == "connection refused"

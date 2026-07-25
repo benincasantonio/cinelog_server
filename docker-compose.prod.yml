@@ -39,6 +39,19 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  email-worker:
+    <<: *app-env
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    command: ["python", "-m", "app.workers.outbound_message_worker"]
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
   cinelog-redis:
     image: redis:7-alpine
     volumes:

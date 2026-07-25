@@ -40,10 +40,21 @@ class NotificationRepository(RepositoryBase):
         result = await session.execute(statement)
         return result.scalar_one_or_none()
 
-    async def create_notification(self, data: NotificationCreateData) -> NotificationCreateResult:
-        """Insert a notification once per active recipient/deduplication key."""
+    async def create_notification(
+        self,
+        data: NotificationCreateData,
+        *,
+        session: AsyncSession | None = None,
+    ) -> NotificationCreateResult:
+        """Insert a notification once per active recipient/deduplication key.
 
-        async with self._session_provider() as session:
+        Accepts an optional ``session`` so a unit of work (see
+        ``NotificationUnitOfWork``) can create the notification and enqueue its
+        outbound messages in the same transaction. When omitted, this method owns
+        its own transaction exactly as before — existing callers are unaffected.
+        """
+
+        async with self._unit_of_work(session) as active_session:
             # Timestamps come from PostgreSQL rather than the base entity's Python
             # default so seek pagination stays consistently ordered across API instances.
             statement = (
@@ -67,14 +78,14 @@ class NotificationRepository(RepositoryBase):
                 )
                 .returning(Notification.id)
             )
-            result = await session.execute(statement)
+            result = await active_session.execute(statement)
             inserted_id = result.scalar_one_or_none()
             created = inserted_id is not None
 
             if inserted_id is None:
                 if data.deduplication_key is None:
                     raise RuntimeError("Notification insert returned no row without a deduplication key")
-                existing_result = await session.execute(
+                existing_result = await active_session.execute(
                     select(Notification.id).where(
                         Notification.recipient_id == data.recipient_id,
                         Notification.deduplication_key == data.deduplication_key,
@@ -83,11 +94,10 @@ class NotificationRepository(RepositoryBase):
                 )
                 inserted_id = existing_result.scalar_one()
 
-            notification = await self._find_by_id(session, inserted_id)
+            notification = await self._find_by_id(active_session, inserted_id)
             if notification is None:
                 raise RuntimeError("Notification insert could not be reloaded")
 
-            await session.commit()
             return NotificationCreateResult(notification=notification, created=created)
 
     async def list_notifications(

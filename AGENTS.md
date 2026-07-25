@@ -25,6 +25,7 @@ Cinelog is a FastAPI-based movie logging application that allows users to track 
 | `make security` | Run Bandit security scan |
 | `make dependency-audit` | Run pip-audit dependency vulnerability scan |
 | `make run` | Start the application locally |
+| `make run-email-worker` | Start the outbound-message delivery worker locally |
 | `make docker-up` | Start local Docker environment |
 | `make docker-down` | Stop local Docker environment |
 | `make db-schema-migrate` | Apply Alembic schema migrations |
@@ -84,6 +85,10 @@ Required environment variables (see `.env`):
 - `DATABASE_URL`: PostgreSQL connection string (e.g., `postgresql+asyncpg://cinelog:cinelog@localhost:5432/cinelog_db`) — required
 - `REDIS_URL`: Redis connection URL (default: `redis://localhost:6379/0`)
 - `REDIS_DEFAULT_TTL`: Default cache TTL in seconds (default: `300`)
+- `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_USE_SSL`: SMTP transport settings for `EmailService`
+- `SMTP_TIMEOUT_SECONDS`: Socket timeout for SMTP connections (default: `10`; must stay well below `OUTBOUND_MESSAGE_LOCK_TIMEOUT_SECONDS`)
+- `EMAIL_TRANSPORT`: `smtp` (default) or `console` — `console` prints instead of sending, for local dev without Mailpit; the outbound-message worker fails fast at startup if neither is usable
+- `OUTBOUND_MESSAGE_BATCH_SIZE`, `OUTBOUND_MESSAGE_POLL_INTERVAL_SECONDS`, `OUTBOUND_MESSAGE_LOCK_TIMEOUT_SECONDS`, `OUTBOUND_MESSAGE_MAX_ATTEMPTS`, `OUTBOUND_MESSAGE_RETRY_BASE_SECONDS`, `OUTBOUND_MESSAGE_RETRY_MAX_SECONDS`: outbound-message delivery worker tuning — see [Outbound Email Delivery](docs/technical/outbound-email-delivery.md)
 
 ### Git Hooks
 

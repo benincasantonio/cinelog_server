@@ -84,6 +84,24 @@ Already-read rows retain their original timestamp. Repeating the operation retur
 
 Limits are per authenticated user. See [Rate Limiting](rate-limiting.md) for headers and `429` behavior.
 
+## Email Notifications
+
+Every notification also queues an email — the same events that appear in the in-app
+inbox are emailed to the recipient's address on file. The email content matches the
+in-app notification: the subject is the notification's title and the body is the
+notification's body, in English, exactly as stored. There is no separate copy to
+translate or keep in sync.
+
+Delivery is asynchronous and at-least-once: creating a notification returns as soon as
+the email is durably queued, not once it is actually sent, and a rare duplicate email
+is possible (never a lost one) if a delivery attempt succeeds right as the system
+recovers from an interruption. The destination address is a snapshot of the
+recipient's email at the moment the notification was created — a later email change on
+the account does not retroactively redirect an already-queued message.
+
+See [Technical: Outbound Email Delivery](../technical/outbound-email-delivery.md) for
+the delivery mechanism.
+
 ## Workflow Boundary
 
 Read state is presentation state only. Reading a notification never accepts a follow request or changes another domain resource. The owning domain API remains the source of truth for whether an action is currently available. There is no mark-unread operation.
@@ -91,3 +109,4 @@ Read state is presentation state only. Reading a notification never accepts a fo
 ## See Also
 
 - [Technical: Notification Architecture](../technical/notifications.md)
+- [Technical: Outbound Email Delivery](../technical/outbound-email-delivery.md)

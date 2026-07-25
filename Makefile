@@ -1,4 +1,4 @@
-.PHONY: install dev hooks test-unit test-e2e lint format format-check typecheck security dependency-audit run docker-up docker-down docker-build-prod docker-prod-up docker-prod-down db-schema-migrate db-schema-migrate-dry-run db-schema-rollback
+.PHONY: install dev hooks test-unit test-e2e lint format format-check typecheck security dependency-audit run run-email-worker docker-up docker-down docker-build-prod docker-prod-up docker-prod-down db-schema-migrate db-schema-migrate-dry-run db-schema-rollback
 
 install:
 	uv sync
@@ -69,6 +69,9 @@ dependency-audit:
 
 run:
 	uv run python main.py
+
+run-email-worker:
+	uv run python -m app.workers.outbound_message_worker
 
 docker-up:
 	docker compose -f docker-compose.local.yml up --build -d

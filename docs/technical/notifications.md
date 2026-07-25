@@ -58,6 +58,32 @@ created_at < cursor.timestamp
 OR (created_at = cursor.timestamp AND id < cursor.id)
 ```
 
+## Channel Delivery
+
+Creating a notification and enqueuing its outbound deliveries happen in one
+transaction, via `NotificationUnitOfWork.create_notification_with_deliveries()`
+(`app/repository/notification_unit_of_work.py`). `NotificationService.create_notification()`
+delegates to it with the default channel set (`channels=(OutboundMessageChannel.EMAIL,)`).
+
+The transaction seam is `RepositoryBase._unit_of_work(session=None)`: it opens and
+commits its own session when called with no session (unchanged single-repository
+behavior), or joins a caller-supplied session and leaves the commit to the caller.
+`NotificationRepository.create_notification()` now accepts an optional keyword-only
+`session=` for exactly this reason — existing callers that omit it are unaffected.
+`#198` (follow persistence) reuses this same seam to bind the follow repository into
+the same transaction as notification creation.
+
+A notification is never persisted without an attempt to queue its deliveries: the unit
+of work rolls back the notification insert if enqueueing fails. Conversely, the enqueue
+is always attempted even when notification creation was itself a deduplicated no-op
+(`created=False`), because the outbound message's own unique
+`(notification_id, channel)` constraint plus `ON CONFLICT DO NOTHING` makes a duplicate
+enqueue a harmless no-op — so a notification that is somehow missing its message
+self-heals on the next call.
+
+See [Outbound Email Delivery](outbound-email-delivery.md) for the full outbox design:
+persistence model, claim protocol, retry/backoff, and the delivery worker.
+
 ## Typed Domain Extension Pattern
 
 Adding a notification domain requires all of the following:
@@ -76,5 +102,6 @@ The project currently follows its established service-level ORM-to-response mapp
 ## See Also
 
 - [Functional: In-App Notifications](../functional/notifications.md)
+- [Outbound Email Delivery](outbound-email-delivery.md) — the durable outbox, claim protocol, and delivery worker
 - [Pydantic Types and Validators](pydantic_types_and_validators.md)
 - [PostgreSQL Migration](postgres-migration.md)

@@ -28,6 +28,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Notification Architecture](technical/notifications.md) | Typed persistence, service response mapping, deduplication, and extension contract |
+| [Outbound Email Delivery](technical/outbound-email-delivery.md) | Durable transactional outbox, claim protocol, retry/backoff, renderer registry, and the delivery worker |
 | [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup and the completed MongoDB → PostgreSQL migration |
 | [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and followers-only authorization stub |
 | [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |
@@ -63,6 +64,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | `make typecheck` | Run mypy type checking for `app/` |
 | `make security` | Run Bandit security scan and pip-audit dependency scan |
 | `make run` | Run API locally via `python main.py` |
+| `make run-email-worker` | Run the outbound-message delivery worker locally |
 | `make docker-up` | Start local Docker stack (`docker-compose.local.yml`) |
 | `make docker-down` | Stop local Docker stack (`docker-compose.local.yml`) |
 | `make docker-prod-up` | Build and start the production Docker stack (`docker-compose.prod.yml`) |

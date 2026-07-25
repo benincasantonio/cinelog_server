@@ -48,34 +48,46 @@ The coarse IP and session limits are enforced via `slowapi` decorators in `app/c
 ## Registration Verification Implementation
 
 - `POST /v1/auth/register/send-code` normalizes the submitted email and always returns a generic success response.
-- If the email already has an account, `EmailService` sends an existing-account notice instead of issuing a code.
-- If the email can be registered, `RegistrationVerificationService` generates a 6-character code, stores only an HMAC hash in Redis, and sends the plaintext code by email.
+- If the email already has an account, `AuthService` enqueues an existing-account notice instead of issuing a code, via `OutboundMessageService.enqueue_registration_existing_account()`.
+- If the email can be registered, `RegistrationVerificationService` generates a 6-character code, stores only an HMAC hash in Redis, and `AuthService` enqueues the plaintext code for email delivery via `OutboundMessageService.enqueue_registration_verification()`.
 - Redis keys and stored code hashes are HMAC-derived using the dedicated `REGISTRATION_VERIFICATION_HMAC_SECRET` (separate from the rate-limiting secret) and use a 15-minute TTL. No verification-code table or migration is used.
 - `POST /v1/auth/register` requires `verificationCode`; the code must exist, be unexpired, match the email, and have fewer than 5 failed attempts.
 - After successful account creation, the verification key is deleted so the code is single-use. If Redis loses the temporary key, the user must request a new code.
 
+`AuthService` no longer sends email directly — it enqueues onto the durable
+`outbound_messages` outbox and returns; a dedicated worker process delivers the queued
+message. See [Technical: Outbound Email Delivery](outbound-email-delivery.md) for the
+full design (persistence, claim protocol, retry/backoff) and `AuthService`'s exact
+cutover from the previous inline `EmailService` calls.
+
 ## Password Recovery Implementation
 
 - Server generates a 6-character reset code (valid for 15 minutes).
-- Code is sent via SMTP (configured through environment variables).
+- The code is enqueued for durable, asynchronous delivery by email — `AuthService.forgot_password()` calls `OutboundMessageService.enqueue_password_reset()` in a transaction separate from `set_reset_password_code()`; if the enqueue fails the request errors, so the client can retry rather than silently losing the code as the old inline-send design would.
 - Password is re-hashed with bcrypt on reset.
 
 ## Local Development (Emails)
 
-If `SMTP_SERVER` is not configured in `.env`, the server logs the reset code to the console instead of sending an email:
+`EMAIL_TRANSPORT=console` (an explicit local-dev opt-in) makes the outbound-message
+worker print instead of sending through SMTP:
 
 ```text
---- EMAIL MOCK ---
+--- EMAIL (console transport) ---
 To: user@example.com
-Subject: Password Reset
-Code: 123456
-------------------
+Subject: Password Reset - Cinelog
+Your password reset code is: 123456
+This code will expire in 15 minutes.
+----------------------------------
 ```
 
-Registration verification emails use the same development fallback and log the registration code instead of sending through SMTP.
+Registration verification and existing-account emails print through the same console
+transport. With the default `EMAIL_TRANSPORT=smtp`, an unset `SMTP_SERVER` makes the
+worker fail fast at startup (`RuntimeError`) instead of silently discarding mail — see
+[Technical: Outbound Email Delivery](outbound-email-delivery.md).
 
 ## See Also
 
 - [Functional Authentication Doc](../functional/authentication.md) — API usage, flows, consumer guide
+- [Technical: Outbound Email Delivery](outbound-email-delivery.md) — the durable outbox, delivery worker, and `EMAIL_TRANSPORT`/`SMTP_*` configuration
 - [CORS Configuration](cors-configuration.md) — Related cross-origin settings
 - [ARCHITECTURE.md](../../ARCHITECTURE.md) — Codebase architecture reference

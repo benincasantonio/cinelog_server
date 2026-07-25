@@ -4,12 +4,13 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from app.config.notification_config import notification_list_cursor_scope
-from app.dependencies.repository_dependency import get_notification_repository
+from app.dependencies.repository_dependency import get_notification_repository, get_notification_unit_of_work
 from app.models.notification_model import Notification
 from app.repository.notification_repository_protocol import (
     NotificationCreateResult,
     NotificationRepositoryProtocol,
 )
+from app.repository.notification_unit_of_work_protocol import NotificationUnitOfWorkProtocol
 from app.schemas.notification_schemas import (
     BasicUserSummary,
     MarkAllNotificationsReadResponse,
@@ -18,7 +19,7 @@ from app.schemas.notification_schemas import (
     NotificationListRequest,
     NotificationListResponse,
 )
-from app.types import NotificationType, TimestampUUIDCursor
+from app.types import NotificationType, OutboundMessageChannel, TimestampUUIDCursor
 from app.utils.cursor_pagination_utils import (
     decode_timestamp_uuid_cursor,
     encode_timestamp_uuid_cursor,
@@ -33,8 +34,10 @@ class NotificationService:
     def __init__(
         self,
         repository: NotificationRepositoryProtocol | None = None,
+        unit_of_work: NotificationUnitOfWorkProtocol | None = None,
     ) -> None:
         self.repository = repository or get_notification_repository()
+        self.unit_of_work = unit_of_work or get_notification_unit_of_work()
 
     @staticmethod
     def _to_response(notification: Notification) -> NotificationBaseResponse:
@@ -60,10 +63,15 @@ class NotificationService:
             created_at=notification.created_at,
         )
 
-    async def create_notification(self, data: NotificationCreateData) -> NotificationCreateResult:
-        """Create a typed notification for use by future domain producers."""
+    async def create_notification(
+        self,
+        data: NotificationCreateData,
+        *,
+        channels: tuple[OutboundMessageChannel, ...] = (OutboundMessageChannel.EMAIL,),
+    ) -> NotificationCreateResult:
+        """Create a typed notification and enqueue its outbound deliveries atomically."""
 
-        return await self.repository.create_notification(data)
+        return await self.unit_of_work.create_notification_with_deliveries(data, channels=channels)
 
     async def list_notifications(
         self,

@@ -18,7 +18,7 @@ from app.schemas.notification_schemas import (
     NotificationListRequest,
 )
 from app.services.notification_service import NotificationService
-from app.types import NotificationType, TimestampUUIDCursor
+from app.types import NotificationType, OutboundMessageChannel, TimestampUUIDCursor
 from app.utils.cursor_pagination_utils import (
     decode_timestamp_uuid_cursor,
     encode_timestamp_uuid_cursor,
@@ -45,8 +45,13 @@ def repository():
 
 
 @pytest.fixture
-def service(repository):
-    return NotificationService(repository=repository)
+def unit_of_work():
+    return AsyncMock()
+
+
+@pytest.fixture
+def service(repository, unit_of_work):
+    return NotificationService(repository=repository, unit_of_work=unit_of_work)
 
 
 @pytest.mark.asyncio
@@ -157,8 +162,9 @@ async def test_list_notifications_rejects_a_malformed_cursor_with_the_api_error_
 
 
 @pytest.mark.asyncio
-async def test_create_notification_delegates_typed_internal_input(
+async def test_create_notification_delegates_to_the_unit_of_work_with_the_email_channel(
     service: NotificationService,
+    unit_of_work: AsyncMock,
     repository: AsyncMock,
 ):
     data = NotificationCreateData(
@@ -168,10 +174,13 @@ async def test_create_notification_delegates_typed_internal_input(
         body="Body",
     )
     expected = NotificationCreateResult(notification=_notification(), created=True)
-    repository.create_notification.return_value = expected
+    unit_of_work.create_notification_with_deliveries.return_value = expected
 
     assert await service.create_notification(data) is expected
-    repository.create_notification.assert_awaited_once_with(data)
+    unit_of_work.create_notification_with_deliveries.assert_awaited_once_with(
+        data, channels=(OutboundMessageChannel.EMAIL,)
+    )
+    repository.create_notification.assert_not_awaited()
 
 
 @pytest.mark.asyncio

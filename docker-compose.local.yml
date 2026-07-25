@@ -31,6 +31,24 @@ services:
       timeout: 5s
       retries: 5
 
+  db-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinelog_db_migrate_local
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - api_venv:/app/.venv
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@postgres:5432/cinelog_db
+    command: sh -c "uv run alembic upgrade head"
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     build:
       context: .
@@ -48,14 +66,39 @@ services:
       - SMTP_PORT=1025
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@postgres:5432/cinelog_db
-    command: sh -c "uv run alembic upgrade head && uv run uvicorn app:app --host 0.0.0.0 --port 5009 --reload --reload-dir app"
+    command: sh -c "uv run uvicorn app:app --host 0.0.0.0 --port 5009 --reload --reload-dir app"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       mailpit:
         condition: service_started
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
+
+  email-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinelog_email_worker_local
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - api_venv:/app/.venv
+    environment:
+      - SMTP_SERVER=mailpit
+      - SMTP_PORT=1025
+      - DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@postgres:5432/cinelog_db
+    command: sh -c "uv run python -m app.workers.outbound_message_worker"
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
 
   mailpit:
     image: axllent/mailpit

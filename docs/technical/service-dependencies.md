@@ -11,18 +11,22 @@ Controllers receive services through FastAPI `Depends(...)`.
 
 ## Repository Providers
 
-`get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, `get_log_repository()`, and `get_stats_repository()` return PostgreSQL repository implementations. `StatsRepository` is a cross-table read repository and does not correspond to a database table. Services type-hint against the `*RepositoryProtocol` interfaces in `app/repository/`.
+`get_movie_repository()`, `get_user_repository()`, `get_movie_rating_repository()`, `get_log_repository()`, `get_notification_repository()`, `get_outbound_message_repository()`, and `get_stats_repository()` return PostgreSQL repository implementations. `StatsRepository` is a cross-table read repository and does not correspond to a database table. Services type-hint against the `*RepositoryProtocol` interfaces in `app/repository/`.
+
+`get_outbound_message_service()` and `get_notification_unit_of_work()` also live in `app/dependencies/repository_dependency.py` rather than `service_dependency.py`, even though they return service/orchestration objects — `app/services/notification_service.py` needs a unit-of-work provider and already imports from this module, and importing it from `service_dependency.py` instead would create an import cycle (that module imports `NotificationService`).
 
 ## Service Providers
 
 | Provider | Service |
 |---|---|
-| `get_auth_service()` | `AuthService` |
+| `get_auth_service()` | `AuthService` (now takes `outbound_message_service` instead of an `EmailService`) |
 | `get_auth_rate_limit_service()` | `AuthRateLimitService` |
 | `get_user_service()` | `UserService` |
 | `get_movie_service()` | `MovieService` |
 | `get_movie_rating_service()` | `MovieRatingService` |
 | `get_log_service()` | `LogService` (wraps the log repository with `LogCacheRepository`) |
+| `get_notification_service()` | `NotificationService`, wired with `get_notification_repository()` and `get_notification_unit_of_work()` |
+| `get_outbound_message_delivery_service()` | `OutboundMessageDeliveryService` — used by tests/tooling; the worker process constructs its own instance directly instead (see [Outbound Email Delivery](outbound-email-delivery.md)) |
 | `get_stats_service()` | `StatsService` with `StatsRepository`; response caching is composed through `StatsCacheService` |
 
 ## Endpoint Usage
@@ -90,3 +94,4 @@ def test_create_then_list(client):
 - [TMDB Service](tmdb-service.md)
 - [Statistics Query](stats-query.md)
 - [Postgres Migration](postgres-migration.md)
+- [Outbound Email Delivery](outbound-email-delivery.md)

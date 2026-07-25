@@ -1,6 +1,6 @@
 from datetime import date
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -17,18 +17,18 @@ class TestAuthService:
         return AsyncMock()
 
     @pytest.fixture
-    def mock_email_service(self):
-        return MagicMock()
+    def mock_outbound_message_service(self):
+        return AsyncMock()
 
     @pytest.fixture
     def mock_registration_verification_service(self):
         return AsyncMock()
 
     @pytest.fixture
-    def auth_service(self, mock_user_repo, mock_email_service, mock_registration_verification_service):
+    def auth_service(self, mock_user_repo, mock_outbound_message_service, mock_registration_verification_service):
         return AuthService(
             user_repository=mock_user_repo,
-            email_service=mock_email_service,
+            outbound_message_service=mock_outbound_message_service,
             registration_verification_service=mock_registration_verification_service,
         )
 
@@ -37,7 +37,7 @@ class TestAuthService:
         self,
         auth_service,
         mock_user_repo,
-        mock_email_service,
+        mock_outbound_message_service,
         mock_registration_verification_service,
     ):
         mock_user_repo.find_user_by_email.return_value = None
@@ -47,15 +47,17 @@ class TestAuthService:
 
         mock_user_repo.find_user_by_email.assert_awaited_once_with("user@example.com")
         mock_registration_verification_service.issue_code.assert_awaited_once_with("user@example.com")
-        mock_email_service.send_registration_verification_email.assert_called_once_with("user@example.com", "ABC123")
-        mock_email_service.send_registration_existing_account_email.assert_not_called()
+        mock_outbound_message_service.enqueue_registration_verification.assert_awaited_once_with(
+            "user@example.com", "ABC123"
+        )
+        mock_outbound_message_service.enqueue_registration_existing_account.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_send_registration_verification_code_for_existing_email(
         self,
         auth_service,
         mock_user_repo,
-        mock_email_service,
+        mock_outbound_message_service,
         mock_registration_verification_service,
     ):
         mock_user_repo.find_user_by_email.return_value = SimpleNamespace(email="user@example.com")
@@ -64,11 +66,11 @@ class TestAuthService:
 
         mock_user_repo.find_user_by_email.assert_awaited_once_with("user@example.com")
         mock_registration_verification_service.issue_code.assert_not_awaited()
-        mock_email_service.send_registration_existing_account_email.assert_called_once_with("user@example.com")
-        mock_email_service.send_registration_verification_email.assert_not_called()
+        mock_outbound_message_service.enqueue_registration_existing_account.assert_awaited_once_with("user@example.com")
+        mock_outbound_message_service.enqueue_registration_verification.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_forgot_password_success(self, auth_service, mock_user_repo, mock_email_service):
+    async def test_forgot_password_success(self, auth_service, mock_user_repo, mock_outbound_message_service):
         email = "test@example.com"
         mock_user = SimpleNamespace(email=email)
         mock_user_repo.find_user_by_email.return_value = mock_user
@@ -76,10 +78,10 @@ class TestAuthService:
         await auth_service.forgot_password(email)
 
         mock_user_repo.set_reset_password_code.assert_awaited_once()
-        mock_email_service.send_reset_password_email.assert_called_once()
+        mock_outbound_message_service.enqueue_password_reset.assert_awaited_once()
 
         repo_call_args = mock_user_repo.set_reset_password_code.call_args[0]
-        email_call_args = mock_email_service.send_reset_password_email.call_args[0]
+        email_call_args = mock_outbound_message_service.enqueue_password_reset.call_args[0]
 
         reset_code_repo = repo_call_args[1]
         reset_code_email = email_call_args[1]
