@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create GitHub Epic"
+  short_description: "Draft and create linked GitHub epics"
+  default_prompt: "Use $create-github-epic to draft and create a GitHub epic with native sub-issue and dependency relationships."
