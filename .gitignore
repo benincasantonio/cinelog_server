@@ -88,3 +88,4 @@ Desktop.ini
 
 # DB 
 /data/db
+.claude/agent-memory/
