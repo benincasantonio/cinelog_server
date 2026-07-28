@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from app.repository.follow_repository_protocol import FollowSummary
 from app.schemas.user_schemas import UpdateProfileRequest, UserProfileResponse
 from app.services.user_service import UserService
 from app.utils.error_codes_utils import ErrorCodes
@@ -15,9 +16,21 @@ def mock_user_repository():
 
 
 @pytest.fixture
-def user_service(mock_user_repository):
+def mock_follow_repository():
+    repository = AsyncMock()
+    repository.get_follow_summary.return_value = FollowSummary(
+        follower_count=0,
+        following_count=0,
+        is_following=False,
+    )
+    return repository
+
+
+@pytest.fixture
+def user_service(mock_user_repository, mock_follow_repository):
     return UserService(
         user_repository=mock_user_repository,
+        follow_repository=mock_follow_repository,
     )
 
 
@@ -71,9 +84,19 @@ class TestUserService:
 
 class TestGetVisibleProfile:
     @pytest.mark.asyncio
-    async def test_public_profile_returns_full_info(self, user_service, mock_user_repository):
+    async def test_public_profile_returns_full_info(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_follow_repository,
+    ):
         mock_user = create_mock_user(handle="johndoe", profile_visibility="public")
         mock_user_repository.find_user_by_handle.return_value = mock_user
+        mock_follow_repository.get_follow_summary.return_value = FollowSummary(
+            follower_count=3,
+            following_count=2,
+            is_following=True,
+        )
 
         result = await user_service.get_visible_profile(handle="johndoe", requester_id="other_user")
 
@@ -82,6 +105,10 @@ class TestGetVisibleProfile:
         assert result.handle == "johndoe"
         assert result.profile_visibility == "public"
         assert result.date_of_birth == date(1990, 1, 1)
+        assert result.follower_count == 3
+        assert result.following_count == 2
+        assert result.is_following is True
+        mock_follow_repository.get_follow_summary.assert_awaited_once_with("user123", "other_user")
 
     @pytest.mark.asyncio
     async def test_private_profile_hides_date_of_birth(self, user_service, mock_user_repository):
@@ -104,23 +131,37 @@ class TestGetVisibleProfile:
         assert result.date_of_birth is None
 
     @pytest.mark.asyncio
-    async def test_own_profile_returns_full_info(self, user_service, mock_user_repository):
+    async def test_own_profile_returns_full_info(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_follow_repository,
+    ):
         mock_user = create_mock_user(user_id="user123", handle="johndoe", profile_visibility="private")
         mock_user_repository.find_user_by_handle.return_value = mock_user
+        mock_follow_repository.get_follow_summary.return_value = FollowSummary(
+            follower_count=4,
+            following_count=5,
+            is_following=False,
+        )
 
         result = await user_service.get_visible_profile(handle="johndoe", requester_id="user123")
 
         assert result.date_of_birth == date(1990, 1, 1)
         assert result.first_name == "John"
+        assert result.follower_count == 4
+        assert result.following_count == 5
+        assert result.is_following is False
 
     @pytest.mark.asyncio
-    async def test_user_not_found(self, user_service, mock_user_repository):
+    async def test_user_not_found(self, user_service, mock_user_repository, mock_follow_repository):
         mock_user_repository.find_user_by_handle.return_value = None
 
         with pytest.raises(AppException) as exc_info:
             await user_service.get_visible_profile(handle="nonexistent", requester_id="user123")
 
         assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+        mock_follow_repository.get_follow_summary.assert_not_awaited()
 
 
 class TestUpdateProfile:

@@ -2,6 +2,8 @@
 
 from functools import lru_cache
 
+from app.repository.follow_repository import FollowRepository
+from app.repository.follow_repository_protocol import FollowRepositoryProtocol
 from app.repository.log_repository import LogRepository
 from app.repository.log_repository_protocol import LogRepositoryProtocol
 from app.repository.movie_rating_repository import MovieRatingRepository
@@ -14,6 +16,13 @@ from app.repository.stats_repository import StatsRepository
 from app.repository.stats_repository_protocol import StatsRepositoryProtocol
 from app.repository.user_repository import UserRepository
 from app.repository.user_repository_protocol import UserRepositoryProtocol
+
+
+@lru_cache
+def get_follow_repository() -> FollowRepositoryProtocol:
+    """Return the PostgreSQL follow repository."""
+
+    return FollowRepository()
 
 
 @lru_cache

@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response, status
 
+from app.config.rate_limiter import limiter
 from app.dependencies.auth_dependency import auth_dependency
-from app.dependencies.service_dependency import get_user_service
+from app.dependencies.service_dependency import get_follow_service, get_user_service
 from app.schemas.user_schemas import (
     ChangePasswordRequest,
     ChangePasswordResponse,
@@ -11,6 +12,7 @@ from app.schemas.user_schemas import (
     UserProfileResponse,
     UserResponse,
 )
+from app.services.follow_service import FollowService
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -33,6 +35,42 @@ async def get_public_profile(
     user_service: UserService = Depends(get_user_service),
 ) -> UserProfileResponse:
     return await user_service.get_visible_profile(handle=handle, requester_id=user_id)
+
+
+@router.put(
+    "/{handle}/follow",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+@limiter.limit("60/minute")
+async def follow_user(
+    handle: str,
+    request: Request,
+    response: Response,
+    user_id: UUID = Depends(auth_dependency),
+    follow_service: FollowService = Depends(get_follow_service),
+) -> None:
+    """Idempotently follow an active public profile."""
+
+    await follow_service.follow_user(follower_id=user_id, handle=handle)
+
+
+@router.delete(
+    "/{handle}/follow",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+@limiter.limit("60/minute")
+async def unfollow_user(
+    handle: str,
+    request: Request,
+    response: Response,
+    user_id: UUID = Depends(auth_dependency),
+    follow_service: FollowService = Depends(get_follow_service),
+) -> None:
+    """Idempotently unfollow an active profile."""
+
+    await follow_service.unfollow_user(follower_id=user_id, handle=handle)
 
 
 @router.put("/settings/profile", response_model=UserResponse)

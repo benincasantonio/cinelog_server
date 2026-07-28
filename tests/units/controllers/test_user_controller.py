@@ -81,6 +81,9 @@ class TestGetVisibleProfile:
             bio="A bio",
             profile_visibility="followers_only",
             date_of_birth=None,
+            follower_count=7,
+            following_count=4,
+            is_following=True,
         )
 
         response = client.get(
@@ -95,6 +98,9 @@ class TestGetVisibleProfile:
         assert data["firstName"] == "John"
         assert data["handle"] == "johndoe"
         assert data["profileVisibility"] == "followers_only"
+        assert data["followerCount"] == 7
+        assert data["followingCount"] == 4
+        assert data["isFollowing"] is True
         mock_get_visible_profile.assert_awaited_once_with(handle="johndoe", requester_id="user123")
 
     def test_get_visible_profile_unauthorized(self, client):

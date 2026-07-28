@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
+from app.models.user_model import User
+from app.repository.follow_repository_protocol import FollowRepositoryProtocol, FollowSummary
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.user_schemas import (
     ChangePasswordResponse,
@@ -15,12 +17,15 @@ from app.utils.exceptions_utils import AppException
 
 class UserService:
     user_repository: UserRepositoryProtocol
+    follow_repository: FollowRepositoryProtocol
 
     def __init__(
         self,
         user_repository: UserRepositoryProtocol,
+        follow_repository: FollowRepositoryProtocol,
     ):
         self.user_repository = user_repository
+        self.follow_repository = follow_repository
 
     async def get_user_info(self, user_id: UUID) -> UserResponse:
         """
@@ -48,20 +53,25 @@ class UserService:
         if not user:
             raise AppException(ErrorCodes.USER_NOT_FOUND)
 
+        follow_summary = await self.follow_repository.get_follow_summary(user.id, requester_id)
         is_owner = str(user.id) == str(requester_id)
 
         if is_owner or user.profile_visibility == "public":
             date_of_birth = (
                 user.date_of_birth.date() if isinstance(user.date_of_birth, datetime) else user.date_of_birth
             )
-            return UserProfileResponse(
-                first_name=user.first_name,
-                last_name=user.last_name,
-                handle=user.handle,
-                bio=user.bio,
-                profile_visibility=user.profile_visibility,
-                date_of_birth=date_of_birth,
-            )
+        else:
+            date_of_birth = None
+
+        return self._to_profile_response(user, date_of_birth, follow_summary)
+
+    @staticmethod
+    def _to_profile_response(
+        user: User,
+        date_of_birth: date | None,
+        follow_summary: FollowSummary,
+    ) -> UserProfileResponse:
+        """Map a visible user and aggregate follow state to the profile schema."""
 
         return UserProfileResponse(
             first_name=user.first_name,
@@ -69,7 +79,10 @@ class UserService:
             handle=user.handle,
             bio=user.bio,
             profile_visibility=user.profile_visibility,
-            date_of_birth=None,
+            date_of_birth=date_of_birth,
+            follower_count=follow_summary.follower_count,
+            following_count=follow_summary.following_count,
+            is_following=follow_summary.is_following,
         )
 
     async def update_profile(self, user_id: UUID, request: UpdateProfileRequest) -> UserResponse:

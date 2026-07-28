@@ -35,7 +35,7 @@ from app.utils.auth_utils import normalize_email_identifier  # noqa: E402
 # existing environment variables by default.
 load_dotenv()
 
-POSTGRES_TABLES = ("notifications", "logs", "movie_ratings", "movies", "users")
+POSTGRES_TABLES = ("user_follows", "notifications", "logs", "movie_ratings", "movies", "users")
 
 
 class RegistrationAwareAsyncClient:
@@ -61,6 +61,7 @@ class RegistrationAwareAsyncClient:
 
 def _clear_dependency_caches() -> None:
     from app.dependencies.repository_dependency import (
+        get_follow_repository,
         get_log_repository,
         get_movie_rating_repository,
         get_movie_repository,
@@ -70,6 +71,7 @@ def _clear_dependency_caches() -> None:
     )
     from app.dependencies.service_dependency import (
         get_auth_service,
+        get_follow_service,
         get_log_service,
         get_movie_rating_service,
         get_movie_service,
@@ -80,12 +82,14 @@ def _clear_dependency_caches() -> None:
 
     for provider in (
         get_auth_service,
+        get_follow_service,
         get_log_service,
         get_movie_rating_service,
         get_movie_service,
         get_notification_service,
         get_stats_service,
         get_user_service,
+        get_follow_repository,
         get_log_repository,
         get_movie_rating_repository,
         get_movie_repository,

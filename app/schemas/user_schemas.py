@@ -76,6 +76,12 @@ class UserProfileResponse(BaseSchema):
         None,
         description="Date of birth (visible on public profiles or to the profile owner)",
     )
+    follower_count: int = Field(..., ge=0, description="Number of active users following this profile")
+    following_count: int = Field(..., ge=0, description="Number of active users this profile follows")
+    is_following: bool = Field(
+        ...,
+        description="Whether the authenticated requester follows this profile",
+    )
 
 
 class ChangePasswordRequest(BaseSchema):
