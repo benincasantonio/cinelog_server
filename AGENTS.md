@@ -156,6 +156,17 @@ All work must be tied to a GitHub issue. Follow this workflow:
 
 - **Utility modules** in `app/utils/` must follow the `_utils.py` suffix naming convention (e.g., `validator_utils.py`, `sanitize_utils.py`). This ensures consistency and discoverability across the codebase.
 
+- **Alembic migrations** in `alembic/versions/` must be named `<NNN>_<verb>_<subject>.py`, where `<NNN>` is the next zero-padded sequential number:
+
+  | Operation | Pattern | Example |
+  |---|---|---|
+  | Create a table | `<NNN>_create_<table>_table.py` | `007_create_user_follows_table.py` |
+  | Any other change | `<NNN>_<verb>_<subject>.py` | `005_rename_profile_visibility.py` |
+
+  The `revision` string inside the file must exactly match the filename without the `.py` extension, and `down_revision` must reference the previous revision's id.
+
+  **Never rename a revision id once its migration has been merged or applied anywhere.** The id is not just a label: it is stored in the `alembic_version` table of every database the migration has touched and referenced by the next migration's `down_revision`. Changing it makes `alembic upgrade` fail with `Can't locate revision identified by '<old-id>'` until every affected database is manually updated. If a pre-merge revision must be renamed, roll it back first (`make db-schema-rollback`), rename the file and the `revision` string together, then re-apply (`make db-schema-migrate`).
+
 ## Types and Validators
 
 Reusable validation logic lives in `app/types/`, organized by business domain. Each file contains both the validation functions and the resulting Annotated type aliases.

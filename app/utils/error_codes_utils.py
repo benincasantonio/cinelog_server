@@ -136,6 +136,14 @@ class ErrorCodes:
         error_description="The requested user's profile is not publicly visible.",
     )
 
+    # Follow Errors
+    SELF_FOLLOW_NOT_ALLOWED = ErrorSchema(
+        error_code_name="SELF_FOLLOW_NOT_ALLOWED",
+        error_code=400,
+        error_message="Self-follow is not allowed",
+        error_description="A user cannot follow their own profile.",
+    )
+
     # Rate Limiting Errors
     RATE_LIMIT_EXCEEDED = ErrorSchema(
         error_code_name="RATE_LIMIT_EXCEEDED",

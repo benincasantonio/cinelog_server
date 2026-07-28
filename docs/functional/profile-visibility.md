@@ -14,6 +14,10 @@ Users can control who sees their profile and movie logs through a visibility set
 
 Own profile is always fully accessible regardless of visibility setting.
 
+Follower and following counts are visible to authenticated users for every visibility level. New follow relationships
+can currently target only public profiles. A relationship created while a profile was public is preserved if its
+visibility changes, but it does not unlock `followers_only` or private content.
+
 ## Setting Visibility
 
 ### During Registration
@@ -80,3 +84,4 @@ Returns the user's movie logs if their profile is public or the requester is the
 ## See Also
 
 - [Technical: Profile Visibility](../technical/profile-visibility.md)
+- [Following](following.md)

@@ -9,6 +9,7 @@ User-facing documentation covering features, flows, and API usage from the consu
 | Document | Description |
 |----------|-------------|
 | [Authentication](functional/authentication.md) | Auth flows, API usage, CSRF guide |
+| [Following](functional/following.md) | Public-profile follow/unfollow operations and profile counts |
 | [Logs API](functional/logs-api.md) | Create, update, delete, and list viewing logs |
 | [In-App Notifications](functional/notifications.md) | Inbox pagination, unread counts, and explicit read operations |
 | [Profile Visibility](functional/profile-visibility.md) | User profile visibility settings and public profile lookup |
@@ -27,6 +28,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [CORS Configuration](technical/cors-configuration.md) | CORS environment variables and behavior |
 | [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
+| [Following](technical/following.md) | Follow persistence, eligibility rules, aggregation, and idempotency |
 | [Notification Architecture](technical/notifications.md) | Typed persistence, service response mapping, deduplication, and extension contract |
 | [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup and the completed MongoDB → PostgreSQL migration |
 | [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and followers-only authorization stub |

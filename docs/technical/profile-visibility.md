@@ -121,8 +121,13 @@ Never deploy the old backend image before the downgrade: that image does not con
 
 `followers_only` currently behaves identically to `private`. A later epic ticket will grant accepted followers access by updating service-layer authorization; no further visibility-value rename will be required.
 
+The basic following system accepts new relationships only when the target is public. Existing edges survive later
+visibility changes and remain visible through profile counts and `isFollowing`, but they do not alter this authorization
+stub. See the technical following guide for persistence and mutation behavior.
+
 ## See Also
 
 - [Functional: Profile Visibility](../functional/profile-visibility.md)
+- [Following](following.md)
 - [Pydantic Types and Validators](pydantic_types_and_validators.md)
 - [PostgreSQL Migration](postgres-migration.md)

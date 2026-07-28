@@ -177,6 +177,17 @@ class TestRateLimitDecoratorsApplied:
             f"{endpoint} endpoint must have @limiter.limit() decorator"
         )
 
+    @pytest.mark.parametrize("endpoint", ["follow_user", "unfollow_user"])
+    def test_follow_endpoints_have_rate_limits(self, endpoint: str):
+        key = f"app.controllers.user_controller.{endpoint}"
+        assert key in rate_limiter_module.limiter._route_limits, (
+            f"{endpoint} endpoint must have @limiter.limit() decorator"
+        )
+        route_limits = rate_limiter_module.limiter._route_limits[key]
+        assert len(route_limits) == 1
+        assert route_limits[0].limit.amount == 60
+        assert route_limits[0].limit.get_expiry() == 60
+
 
 class TestRegisterRateLimit:
     """Verify POST /v1/auth/register has session and IP limits."""
