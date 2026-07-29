@@ -8,6 +8,8 @@ from app.dependencies.service_dependency import get_follow_service, get_user_ser
 from app.schemas.user_schemas import (
     ChangePasswordRequest,
     ChangePasswordResponse,
+    UpdateLocaleRequest,
+    UpdateLocaleResponse,
     UpdateProfileRequest,
     UserProfileResponse,
     UserResponse,
@@ -81,6 +83,16 @@ async def update_profile(
     user_service: UserService = Depends(get_user_service),
 ) -> UserResponse:
     return await user_service.update_profile(user_id, request_body)
+
+
+@router.put("/settings/locale", response_model=UpdateLocaleResponse)
+async def update_locale(
+    request_body: UpdateLocaleRequest,
+    request: Request,
+    user_id: UUID = Depends(auth_dependency),
+    user_service: UserService = Depends(get_user_service),
+) -> UpdateLocaleResponse:
+    return await user_service.update_locale(user_id, request_body.locale)
 
 
 @router.put("/settings/password", response_model=ChangePasswordResponse)

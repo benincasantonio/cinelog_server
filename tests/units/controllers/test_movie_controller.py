@@ -67,6 +67,7 @@ class TestMovieController:
         response = client.get(
             "/v1/movies/search?query=Fight Club",
             cookies={"__Host-access_token": "token"},
+            headers={"Accept-Language": "fr-CA,fr;q=0.9"},
         )
 
         app.dependency_overrides = {}
@@ -75,7 +76,7 @@ class TestMovieController:
         data = response.json()
         assert len(data["results"]) == 1
         assert data["results"][0]["title"] == "Fight Club"
-        mock_search.assert_awaited_once_with(query="Fight Club")
+        mock_search.assert_awaited_once_with(query="Fight Club", locale="fr-FR")
 
     def test_search_movies_unauthorized(self, client):
         """Test movie search without authentication."""
@@ -121,14 +122,18 @@ class TestMovieController:
             spoken_languages=[TMDBSpokenLanguage(iso_639_1="en", name="English", english_name="English")],
         )
 
-        response = client.get("/v1/movies/550", cookies={"__Host-access_token": "token"})
+        response = client.get(
+            "/v1/movies/550",
+            cookies={"__Host-access_token": "token"},
+            headers={"Accept-Language": "it-IT"},
+        )
 
         app.dependency_overrides = {}
 
         assert response.status_code == 200
         data = response.json()
         assert data["title"] == "Fight Club"
-        mock_get_details.assert_awaited_once_with(tmdb_id=550)
+        mock_get_details.assert_awaited_once_with(tmdb_id=550, locale="it-IT")
 
     def test_get_movie_details_unauthorized(self, client):
         """Test getting movie details without authentication."""
@@ -149,6 +154,7 @@ class TestMovieController:
         response = client.get(
             "/v1/movies/search?query=NonExistent",
             cookies={"__Host-access_token": "token"},
+            headers={"Accept-Language": "en-US"},
         )
 
         app.dependency_overrides = {}
@@ -164,7 +170,11 @@ class TestMovieController:
         app.dependency_overrides[auth_dependency] = override_auth
         mock_get_details.side_effect = AppException(ErrorCodes.MOVIE_NOT_FOUND)
 
-        response = client.get("/v1/movies/999999", cookies={"__Host-access_token": "token"})
+        response = client.get(
+            "/v1/movies/999999",
+            cookies={"__Host-access_token": "token"},
+            headers={"Accept-Language": "en-US"},
+        )
 
         app.dependency_overrides = {}
 

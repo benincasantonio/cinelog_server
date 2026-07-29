@@ -6,6 +6,7 @@ from app.schemas.base_schemas import BaseSchema
 from app.types import (
     BioStr,
     HandleStr,
+    LocaleStr,
     NameStr,
     ProfileVisibilityStr,
 )
@@ -19,6 +20,7 @@ class UserCreateRequest(BaseSchema):
     bio: BioStr = Field(None, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
     password_hash: str | None = Field(None, description="Hashed password for local auth")
+    locale: LocaleStr = Field(..., description="User's preferred locale")
     profile_visibility: ProfileVisibilityStr = Field(
         default="private",
         description="Profile visibility setting (public, followers_only, private)",
@@ -33,6 +35,7 @@ class UserCreateResponse(BaseSchema):
     handle: str
     bio: str | None = None
     date_of_birth: date
+    locale: LocaleStr = Field(..., description="User's preferred locale")
     profile_visibility: ProfileVisibilityStr = Field(
         ...,
         description="Profile visibility setting (public, followers_only, private)",
@@ -47,6 +50,7 @@ class UserResponse(BaseSchema):
     handle: str
     bio: str | None = None
     date_of_birth: date | None = None
+    locale: LocaleStr = Field(..., description="User's preferred locale")
     profile_visibility: ProfileVisibilityStr = Field(
         ...,
         description="Profile visibility setting (public, followers_only, private)",
@@ -91,3 +95,11 @@ class ChangePasswordRequest(BaseSchema):
 
 class ChangePasswordResponse(BaseSchema):
     message: str = Field(..., description="Password change confirmation message")
+
+
+class UpdateLocaleRequest(BaseSchema):
+    locale: LocaleStr = Field(..., description="User's preferred locale")
+
+
+class UpdateLocaleResponse(BaseSchema):
+    locale: LocaleStr = Field(..., description="User's saved preferred locale")

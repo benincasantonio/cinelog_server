@@ -176,7 +176,7 @@ async def clean_db(postgres_engine):
 
 @pytest.fixture(autouse=True)
 def mock_tmdb_requests():
-    async def fake_get_movie_details(self, tmdb_id: int) -> TMDBMovieDetails:
+    async def fake_get_movie_details(self, tmdb_id: int, locale: str = "en-US") -> TMDBMovieDetails:
         return TMDBMovieDetails(
             id=tmdb_id,
             title=f"Movie {tmdb_id}",
@@ -203,7 +203,7 @@ def mock_tmdb_requests():
             spoken_languages=[],
         )
 
-    async def fake_search_movie(self, query: str) -> TMDBMovieSearchResult:
+    async def fake_search_movie(self, query: str, locale: str = "en-US") -> TMDBMovieSearchResult:
         return TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
 
     with (

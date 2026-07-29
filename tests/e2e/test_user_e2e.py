@@ -18,6 +18,7 @@ class TestUserE2E:
             "lastName": "Test",
             "handle": "userinfotest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -33,6 +34,54 @@ class TestUserE2E:
         assert data["lastName"] == "Test"
         assert data["handle"] == "userinfotest"
         assert data["id"] == user_id
+        assert data["locale"] == "en-US"
+
+    async def test_update_locale_persists_for_subsequent_user_info(self, async_client):
+        user_data = {
+            "email": "locale_update@example.com",
+            "password": "securepassword123",
+            "firstName": "Locale",
+            "lastName": "Update",
+            "handle": "localeupdate",
+            "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
+            "profileVisibility": "private",
+        }
+        login_data = await register_and_login(async_client, user_data)
+
+        response = await async_client.put(
+            "/v1/users/settings/locale",
+            json={"locale": " it-it "},
+            headers={"X-CSRF-Token": login_data["csrfToken"]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"locale": "it-IT"}
+
+        info_response = await async_client.get("/v1/users/info")
+        assert info_response.status_code == 200
+        assert info_response.json()["locale"] == "it-IT"
+
+    async def test_update_locale_rejects_unsupported_value(self, async_client):
+        user_data = {
+            "email": "invalid_locale_update@example.com",
+            "password": "securepassword123",
+            "firstName": "Invalid",
+            "lastName": "Locale",
+            "handle": "invalidlocaleupdate",
+            "dateOfBirth": "1990-01-01",
+            "locale": "fr-FR",
+            "profileVisibility": "private",
+        }
+        login_data = await register_and_login(async_client, user_data)
+
+        response = await async_client.put(
+            "/v1/users/settings/locale",
+            json={"locale": "de-DE"},
+            headers={"X-CSRF-Token": login_data["csrfToken"]},
+        )
+
+        assert response.status_code == 422
 
     async def test_get_user_info_unauthorized(self, async_client):
         """Test getting user info without authentication."""
@@ -58,6 +107,7 @@ class TestUserE2E:
             "lastName": "Test",
             "handle": "userlogstest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -79,6 +129,7 @@ class TestUserE2E:
             "lastName": "Test",
             "handle": "userlogsdatatest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)

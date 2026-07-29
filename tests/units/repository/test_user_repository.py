@@ -77,6 +77,7 @@ def _user_request(
     bio: str | None = None,
     date_of_birth: date = date(1990, 1, 1),
     password_hash: str | None = "$2b$12$hashed",
+    locale: str = "en-US",
     profile_visibility: str = "private",
 ) -> UserCreateRequest:
     return UserCreateRequest(
@@ -87,6 +88,7 @@ def _user_request(
         bio=bio,
         date_of_birth=date_of_birth,
         password_hash=password_hash,
+        locale=locale,
         profile_visibility=profile_visibility,
     )
 
@@ -105,6 +107,7 @@ async def test_create_user_persists_row(repository: UserRepository, seed_session
     assert user.id is not None
     assert user.email == "john@example.com"
     assert user.handle == "johndoe"
+    assert user.locale == "en-US"
     assert user.deleted is False
 
     persisted = await seed_session.get(User, user.id)
@@ -231,6 +234,7 @@ async def test_delete_user_oblivion_overwrites_sensitive_fields(repository: User
     assert persisted.reset_password_code is None
     assert persisted.reset_password_expires is None
     assert persisted.date_of_birth is None
+    assert persisted.locale == "en-US"
     assert persisted.deleted is True
 
 
@@ -305,6 +309,40 @@ async def test_update_user_profile_only_changes_whitelisted_fields(
 
 
 @pytest.mark.asyncio
+async def test_update_user_locale_persists_supported_locale(
+    repository: UserRepository,
+    seed_session: AsyncSession,
+):
+    user = await repository.create_user(
+        _user_request(
+            email="locale@example.com",
+            handle="localehandle",
+        )
+    )
+
+    updated = await repository.update_user_locale(user.id, "it-IT")
+
+    assert updated is not None
+    assert updated.locale == "it-IT"
+    persisted = await seed_session.get(User, user.id)
+    assert persisted is not None
+    assert persisted.locale == "it-IT"
+
+
+@pytest.mark.asyncio
+async def test_update_user_locale_returns_none_for_deleted_user(repository: UserRepository):
+    user = await repository.create_user(
+        _user_request(
+            email="deleted-locale@example.com",
+            handle="deletedlocale",
+        )
+    )
+    assert await repository.delete_user(user.id) is True
+
+    assert await repository.update_user_locale(user.id, "fr-FR") is None
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("profile_visibility", ["friends_only", "hidden"])
 async def test_profile_visibility_check_constraint_rejects_invalid_value(
     seed_session: AsyncSession, profile_visibility: str
@@ -318,6 +356,22 @@ async def test_profile_visibility_check_constraint_rejects_invalid_value(
         profile_visibility=profile_visibility,
     )
 
+    seed_session.add(invalid_user)
+
+    with pytest.raises(IntegrityError):
+        await seed_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_locale_check_constraint_rejects_invalid_value(seed_session: AsyncSession):
+    invalid_user = User(
+        email="invalid-locale@example.com",
+        handle="invalidlocale",
+        first_name="Invalid",
+        last_name="Locale",
+        date_of_birth=date(1990, 1, 1),
+        locale="de-DE",
+    )
     seed_session.add(invalid_user)
 
     with pytest.raises(IntegrityError):

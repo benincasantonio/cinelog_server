@@ -1,11 +1,15 @@
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from app.types import ProfileVisibilityStr
+from app.types import LocaleStr, ProfileVisibilityStr
 
 
 class ProfileVisibilityModel(BaseModel):
     visibility: ProfileVisibilityStr
+
+
+class LocaleModel(BaseModel):
+    locale: LocaleStr
 
 
 class TestProfileVisibilityValidation:
@@ -44,3 +48,17 @@ class TestProfileVisibilityValidation:
     def test_invalid_empty(self):
         with pytest.raises(ValidationError):
             ProfileVisibilityModel(visibility="")
+
+
+class TestLocaleValidation:
+    @pytest.mark.parametrize("locale", ["en-US", "fr-FR", "it-IT"])
+    def test_supported_locale(self, locale):
+        assert LocaleModel(locale=locale).locale == locale
+
+    def test_normalizes_supported_locale(self):
+        assert LocaleModel(locale="  IT-it ").locale == "it-IT"
+
+    @pytest.mark.parametrize("locale", ["en-GB", "de-DE", "en", ""])
+    def test_rejects_unsupported_locale(self, locale):
+        with pytest.raises(ValidationError):
+            LocaleModel(locale=locale)

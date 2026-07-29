@@ -199,6 +199,7 @@ class TestRegisterRateLimit:
         "lastName": "Doe",
         "handle": "johndoe",
         "dateOfBirth": "1990-01-01",
+        "locale": "en-US",
         "profileVisibility": "private",
     }
 
@@ -209,6 +210,7 @@ class TestRegisterRateLimit:
         handle="johndoe",
         bio=None,
         user_id="user123",
+        locale="en-US",
         profile_visibility="private",
     )
 
@@ -374,6 +376,7 @@ class TestLoginRateLimit:
                 "last_name": "Doe",
                 "handle": "johndoe",
                 "bio": None,
+                "locale": "en-US",
             },
         )()
 
@@ -930,13 +933,13 @@ class TestSearchMoviesRateLimit:
             second_client.cookies.set("__Host-access_token", user_two_token)
 
             for _ in range(20):
-                response = first_client.get("/v1/movies/search?query=test")
+                response = first_client.get("/v1/movies/search?query=test", headers={"Accept-Language": "en-US"})
                 assert response.status_code == 200
 
-            blocked = first_client.get("/v1/movies/search?query=test")
+            blocked = first_client.get("/v1/movies/search?query=test", headers={"Accept-Language": "en-US"})
             assert_429_response(blocked)
 
-            allowed = second_client.get("/v1/movies/search?query=test")
+            allowed = second_client.get("/v1/movies/search?query=test", headers={"Accept-Language": "en-US"})
             assert allowed.status_code == 200
         finally:
             first_client.close()
@@ -957,10 +960,10 @@ class TestSearchMoviesRateLimit:
             second_client.cookies.set("__Host-access_token", user_one_token)
 
             for _ in range(20):
-                response = first_client.get("/v1/movies/search?query=test")
+                response = first_client.get("/v1/movies/search?query=test", headers={"Accept-Language": "en-US"})
                 assert response.status_code == 200
 
-            blocked = second_client.get("/v1/movies/search?query=test")
+            blocked = second_client.get("/v1/movies/search?query=test", headers={"Accept-Language": "en-US"})
             assert_429_response(blocked)
         finally:
             first_client.close()
@@ -978,7 +981,7 @@ class TestSearchMoviesRateLimit:
 
         try:
             for _ in range(20):
-                response = client.get("/v1/movies/search?query=test")
+                response = client.get("/v1/movies/search?query=test", headers={"Accept-Language": "en-US"})
                 assert response.status_code == 200
                 assert_rate_limit_headers(response)
         finally:
@@ -997,9 +1000,9 @@ class TestSearchMoviesRateLimit:
 
         try:
             for _ in range(20):
-                client.get("/v1/movies/search?query=test")
+                client.get("/v1/movies/search?query=test", headers={"Accept-Language": "en-US"})
 
-            response = client.get("/v1/movies/search?query=test")
+            response = client.get("/v1/movies/search?query=test", headers={"Accept-Language": "en-US"})
             assert_429_response(response)
         finally:
             client.cookies.clear()

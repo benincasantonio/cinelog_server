@@ -55,6 +55,7 @@ async def test_inbox_cursor_is_rejected_for_another_recipient(async_client, post
         "lastName": "Owner",
         "handle": "cursorowner",
         "dateOfBirth": "1990-01-01",
+        "locale": "en-US",
         "profileVisibility": "public",
     }
     intruder_data = {
@@ -64,6 +65,7 @@ async def test_inbox_cursor_is_rejected_for_another_recipient(async_client, post
         "lastName": "Intruder",
         "handle": "cursorintruder",
         "dateOfBirth": "1990-01-01",
+        "locale": "en-US",
         "profileVisibility": "public",
     }
     await register_and_login(async_client, owner_data)
@@ -118,6 +120,7 @@ async def test_notification_inbox_pagination_authorization_and_read_state(async_
         "lastName": "Recipient",
         "handle": "notifrecipient",
         "dateOfBirth": "1990-01-01",
+        "locale": "en-US",
         "profileVisibility": "public",
     }
     actor_data = {
@@ -127,6 +130,7 @@ async def test_notification_inbox_pagination_authorization_and_read_state(async_
         "lastName": "Actor",
         "handle": "notificationactor",
         "dateOfBirth": "1990-01-01",
+        "locale": "en-US",
         "profileVisibility": "public",
     }
     login = await register_and_login(async_client, recipient_data)

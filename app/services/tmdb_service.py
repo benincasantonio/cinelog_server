@@ -6,6 +6,7 @@ import httpx
 
 from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult
 from app.services.tmdb_cache_service import TMDBCacheService
+from app.types import DEFAULT_LOCALE
 
 logger = logging.getLogger(__name__)
 
@@ -45,23 +46,27 @@ class TMDBService:
         if self._closed:
             raise RuntimeError("TMDBService client is closed")
 
-    async def search_movie(self, query: str) -> TMDBMovieSearchResult:
+    async def search_movie(self, query: str, locale: str = DEFAULT_LOCALE) -> TMDBMovieSearchResult:
         """Search for a movie by title."""
         self._ensure_open()
 
-        cached = await self._cache.get_search(query)
+        cached = await self._cache.get_search(query, locale)
         if cached is not None:
             return cached
 
         url = "https://api.themoviedb.org/3/search/movie"
-        response = await self._client.get(url, headers=self._headers(), params={"query": query})
+        response = await self._client.get(
+            url,
+            headers=self._headers(),
+            params={"query": query, "language": locale},
+        )
         response.raise_for_status()
 
         result = TMDBMovieSearchResult(**response.json())
-        await self._cache.set_search(query, result)
+        await self._cache.set_search(query, result, locale)
         return result
 
-    async def get_movie_details(self, tmdb_id: int) -> TMDBMovieDetails:
+    async def get_movie_details(self, tmdb_id: int, locale: str = DEFAULT_LOCALE) -> TMDBMovieDetails:
         """
         Get full movie details from TMDB by movie ID.
 
@@ -73,16 +78,20 @@ class TMDBService:
         """
         self._ensure_open()
 
-        cached = await self._cache.get_details(tmdb_id)
+        cached = await self._cache.get_details(tmdb_id, locale)
         if cached is not None:
             return cached
 
         url = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
-        response = await self._client.get(url, headers=self._headers())
+        response = await self._client.get(
+            url,
+            headers=self._headers(),
+            params={"language": locale},
+        )
         response.raise_for_status()
 
         result = TMDBMovieDetails(**response.json())
-        await self._cache.set_details(tmdb_id, result)
+        await self._cache.set_details(tmdb_id, result, locale)
         return result
 
     async def aclose(self) -> None:

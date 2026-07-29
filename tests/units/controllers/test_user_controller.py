@@ -9,6 +9,7 @@ from app.dependencies.auth_dependency import auth_dependency
 from app.dependencies.service_dependency import get_user_service
 from app.schemas.user_schemas import (
     ChangePasswordResponse,
+    UpdateLocaleResponse,
     UserProfileResponse,
     UserResponse,
 )
@@ -39,6 +40,7 @@ class TestUserController:
             handle="johndoe",
             bio="A bio",
             date_of_birth=date(1990, 1, 1),
+            locale="en-US",
             profile_visibility="private",
         )
 
@@ -49,6 +51,7 @@ class TestUserController:
         assert response.status_code == 200
         data = response.json()
         assert data["firstName"] == "John"
+        assert data["locale"] == "en-US"
         assert data["profileVisibility"] == "private"
         mock_get_user_info.assert_awaited_once_with("user123")
 
@@ -136,6 +139,7 @@ class TestUpdateProfileController:
             handle="johndoe",
             bio="New bio",
             date_of_birth=date(1990, 1, 1),
+            locale="en-US",
             profile_visibility="private",
         )
 
@@ -169,6 +173,7 @@ class TestUpdateProfileController:
             handle="johndoe",
             bio=None,
             date_of_birth=date(1990, 1, 1),
+            locale="fr-FR",
             profile_visibility="followers_only",
         )
 
@@ -256,6 +261,60 @@ class TestUpdateProfileController:
 
         assert response.status_code == 422
         mock_update_profile.assert_not_awaited()
+
+
+class TestUpdateLocaleController:
+    @patch.object(get_user_service(), "update_locale", new_callable=AsyncMock)
+    def test_update_locale_success(self, mock_update_locale, client, override_auth):
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_update_locale.return_value = UpdateLocaleResponse(locale="it-IT")
+
+        response = client.put(
+            "/v1/users/settings/locale",
+            json={"locale": " it-it "},
+            cookies={
+                "__Host-access_token": "token",
+                "__Host-csrf_token": "test-token",
+            },
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 200
+        assert response.json() == {"locale": "it-IT"}
+        mock_update_locale.assert_awaited_once_with("user123", "it-IT")
+
+    @patch.object(get_user_service(), "update_locale", new_callable=AsyncMock)
+    def test_update_locale_rejects_unsupported_locale(self, mock_update_locale, client, override_auth):
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        response = client.put(
+            "/v1/users/settings/locale",
+            json={"locale": "de-DE"},
+            cookies={
+                "__Host-access_token": "token",
+                "__Host-csrf_token": "test-token",
+            },
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 422
+        mock_update_locale.assert_not_awaited()
+
+    def test_update_locale_requires_authentication(self, client):
+        app.dependency_overrides = {}
+
+        response = client.put(
+            "/v1/users/settings/locale",
+            json={"locale": "fr-FR"},
+            cookies={"__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        assert response.status_code == 401
 
 
 class TestChangePasswordController:

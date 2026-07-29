@@ -38,8 +38,8 @@ sequenceDiagram
     participant Redis as CacheService (Redis)
     participant API as TMDB API
 
-    Controller->>TMDB: search_movie(query) / get_movie_details(tmdb_id)
-    TMDB->>Cache: get_search(query) / get_details(tmdb_id)
+    Controller->>TMDB: search_movie(query, locale) / get_movie_details(tmdb_id, locale)
+    TMDB->>Cache: get_search(query, locale) / get_details(tmdb_id, locale)
     Cache->>Redis: get(key)
     alt Cache hit
         Redis-->>Cache: cached data
@@ -47,7 +47,7 @@ sequenceDiagram
     else Cache miss
         Redis-->>Cache: None
         Cache-->>TMDB: None
-        TMDB->>API: GET /search/movie or GET /movie/{id}
+        TMDB->>API: GET /search/movie or GET /movie/{id} with language
         API-->>TMDB: JSON response
         TMDB->>Cache: set_search / set_details
         Cache->>Redis: set(key, data, ttl)
@@ -115,6 +115,7 @@ The controller at `app/controllers/movie_controller.py` calls `TMDBService.get_i
 - **Auth:** `Authorization: Bearer <TMDB_API_KEY>` header, assembled by `_headers()`
 - **Timeout:** `httpx.Timeout(TMDB_TIMEOUT)` applied uniformly to all requests
 - **Ownership:** The client is owned by the service (`_owns_client = True`) unless injected via the constructor (used in tests)
+- **Language:** Resolved full locale tag passed as the `language` query parameter
 
 ---
 
@@ -126,10 +127,10 @@ The controller at `app/controllers/movie_controller.py` calls `TMDBService.get_i
 
 | Operation | Key Format | Example |
 |-----------|-----------|---------|
-| Search | `cinelog:tmdb:search:{normalized_query}` | `cinelog:tmdb:search:inception` |
-| Details | `cinelog:tmdb:details:{tmdb_id}` | `cinelog:tmdb:details:27205` |
+| Search | `cinelog:tmdb:search:{locale}:{normalized_query}` | `cinelog:tmdb:search:fr-FR:inception` |
+| Details | `cinelog:tmdb:details:{locale}:{tmdb_id}` | `cinelog:tmdb:details:it-IT:27205` |
 
-The search key is normalized via `query.strip().lower()` before insertion and lookup, so `" Inception "` and `"inception"` resolve to the same cache entry.
+The search query is normalized via `query.strip().lower()`. Locale remains in both key shapes so two users requesting the same movie in different languages cannot share a localized payload.
 
 ### TTL Configuration
 
@@ -154,6 +155,8 @@ Both `search_movie` and `get_movie_details` call `response.raise_for_status()` i
 
 No retry logic is currently implemented. Failed requests are not cached.
 
+`locale_dependency` selects a supported locale from `Accept-Language` before calling the service. Only requests without a supported header require a user-table lookup. See [Account Localization](localization.md).
+
 ---
 
 ## MovieService Integration
@@ -163,12 +166,12 @@ No retry logic is currently implemented. Failed requests are not cached.
 ```
 1. Query PostgreSQL for an existing movie row with the given tmdb_id
 2. If found → return it immediately (no TMDB call)
-3. If not found → call TMDBService.get_movie_details(tmdb_id)
+3. If not found → call `TMDBService.get_movie_details(tmdb_id, locale="en-US")`
 4. Pass the TMDBMovieDetails to MovieRepository.create_from_tmdb_data()
 5. Return the newly created movie record
 ```
 
-This means a movie is written to PostgreSQL exactly once — on first access. All subsequent lookups for the same `tmdb_id` are served from the local database. Callers within the application (e.g. `LogService`) use `find_or_create_movie` rather than calling `TMDBService` directly.
+This means a movie is written to PostgreSQL exactly once — on first access — and always uses canonical `en-US` metadata rather than the current viewer's locale. All subsequent lookups for the same `tmdb_id` are served from the local database. Localized persistence is deferred to [issue #214](https://github.com/benincasantonio/cinelog_server/issues/214).
 
 ---
 
@@ -219,8 +222,8 @@ It produces a structured `httpx.HTTPStatusError` with the full request and respo
 |---------|-------|----------|
 | `RuntimeError: TMDBService client is closed` | `aclose_all()` was called (app shutdown) before the request completed, or the service was closed in a test without being re-initialized | In tests, inject a fresh `TMDBService` instance directly; do not rely on the singleton across test boundaries |
 | All TMDB requests return `401 Unauthorized` from upstream | `TMDB_API_KEY` is missing or incorrect | Verify `TMDB_API_KEY` is set in your `.env` and the value matches a valid v4 read-access token from your TMDB account |
-| Search results are stale | Redis TTL for search is still active | Wait for the 10-minute TTL to expire, or flush the specific key: `DEL cinelog:tmdb:search:{normalized_query}` |
-| Movie details are stale | Redis TTL for details is still active | Flush the key: `DEL cinelog:tmdb:details:{tmdb_id}` |
+| Search results are stale | Redis TTL for search is still active | Wait for the 10-minute TTL to expire, or flush `cinelog:tmdb:search:{locale}:{normalized_query}` |
+| Movie details are stale | Redis TTL for details is still active | Flush `cinelog:tmdb:details:{locale}:{tmdb_id}` |
 | Cache is never populated | Redis is unreachable or cache writes are failing | Confirm Redis is running (`redis-cli ping`) and check API logs for cache errors |
 | `tmdb_id` 404 causes 500 for the client | `raise_for_status()` propagates TMDB 404 as an unhandled exception | Ensure the `tmdb_id` was obtained from a valid search result; direct ID entry is not validated before the TMDB call |
 
@@ -228,6 +231,7 @@ It produces a structured `httpx.HTTPStatusError` with the full request and respo
 
 ## Related Documents
 
+- [Technical: Account Localization](localization.md)
 - [Functional: TMDB Movie Service](../functional/tmdb-service.md)
 - [Technical: Redis Caching](redis-caching.md)
 - [Technical: Stats Caching](stats-caching.md)

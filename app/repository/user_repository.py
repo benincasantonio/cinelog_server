@@ -11,6 +11,7 @@ from sqlalchemy import func, or_, select
 from app.models.user_model import User
 from app.repository.repository_base import RepositoryBase
 from app.schemas.user_schemas import UserCreateRequest
+from app.types import DEFAULT_LOCALE
 from app.utils.auth_utils import normalize_email_identifier
 
 ALLOWED_PROFILE_FIELDS = {
@@ -39,6 +40,7 @@ class UserRepository(RepositoryBase):
                 last_name=request.last_name,
                 bio=request.bio,
                 profile_visibility=request.profile_visibility,
+                locale=request.locale,
                 date_of_birth=request.date_of_birth,
                 password_hash=request.password_hash,
             )
@@ -136,6 +138,7 @@ class UserRepository(RepositoryBase):
             user.reset_password_code = None
             user.reset_password_expires = None
             user.date_of_birth = None
+            user.locale = DEFAULT_LOCALE
             user.deleted = True
             user.deleted_at = datetime.now(UTC)
             user.updated_at = datetime.now(UTC)
@@ -211,6 +214,25 @@ class UserRepository(RepositoryBase):
             for field, value in filtered_updates.items():
                 setattr(user, field, value)
 
+            user.updated_at = datetime.now(UTC)
+            await session.commit()
+            await session.refresh(user)
+            return user
+
+    async def update_user_locale(self, user_id: UUID, locale: str) -> User | None:
+        """Update the preferred locale for an active user."""
+
+        async with self._session_provider() as session:
+            statement = select(User).where(
+                User.id == user_id,
+                User.active(),
+            )
+            result = await session.execute(statement)
+            user = result.scalar_one_or_none()
+            if user is None:
+                return None
+
+            user.locale = locale
             user.updated_at = datetime.now(UTC)
             await session.commit()
             await session.refresh(user)

@@ -81,13 +81,17 @@ class TestTMDBService:
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
-        result = await tmdb_service.search_movie("Fight Club")
+        result = await tmdb_service.search_movie("Fight Club", locale="fr-FR")
 
         assert isinstance(result, TMDBMovieSearchResult)
         assert result.total_results == 1
         assert len(result.results) == 1
         assert result.results[0].title == "Fight Club"
         mock_get.assert_awaited_once()
+        assert mock_get.await_args.kwargs["params"] == {
+            "query": "Fight Club",
+            "language": "fr-FR",
+        }
 
     @pytest.mark.asyncio
     @patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock)
@@ -98,13 +102,14 @@ class TestTMDBService:
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
-        result = await tmdb_service.get_movie_details(550)
+        result = await tmdb_service.get_movie_details(550, locale="it-IT")
 
         assert isinstance(result, TMDBMovieDetails)
         assert result.id == 550
         assert result.title == "Fight Club"
         assert result.runtime == 139
         mock_get.assert_awaited_once()
+        assert mock_get.await_args.kwargs["params"] == {"language": "it-IT"}
         mock_response.raise_for_status.assert_called_once()
 
     @pytest.mark.asyncio
@@ -172,7 +177,7 @@ class TestTMDBServiceCaching:
         # Assert
         assert result is cached_result
         mock_http_get.assert_not_awaited()
-        mock_cache.get_search.assert_awaited_once_with("Fight Club")
+        mock_cache.get_search.assert_awaited_once_with("Fight Club", "en-US")
 
     @pytest.mark.asyncio
     @patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock)
@@ -194,7 +199,7 @@ class TestTMDBServiceCaching:
         assert isinstance(result, TMDBMovieSearchResult)
         assert result.results[0].title == "Fight Club"
         # Assert — result was written back to the cache
-        mock_cache.set_search.assert_awaited_once_with("Fight Club", result)
+        mock_cache.set_search.assert_awaited_once_with("Fight Club", result, "en-US")
 
     # ------------------------------------------------------------------
     # get_movie_details
@@ -214,7 +219,7 @@ class TestTMDBServiceCaching:
         # Assert
         assert result is cached_details
         mock_http_get.assert_not_awaited()
-        mock_cache.get_details.assert_awaited_once_with(550)
+        mock_cache.get_details.assert_awaited_once_with(550, "en-US")
 
     @pytest.mark.asyncio
     @patch("app.services.tmdb_service.httpx.AsyncClient.get", new_callable=AsyncMock)
@@ -237,7 +242,7 @@ class TestTMDBServiceCaching:
         assert result.id == 550
         assert result.runtime == 139
         # Assert — result was written back to the cache
-        mock_cache.set_details.assert_awaited_once_with(550, result)
+        mock_cache.set_details.assert_awaited_once_with(550, result, "en-US")
 
     # ------------------------------------------------------------------
     # raise_for_status propagation

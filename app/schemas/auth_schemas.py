@@ -3,7 +3,7 @@ from datetime import date
 from pydantic import EmailStr, Field
 
 from app.schemas.base_schemas import BaseSchema
-from app.types import BioStr, HandleStr, NameStr, ProfileVisibilityStr
+from app.types import BioStr, HandleStr, LocaleStr, NameStr, ProfileVisibilityStr
 
 
 class RegisterRequest(BaseSchema):
@@ -16,6 +16,7 @@ class RegisterRequest(BaseSchema):
     handle: HandleStr = Field(description="User's unique handle")
     bio: BioStr = Field(None, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
+    locale: LocaleStr = Field(..., description="User's preferred locale")
     profile_visibility: ProfileVisibilityStr = Field(
         default="private",
         description="Profile visibility setting (public, followers_only, private)",
@@ -47,6 +48,7 @@ class RegisterResponse(BaseSchema):
     email: EmailStr = Field(..., description="User's email address")
     handle: str = Field(..., description="User's unique handle")
     bio: str | None = Field(None, description="User biography")
+    locale: LocaleStr = Field(..., description="User's preferred locale")
     profile_visibility: ProfileVisibilityStr = Field(
         ...,
         description="Profile visibility setting (public, followers_only, private)",
@@ -69,6 +71,7 @@ class LoginResponse(BaseSchema):
     last_name: str = Field(..., description="User's last name")
     handle: str = Field(..., description="User's unique handle")
     bio: str | None = Field(None, description="User biography")
+    locale: LocaleStr = Field(..., description="User's preferred locale")
     csrf_token: str = Field(..., description="CSRF token for subsequent requests")
 
 
