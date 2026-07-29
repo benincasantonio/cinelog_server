@@ -59,6 +59,7 @@ class TestAuthController:
             handle="johndoe",
             bio=None,
             user_id="user123",
+            locale="fr-FR",
             profile_visibility="followers_only",
         )
 
@@ -71,6 +72,7 @@ class TestAuthController:
                 "lastName": "Doe",
                 "handle": "johndoe",
                 "dateOfBirth": "1990-01-01",
+                "locale": "fr-FR",
                 "profileVisibility": " FOLLOWERS_ONLY ",
                 "verificationCode": "ABC123",
             },
@@ -81,6 +83,7 @@ class TestAuthController:
         assert data["email"] == "test@example.com"
         assert data["firstName"] == "John"
         assert data["handle"] == "johndoe"
+        assert data["locale"] == "fr-FR"
         assert data["profileVisibility"] == "followers_only"
         request = mock_register.await_args.kwargs["request"]
         assert request.profile_visibility == "followers_only"
@@ -102,6 +105,7 @@ class TestAuthController:
                 "lastName": "Doe",
                 "handle": "johndoe",
                 "dateOfBirth": "1990-01-01",
+                "locale": "en-US",
                 "profileVisibility": "private",
                 "verificationCode": "ABC123",
             },

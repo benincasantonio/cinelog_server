@@ -85,5 +85,5 @@ class TestMovieService:
         result = await movie_service.find_or_create_movie(550)
 
         assert result == mock_new_movie
-        mock_tmdb_service.get_movie_details.assert_awaited_once_with(550)
+        mock_tmdb_service.get_movie_details.assert_awaited_once_with(550, locale="en-US")
         mock_movie_repository.create_from_tmdb_data.assert_awaited_once_with(mock_tmdb_data)

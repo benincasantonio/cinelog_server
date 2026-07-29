@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base_model import BaseEntity
-from app.types import PROFILE_VISIBILITY_CHOICES
+from app.types import DEFAULT_LOCALE, LOCALE_CHOICES, PROFILE_VISIBILITY_CHOICES
 
 
 class User(BaseEntity):
@@ -34,17 +34,28 @@ class User(BaseEntity):
         server_default=text("'private'"),
         default="private",
     )
+    locale: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        server_default=text(f"'{DEFAULT_LOCALE}'"),
+        default=DEFAULT_LOCALE,
+    )
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     reset_password_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     reset_password_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     _profile_visibility_sql = ", ".join(f"'{choice}'" for choice in PROFILE_VISIBILITY_CHOICES)
+    _locale_sql = ", ".join(f"'{choice}'" for choice in LOCALE_CHOICES)
 
     __table_args__ = (
         CheckConstraint(
             f"profile_visibility IN ({_profile_visibility_sql})",
             name="ck_users_profile_visibility",
+        ),
+        CheckConstraint(
+            f"locale IN ({_locale_sql})",
+            name="ck_users_locale",
         ),
         Index("uq_users_email_lower", func.lower(email), unique=True),
         Index("uq_users_handle_lower", func.lower(handle), unique=True),

@@ -19,6 +19,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "createlogtest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -60,6 +61,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "filterdatetest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -117,6 +119,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "sortlogstest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -166,6 +169,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "updateinvalidtest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -190,6 +194,7 @@ class TestLogE2E:
             "lastName": "User",
             "handle": "ownerusertest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_a = await register_and_login(async_client, user_a)
@@ -210,6 +215,7 @@ class TestLogE2E:
             "lastName": "User",
             "handle": "intruderusertest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_b = await register_and_login(async_client, user_b)
@@ -234,6 +240,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "emptylogstest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -254,6 +261,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "invalidwheretest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -281,6 +289,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "isoownertest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_a = await register_and_login(async_client, user_a)
@@ -300,6 +309,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "isoviewertest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_b = await register_and_login(async_client, user_b)
@@ -319,6 +329,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "reusemovietest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -371,6 +382,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "updinvalidwheretest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -409,6 +421,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "useratest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         user_not_logged = await register_and_login(async_client, user_a)
@@ -434,6 +447,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "userbtest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_b = await register_and_login(async_client, user_b)
@@ -463,6 +477,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "useraprivate",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "private",
         }
         user_not_logged = await register(async_client, user_a)
@@ -477,6 +492,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "userbprivate",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "private",
         }
         login_b = await register_and_login(async_client, user_b)
@@ -497,6 +513,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "deletelogtest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -540,6 +557,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "deleteinvalidtest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_data = await register_and_login(async_client, user_data)
@@ -563,6 +581,7 @@ class TestLogE2E:
             "lastName": "User",
             "handle": "deleteownertest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_a = await register_and_login(async_client, user_a)
@@ -584,6 +603,7 @@ class TestLogE2E:
             "lastName": "User",
             "handle": "deleteintrudertest",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profile_visibility": "public",
         }
         login_b = await register_and_login(async_client, user_b)
@@ -618,6 +638,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "userafollowersonly",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profileVisibility": "followers_only",
         }
         user_not_logged = await register(async_client, user_a)
@@ -633,6 +654,7 @@ class TestLogE2E:
             "lastName": "Test",
             "handle": "userbfollowersonly",
             "dateOfBirth": "1990-01-01",
+            "locale": "en-US",
             "profileVisibility": "followers_only",
         }
         login_b = await register_and_login(async_client, user_b)

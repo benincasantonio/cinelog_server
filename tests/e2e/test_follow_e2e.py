@@ -13,6 +13,7 @@ def _user_data(suffix: str, visibility: str) -> dict:
         "lastName": "Follow",
         "handle": suffix,
         "dateOfBirth": "1990-01-01",
+        "locale": "en-US",
         "profileVisibility": visibility,
     }
 

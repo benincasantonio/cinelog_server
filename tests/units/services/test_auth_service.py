@@ -95,6 +95,7 @@ class TestAuthService:
             password="password123",
             handle="johndoe",
             date_of_birth=date(1990, 1, 1),
+            locale="fr-FR",
             profile_visibility="private",
             bio=None,
             verification_code="ABC123",
@@ -110,6 +111,7 @@ class TestAuthService:
             last_name="Doe",
             handle="johndoe",
             bio=None,
+            locale="fr-FR",
             profile_visibility="private",
         )
         mock_user_repo.create_user.return_value = mock_created_user
@@ -117,6 +119,7 @@ class TestAuthService:
         response = await auth_service.register(request)
 
         assert response.email == "john@example.com"
+        assert response.locale == "fr-FR"
         mock_registration_verification_service.validate_code.assert_awaited_once_with("john@example.com", "ABC123")
         mock_user_repo.create_user.assert_awaited_once()
         mock_registration_verification_service.delete_code.assert_awaited_once_with("john@example.com")
@@ -124,6 +127,7 @@ class TestAuthService:
         call_args = mock_user_repo.create_user.call_args[1]
         assert "password_hash" in call_args["request"].model_dump()
         assert call_args["request"].password_hash != "password123"
+        assert call_args["request"].locale == "fr-FR"
 
     @pytest.mark.asyncio
     async def test_register_rejects_invalid_verification_code(
@@ -139,6 +143,7 @@ class TestAuthService:
             password="password123",
             handle="johndoe",
             date_of_birth=date(1990, 1, 1),
+            locale="en-US",
             profile_visibility="private",
             bio=None,
             verification_code="BAD999",
@@ -214,6 +219,7 @@ class TestAuthService:
             password="password123",
             handle="janedoe",
             date_of_birth=date(1995, 1, 1),
+            locale="it-IT",
             profile_visibility="public",
             bio=None,
             verification_code="ABC123",
@@ -229,6 +235,7 @@ class TestAuthService:
             last_name="Doe",
             handle="janedoe",
             bio=None,
+            locale="it-IT",
             profile_visibility="public",
         )
         mock_user_repo.create_user.return_value = mock_created_user

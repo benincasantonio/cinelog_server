@@ -11,6 +11,7 @@ def _user_payload(email: str, handle: str) -> dict:
         "lastName": "User",
         "handle": handle,
         "dateOfBirth": "1990-01-01",
+        "locale": "en-US",
     }
 
 

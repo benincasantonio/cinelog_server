@@ -20,11 +20,11 @@
 
 ## Overview
 
-The TMDB Movie Service exposes two endpoints that allow authenticated users to search for movies and retrieve detailed information about a specific film. Movie data is sourced from [The Movie Database (TMDB)](https://www.themoviedb.org/) and is persisted locally the first time a movie is looked up, making subsequent access faster and independent of the external API.
+The TMDB Movie Service exposes two endpoints that allow authenticated users to search for movies and retrieve detailed information about a specific film. Live data is sourced from [The Movie Database (TMDB)](https://www.themoviedb.org/), localized for the authenticated viewer, and cached in Redis.
 
 ## Authentication
 
-Both endpoints require a valid session. Requests must include the `__Host-access_token` cookie and the `X-CSRF-Token` header. Unauthenticated requests will receive a `401 Unauthorized` response. See [Authentication](authentication.md) for the full login and token-refresh flow.
+Both endpoints require a valid session. Requests must include the `__Host-access_token` cookie. Clients should send the active locale in `Accept-Language`; the server falls back to the saved account locale. Unauthenticated requests receive `401 Unauthorized`. See [Authentication](authentication.md) and [Account Localization](localization.md).
 
 ---
 
@@ -46,6 +46,7 @@ Searches TMDB for movies matching the provided query string. Returns a paginated
 
 ```
 GET /v1/movies/search?query=inception
+Accept-Language: fr-FR
 ```
 
 **Example response (200 OK):**
@@ -82,7 +83,7 @@ Each item in `results` represents a single movie match. Use the `id` field as th
 GET /v1/movies/{tmdb_id}
 ```
 
-Returns the full details for a single movie identified by its TMDB ID. If this is the first time the movie has been requested, the data is fetched from TMDB and persisted to the local database for future use.
+Returns live details for a single movie identified by its TMDB ID, localized using the resolved request locale.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -92,6 +93,7 @@ Returns the full details for a single movie identified by its TMDB ID. If this i
 
 ```
 GET /v1/movies/27205
+Accept-Language: it-IT
 ```
 
 **Example response (200 OK):**
@@ -137,37 +139,28 @@ GET /v1/movies/27205
 
 ## Movie Data Flow
 
-The diagram below shows how a movie moves from a user's search through to permanent local storage.
+The diagram below shows locale resolution and live TMDB caching.
 
 ```mermaid
 flowchart TD
-    A([User searches for a movie]) --> B[GET /v1/movies/search?query=...]
-    B --> C{Cached in Redis?}
-    C -- Yes --> D[Return cached search results]
-    C -- No --> E[Fetch from TMDB API]
-    E --> F[Cache results for 10 minutes]
-    F --> D
-
-    D --> G([User picks a movie and requests details])
-    G --> H[GET /v1/movies/:tmdb_id]
-    H --> I{Cached in Redis?}
-    I -- Yes --> J[Return cached details]
-    I -- No --> K[Fetch from TMDB API]
-    K --> L[Cache details for 24 hours]
-    L --> J
-
-    J --> M{Movie in local DB?}
-    M -- Yes --> N[Return existing local record]
-    M -- No --> O[Persist movie to PostgreSQL]
-    O --> N
+    A([Authenticated request]) --> B{Supported Accept-Language?}
+    B -- Yes --> C[Use header locale]
+    B -- No --> D[Load saved account locale]
+    C --> E[Build locale-scoped Redis key]
+    D --> E
+    E --> F{Cached?}
+    F -- Yes --> G[Return localized response]
+    F -- No --> H[Call TMDB with language]
+    H --> I[Cache localized payload]
+    I --> G
 ```
 
 **Key points about this flow:**
 
-- Search results are cached for 10 minutes to reduce TMDB API calls for repeated queries.
-- Full movie details are cached for 24 hours since this data changes infrequently.
-- A movie is written to the local database only when it is first fully fetched — not when it appears in a search list.
-- Once persisted locally, a movie record is available to other features (logs, ratings) by its internal UUID.
+- Search results are cached for 10 minutes and details for 24 hours.
+- Locale is part of every TMDB cache key, so localized payloads never share entries.
+- Live search/details endpoints do not persist localized payloads to PostgreSQL.
+- Logs and ratings create canonical `en-US` movie rows through the internal `MovieService`; saved log metadata remains canonical for now.
 
 ---
 
@@ -227,5 +220,6 @@ Includes all fields from the search result item, plus:
 
 ## Related Documents
 
+- [Account Localization](localization.md)
 - [Technical: TMDB Service — Implementation Details](../technical/tmdb-service.md)
 - [Functional: Authentication](authentication.md)

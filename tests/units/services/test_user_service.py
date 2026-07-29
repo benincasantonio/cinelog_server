@@ -43,6 +43,7 @@ def create_mock_user(
     bio=None,
     date_of_birth=None,
     password_hash="$2b$12$hashed_password",
+    locale="en-US",
     profile_visibility="private",
 ):
     mock_user = Mock()
@@ -54,6 +55,7 @@ def create_mock_user(
     mock_user.bio = bio
     mock_user.date_of_birth = date_of_birth or date(1990, 1, 1)
     mock_user.password_hash = password_hash
+    mock_user.locale = locale
     mock_user.profile_visibility = profile_visibility
     return mock_user
 
@@ -69,6 +71,7 @@ class TestUserService:
         assert result.id == "user123"
         assert result.first_name == "John"
         assert result.last_name == "Doe"
+        assert result.locale == "en-US"
         assert result.profile_visibility == "private"
         mock_user_repository.find_user_by_id.assert_awaited_once_with("user123")
 
@@ -218,6 +221,26 @@ class TestUpdateProfile:
 
         assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
         mock_user_repository.update_user_profile.assert_not_awaited()
+
+
+class TestUpdateLocale:
+    @pytest.mark.asyncio
+    async def test_update_locale_success(self, user_service, mock_user_repository):
+        mock_user_repository.update_user_locale.return_value = create_mock_user(locale="it-IT")
+
+        result = await user_service.update_locale("user123", "it-IT")
+
+        assert result.locale == "it-IT"
+        mock_user_repository.update_user_locale.assert_awaited_once_with("user123", "it-IT")
+
+    @pytest.mark.asyncio
+    async def test_update_locale_user_not_found(self, user_service, mock_user_repository):
+        mock_user_repository.update_user_locale.return_value = None
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.update_locale("missing", "fr-FR")
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
 
 
 class TestChangePassword:

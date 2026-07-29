@@ -51,7 +51,7 @@ The coarse IP and session limits are enforced via `slowapi` decorators in `app/c
 - If the email already has an account, `EmailService` sends an existing-account notice instead of issuing a code.
 - If the email can be registered, `RegistrationVerificationService` generates a 6-character code, stores only an HMAC hash in Redis, and sends the plaintext code by email.
 - Redis keys and stored code hashes are HMAC-derived using the dedicated `REGISTRATION_VERIFICATION_HMAC_SECRET` (separate from the rate-limiting secret) and use a 15-minute TTL. No verification-code table or migration is used.
-- `POST /v1/auth/register` requires `verificationCode`; the code must exist, be unexpired, match the email, and have fewer than 5 failed attempts.
+- `POST /v1/auth/register` requires `verificationCode` and a supported full `locale` tag; the code must exist, be unexpired, match the email, and have fewer than 5 failed attempts.
 - After successful account creation, the verification key is deleted so the code is single-use. If Redis loses the temporary key, the user must request a new code.
 
 ## Password Recovery Implementation
@@ -76,6 +76,7 @@ Registration verification emails use the same development fallback and log the r
 
 ## See Also
 
+- [Account Localization](localization.md) — Locale persistence, request resolution, and TMDB integration
 - [Functional Authentication Doc](../functional/authentication.md) — API usage, flows, consumer guide
 - [CORS Configuration](cors-configuration.md) — Related cross-origin settings
 - [ARCHITECTURE.md](../../ARCHITECTURE.md) — Codebase architecture reference

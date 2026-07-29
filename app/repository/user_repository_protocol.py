@@ -42,3 +42,6 @@ class UserRepositoryProtocol(Protocol[IdType, UserType]):
 
     async def update_user_profile(self, user_id: IdType, update_data: dict[str, Any]) -> UserType | None:
         """Update user profile fields."""
+
+    async def update_user_locale(self, user_id: IdType, locale: str) -> UserType | None:
+        """Update the user's preferred locale."""

@@ -73,6 +73,7 @@ class AuthService:
                 bio=request.bio,
                 date_of_birth=request.date_of_birth,
                 password_hash=hashed_password,
+                locale=request.locale,
                 profile_visibility=request.profile_visibility,
             )
             user = await self.user_repository.create_user(request=user_create_request)
@@ -88,6 +89,7 @@ class AuthService:
             handle=user.handle,
             bio=user.bio,
             user_id=str(user.id),
+            locale=user.locale,
             profile_visibility=user.profile_visibility,
         )
 

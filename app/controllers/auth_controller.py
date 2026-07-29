@@ -121,6 +121,7 @@ async def login(
         last_name=user.last_name,
         handle=user.handle,
         bio=user.bio,
+        locale=user.locale,
         csrf_token=csrf_token,
     )
 

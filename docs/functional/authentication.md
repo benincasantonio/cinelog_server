@@ -21,9 +21,9 @@ Rate limits: 6 requests per hour per IP, 3 requests per hour per anonymous sessi
 
 **Step 2 Endpoint**: `POST /v1/auth/register`
 
-1. Client sends user details plus `verificationCode`.
+1. Client sends user details, a required supported `locale` (`en-US`, `fr-FR`, or `it-IT`), and `verificationCode`.
 2. Server verifies the code for the submitted email.
-3. Server creates the user and returns the newly created user details via JSON response.
+3. Server creates the user and returns the newly created user details, including the saved locale, via JSON response.
 
 Rate limits: 10 requests per hour per IP and 5 requests per hour per anonymous session.
 
@@ -40,6 +40,7 @@ Verification codes expire after 15 minutes, are single-use, and are stored tempo
     - `__Host-access_token`: Short-lived (15 mins).
     - `refresh_token`: Long-lived (7 days), scoped to `/v1/auth/refresh`.
 4. Server sets a `__Host-csrf_token` cookie and returns the CSRF token in the JSON response body.
+5. The login response includes the private saved account locale.
 
 Rate limit: 30 requests per 15 minutes per IP.
 
@@ -119,4 +120,5 @@ fetch("/v1/logs", {
 
 ## See Also
 
+- [Account Localization](localization.md) — Saved locale and live TMDB language behavior
 - [Technical Authentication Details](../technical/authentication.md) — Implementation internals, middleware, cookie configuration

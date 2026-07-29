@@ -6,6 +6,7 @@ from app.repository.follow_repository_protocol import FollowRepositoryProtocol, 
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.user_schemas import (
     ChangePasswordResponse,
+    UpdateLocaleResponse,
     UpdateProfileRequest,
     UserProfileResponse,
     UserResponse,
@@ -45,6 +46,7 @@ class UserService:
             handle=user.handle,
             bio=user.bio,
             date_of_birth=date_of_birth,
+            locale=user.locale,
             profile_visibility=user.profile_visibility,
         )
 
@@ -107,8 +109,18 @@ class UserService:
             handle=user.handle,
             bio=user.bio,
             date_of_birth=date_of_birth,
+            locale=user.locale,
             profile_visibility=user.profile_visibility,
         )
+
+    async def update_locale(self, user_id: UUID, locale: str) -> UpdateLocaleResponse:
+        """Update the user's preferred locale."""
+
+        user = await self.user_repository.update_user_locale(user_id, locale)
+        if not user:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        return UpdateLocaleResponse(locale=user.locale)
 
     async def change_password(
         self,

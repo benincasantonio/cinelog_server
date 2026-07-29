@@ -10,6 +10,7 @@ User-facing documentation covering features, flows, and API usage from the consu
 |----------|-------------|
 | [Authentication](functional/authentication.md) | Auth flows, API usage, CSRF guide |
 | [Following](functional/following.md) | Public-profile follow/unfollow operations and profile counts |
+| [Account Localization](functional/localization.md) | Saved locale preference, update API, and live TMDB language behavior |
 | [Logs API](functional/logs-api.md) | Create, update, delete, and list viewing logs |
 | [In-App Notifications](functional/notifications.md) | Inbox pagination, unread counts, and explicit read operations |
 | [Profile Visibility](functional/profile-visibility.md) | User profile visibility settings and public profile lookup |
@@ -29,6 +30,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Following](technical/following.md) | Follow persistence, eligibility rules, aggregation, and idempotency |
+| [Account Localization](technical/localization.md) | Locale persistence, header negotiation, fallback, and TMDB cache isolation |
 | [Notification Architecture](technical/notifications.md) | Typed persistence, service response mapping, deduplication, and extension contract |
 | [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup and the completed MongoDB → PostgreSQL migration |
 | [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and followers-only authorization stub |

@@ -2,6 +2,7 @@ from uuid import UUID
 
 from app.repository.movie_repository_protocol import MovieRepositoryProtocol
 from app.services.tmdb_service import TMDBService
+from app.types import DEFAULT_LOCALE
 
 
 class MovieService:
@@ -29,7 +30,7 @@ class MovieService:
         if movie:
             return movie
 
-        tmdb_data = await self.tmdb_service.get_movie_details(tmdb_id)
+        tmdb_data = await self.tmdb_service.get_movie_details(tmdb_id, locale=DEFAULT_LOCALE)
         movie = await self.movie_repository.create_from_tmdb_data(tmdb_data)
 
         return movie
