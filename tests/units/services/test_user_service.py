@@ -223,6 +223,25 @@ class TestUpdateProfile:
         mock_user_repository.update_user_profile.assert_not_awaited()
 
 
+class TestGetLocale:
+    @pytest.mark.asyncio
+    async def test_get_locale_success(self, user_service, mock_user_repository):
+        mock_user_repository.find_user_by_id.return_value = create_mock_user(locale="fr-FR")
+
+        result = await user_service.get_locale("user123")
+
+        assert result == "fr-FR"
+        mock_user_repository.find_user_by_id.assert_awaited_once_with("user123")
+
+    @pytest.mark.asyncio
+    async def test_get_locale_user_not_found(self, user_service, mock_user_repository):
+        mock_user_repository.find_user_by_id.return_value = None
+
+        result = await user_service.get_locale("missing")
+
+        assert result is None
+
+
 class TestUpdateLocale:
     @pytest.mark.asyncio
     async def test_update_locale_success(self, user_service, mock_user_repository):
