@@ -113,6 +113,12 @@ class UserService:
             profile_visibility=user.profile_visibility,
         )
 
+    async def get_locale(self, user_id: UUID) -> str | None:
+        """Return the user's stored locale preference, or None if the user doesn't exist."""
+
+        user = await self.user_repository.find_user_by_id(user_id)
+        return user.locale if user else None
+
     async def update_locale(self, user_id: UUID, locale: str) -> UpdateLocaleResponse:
         """Update the user's preferred locale."""
 

@@ -5,16 +5,16 @@ from uuid import UUID
 from fastapi import Depends, Request
 
 from app.dependencies.auth_dependency import auth_dependency
-from app.dependencies.repository_dependency import get_user_repository
-from app.repository.user_repository_protocol import UserRepositoryProtocol
-from app.types import DEFAULT_LOCALE, validate_locale
+from app.dependencies.service_dependency import get_user_service
+from app.services.user_service import UserService
+from app.types import DEFAULT_LOCALE
 from app.utils.locale_utils import select_supported_locale
 
 
 async def locale_dependency(
     request: Request,
     user_id: UUID = Depends(auth_dependency),
-    user_repository: UserRepositoryProtocol = Depends(get_user_repository),
+    user_service: UserService = Depends(get_user_service),
 ) -> str:
     """Resolve locale from the request header, account preference, or default."""
 
@@ -22,11 +22,5 @@ async def locale_dependency(
     if header_locale is not None:
         return header_locale
 
-    user = await user_repository.find_user_by_id(user_id)
-    if user is None:
-        return DEFAULT_LOCALE
-
-    try:
-        return validate_locale(user.locale)
-    except (AttributeError, ValueError):
-        return DEFAULT_LOCALE
+    locale = await user_service.get_locale(user_id)
+    return locale if locale is not None else DEFAULT_LOCALE
