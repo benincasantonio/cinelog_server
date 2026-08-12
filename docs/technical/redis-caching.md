@@ -59,6 +59,7 @@ Examples:
 - `cinelog:logs:user:{user_id}:where:{watched_where}:from:{from}:to:{to}:sort:{sort_by}:{sort_order}` — filtered user logs
 - `cinelog:logs:movie:{movie_id}:user:{user_id_or_all}` — logs for a movie, optionally scoped to a user
 - `cinelog:stats:{user_id}:all` — stats for a specific user
+- `cinelog:notif:follow-started:{recipient_id}:{follower_id}` — rolling cooldown for `follow.started` emission
 
 Key construction is the caller's responsibility — `CacheService` is key-agnostic.
 

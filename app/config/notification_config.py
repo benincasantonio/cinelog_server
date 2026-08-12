@@ -3,12 +3,17 @@
 Owns the notification cursor scope so the reusable pagination configuration in
 ``app/config/cursor_pagination_config.py`` stays free of per-domain constants.
 
+Also owns producer cooldown TTLs such as ``FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS``.
+
 The raw prefix is deliberately private: a scope is only ever obtained through
 ``notification_list_cursor_scope()``, so an inbox cursor cannot accidentally be
 signed without its recipient binding.
 """
 
 from uuid import UUID
+
+# Rolling window used by the follow.started producer to suppress unfollow/refollow spam.
+FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS = 604800
 
 _NOTIFICATION_LIST_CURSOR_PREFIX = "notifications.list"
 

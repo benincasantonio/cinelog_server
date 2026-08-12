@@ -7,6 +7,7 @@ from app.dependencies.repository_dependency import (
 from app.dependencies.service_dependency import (
     _get_runtime_log_repository,
     get_follow_service,
+    get_notification_service,
     get_stats_service,
     get_user_service,
 )
@@ -22,6 +23,7 @@ def clear_caches() -> None:
     get_stats_repository.cache_clear()
     get_user_repository.cache_clear()
     get_follow_service.cache_clear()
+    get_notification_service.cache_clear()
     get_stats_service.cache_clear()
     get_user_service.cache_clear()
 
@@ -55,5 +57,6 @@ def test_follow_and_user_services_share_follow_repository():
 
     assert isinstance(follow_service.follow_repository, FollowRepository)
     assert user_service.follow_repository is follow_service.follow_repository
+    assert follow_service.notification_service is get_notification_service()
 
     clear_caches()
