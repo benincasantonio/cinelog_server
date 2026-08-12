@@ -1,6 +1,14 @@
 # In-App Notifications
 
-Cinelog provides an authenticated, persisted notification inbox for activity history. Notification text is rendered in English by the server and returned exactly as stored.
+Cinelog provides an authenticated, persisted notification inbox for activity history. Stored `title` and `body` are English presentation text. Clients should render the displayed string from `type` and `actor`, which stay current if the actor renames or the recipient changes language.
+
+## Producers
+
+`follow.started` is emitted when an authenticated user creates a new follow edge to a public profile. The recipient is the followed user and the actor is the follower.
+
+Duplicate `PUT /v1/users/{handle}/follow` calls, already-following retries, and unfollow-then-refollow within a rolling 7-day window do not create another inbox row. A follow still succeeds with `204` if notification persistence fails.
+
+See [Following](following.md) for eligibility and mutation semantics.
 
 ## Notification Shape
 
@@ -11,7 +19,7 @@ Every notification contains common presentation and read-state fields:
   "id": "d51b78c5-1847-49dc-826f-461c87974c60",
   "type": "follow.started",
   "title": "New follower",
-  "body": "A user started following you.",
+  "body": "Movie Fan started following you.",
   "actor": {
     "handle": "moviefan",
     "firstName": "Movie",
@@ -91,3 +99,4 @@ Read state is presentation state only. Reading a notification never accepts a fo
 ## See Also
 
 - [Technical: Notification Architecture](../technical/notifications.md)
+- [Following](following.md)

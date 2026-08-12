@@ -18,6 +18,7 @@ from app.schemas.notification_schemas import (
     NotificationListRequest,
     NotificationListResponse,
 )
+from app.services.cache_service import CacheService
 from app.types import NotificationType, TimestampUUIDCursor
 from app.utils.cursor_pagination_utils import (
     decode_timestamp_uuid_cursor,
@@ -35,6 +36,10 @@ class NotificationService:
         repository: NotificationRepositoryProtocol | None = None,
     ) -> None:
         self.repository = repository or get_notification_repository()
+
+    @property
+    def _cache(self) -> CacheService:
+        return CacheService.get_instance()
 
     @staticmethod
     def _to_response(notification: Notification) -> NotificationBaseResponse:
@@ -60,10 +65,25 @@ class NotificationService:
             created_at=notification.created_at,
         )
 
-    async def create_notification(self, data: NotificationCreateData) -> NotificationCreateResult:
-        """Create a typed notification for use by future domain producers."""
+    async def create_notification(
+        self,
+        data: NotificationCreateData,
+        *,
+        cooldown_key: str | None = None,
+        cooldown_seconds: int | None = None,
+    ) -> NotificationCreateResult | None:
+        """Create a typed notification, optionally suppressing repeats for a cooldown window."""
 
-        return await self.repository.create_notification(data)
+        if cooldown_key is not None:
+            if cooldown_seconds is None:
+                raise ValueError("cooldown_seconds is required when cooldown_key is set")
+            if await self._cache.get(cooldown_key) is not None:
+                return None
+
+        result = await self.repository.create_notification(data)
+        if cooldown_key is not None:
+            await self._cache.set(cooldown_key, {"emitted": True}, ttl=cooldown_seconds)
+        return result
 
     async def list_notifications(
         self,

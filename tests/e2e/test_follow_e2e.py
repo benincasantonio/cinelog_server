@@ -142,3 +142,52 @@ class TestFollowE2E:
         assert bob_profile.json()["followerCount"] == 1
         assert bob_profile.json()["followingCount"] == 1
         assert bob_profile.json()["isFollowing"] is False
+
+    async def test_follow_emits_inbox_notification_and_same_week_refollow_is_silent(self, async_client):
+        target = _user_data("notifollowtarget", "public")
+        follower = _user_data("notifollower", "public")
+        await register(async_client, target)
+        follower_login = await register_and_login(async_client, follower)
+
+        follow_response = await async_client.put(
+            f"/v1/users/{target['handle']}/follow",
+            headers={"X-CSRF-Token": follower_login["csrfToken"]},
+        )
+        assert follow_response.status_code == 204
+
+        await _login(async_client, target)
+        inbox = await async_client.get("/v1/notifications")
+        assert inbox.status_code == 200
+        payload = inbox.json()
+        assert payload["unreadCount"] == 1
+        assert len(payload["items"]) == 1
+        notification = payload["items"][0]
+        assert notification["type"] == "follow.started"
+        assert notification["title"] == "New follower"
+        assert notification["body"] == "Notifollower Follow started following you."
+        assert notification["actor"] == {
+            "handle": follower["handle"],
+            "firstName": follower["firstName"],
+            "lastName": follower["lastName"],
+        }
+        assert notification["availableActions"] == []
+        assert notification["readAt"] is None
+
+        follower_login = await _login(async_client, follower)
+        unfollow_response = await async_client.delete(
+            f"/v1/users/{target['handle']}/follow",
+            headers={"X-CSRF-Token": follower_login["csrfToken"]},
+        )
+        refollow_response = await async_client.put(
+            f"/v1/users/{target['handle']}/follow",
+            headers={"X-CSRF-Token": follower_login["csrfToken"]},
+        )
+        assert unfollow_response.status_code == 204
+        assert refollow_response.status_code == 204
+
+        await _login(async_client, target)
+        inbox_after_refollow = await async_client.get("/v1/notifications")
+        assert inbox_after_refollow.status_code == 200
+        assert inbox_after_refollow.json()["unreadCount"] == 1
+        assert len(inbox_after_refollow.json()["items"]) == 1
+        assert inbox_after_refollow.json()["items"][0]["id"] == notification["id"]

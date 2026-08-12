@@ -26,6 +26,10 @@ The endpoint requires authentication and a matching CSRF header/cookie pair. It 
 The operation is idempotent: following the same user again also returns `204` and does not create a duplicate
 relationship. A preserved relationship can be retried after the target becomes non-public.
 
+A newly created follow writes a `follow.started` in-app notification to the target's inbox. Repeating the follow,
+including unfollow then refollow within 7 days, does not create another notification. The follow still returns `204`
+if that inbox write fails. See [In-App Notifications](notifications.md).
+
 ## Unfollow a user
 
 ```http
@@ -68,4 +72,5 @@ behind those counts.
 ## See Also
 
 - [Technical: Following](../technical/following.md)
+- [In-App Notifications](notifications.md)
 - [Profile Visibility](profile-visibility.md)

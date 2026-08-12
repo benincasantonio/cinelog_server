@@ -12,7 +12,7 @@ Alembic revision `006_create_notifications_table` creates `notifications` with:
 | `recipient_id` | Required user FK; hard deletion cascades the inbox rows |
 | `actor_id` | Optional user FK; hard deletion sets it to `NULL` |
 | `type` | Text constrained to registered `NotificationType` values |
-| `title`, `body` | Rendered English presentation text |
+| `title`, `body` | Stored English presentation text; clients render displayed copy from `type` and `actor` |
 | `deduplication_key` | Optional producer event key |
 | `read_at` | Nullable server-owned read timestamp |
 | shared fields | Soft deletion plus created/updated timestamps |
@@ -31,6 +31,31 @@ Active chronology uses `(recipient_id, created_at DESC, id DESC)`. A matching pa
 Schemas import these enums from `app.types`; services do not repeat raw action strings. `NotificationBaseResponse`, `NotificationListResponse`, and `MarkAllNotificationsReadResponse` reject extra fields and inherit the application's camelCase aliases.
 
 The generic response always includes `availableActions: []`. The registered action enum exists now so later follow-domain adapters can return authorized enum members without changing the common wire type.
+
+## Follow Started Producer
+
+`FollowService` is the first domain producer. After a new public follow edge commits, it calls `NotificationService.create_notification` with:
+
+| Field | Value |
+|---|---|
+| `type` | `follow.started` |
+| `recipient_id` | followed user |
+| `actor_id` | follower |
+| `title` | `New follower` |
+| `body` | `{first_name} {last_name} started following you.` |
+| `deduplication_key` | `follow.started:{follower_id}:{ISO week}` using `%G-W%V` |
+
+Emission is skipped on the already-following path. Failures are swallowed and logged in `FollowService` so the follow `204` is independent of the inbox write. The follow insert and notification insert remain separate transactions.
+
+`create_notification` accepts optional `cooldown_key` and `cooldown_seconds`. When a cooldown key is present it:
+
+1. Returns `None` without inserting if Redis already has the key.
+2. Inserts through the repository.
+3. `SET`s the key after the insert returns, including when the row already existed (`created=False`).
+
+The follow producer uses `cinelog:notif:follow-started:{recipient_id}:{follower_id}` with `FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS` (7 days). Redis is the rolling primary gate; the ISO-week `deduplication_key` is the durable backstop if Redis loses state. A rolling 7-day expiry always lands in a later ISO week, so the database key cannot suppress an emission Redis approved.
+
+`CacheService` is resolved lazily through `CacheService.get_instance()` so the `@lru_cache`d `NotificationService` does not capture the singleton before startup initialization.
 
 ## Repository and Read Semantics
 
@@ -76,5 +101,6 @@ The project currently follows its established service-level ORM-to-response mapp
 ## See Also
 
 - [Functional: In-App Notifications](../functional/notifications.md)
+- [Technical: Following](following.md)
 - [Pydantic Types and Validators](pydantic_types_and_validators.md)
 - [PostgreSQL Migration](postgres-migration.md)

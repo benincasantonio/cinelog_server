@@ -215,9 +215,9 @@ The `__Host-` prefix enforces: `Secure=true`, no `Domain`, `path=/` — prevents
 | `LogService` | Viewing log CRUD with movie fetching and poster auto-population |
 | `MovieRatingService` | Movie rating create/update/read |
 | `UserService` | User info and profile retrieval with follower/following summaries |
-| `FollowService` | Public-target eligibility and idempotent follow/unfollow mutations |
+| `FollowService` | Public-target eligibility, idempotent follow/unfollow mutations, and `follow.started` emission |
 | `StatsService` | Viewing statistics with `asyncio.gather()` for parallel DB queries |
-| `NotificationService` | Inbox pagination, batch response assembly, and explicit read state |
+| `NotificationService` | Inbox pagination, batch response assembly, explicit read state, and cooldown-aware creation |
 
 ## Middleware
 

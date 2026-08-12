@@ -56,6 +56,7 @@ def get_follow_service() -> FollowService:
     return FollowService(
         user_repository=get_user_repository(),
         follow_repository=get_follow_repository(),
+        notification_service=get_notification_service(),
     )
 
 

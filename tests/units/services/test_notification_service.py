@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -27,6 +27,39 @@ from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
 
+class FakeNotificationCache:
+    def __init__(self):
+        self.values: dict[str, dict[str, bool]] = {}
+        self.ttls: dict[str, int | None] = {}
+
+    async def get(self, key: str) -> dict[str, bool] | None:
+        return self.values.get(key)
+
+    async def set(self, key: str, value: dict[str, bool], ttl: int | None = None) -> bool:
+        self.values[key] = value
+        self.ttls[key] = ttl
+        return True
+
+
+@pytest.fixture
+def repository():
+    return AsyncMock()
+
+
+@pytest.fixture
+def fake_cache():
+    return FakeNotificationCache()
+
+
+@pytest.fixture
+def service(repository, fake_cache):
+    with patch(
+        "app.services.notification_service.CacheService.get_instance",
+        return_value=fake_cache,
+    ):
+        yield NotificationService(repository=repository)
+
+
 def _notification(*, actor=None, read_at=None):
     return SimpleNamespace(
         id=uuid4(),
@@ -37,16 +70,6 @@ def _notification(*, actor=None, read_at=None):
         read_at=read_at,
         created_at=datetime(2026, 7, 18, 10, 0, tzinfo=UTC),
     )
-
-
-@pytest.fixture
-def repository():
-    return AsyncMock()
-
-
-@pytest.fixture
-def service(repository):
-    return NotificationService(repository=repository)
 
 
 @pytest.mark.asyncio
@@ -172,6 +195,75 @@ async def test_create_notification_delegates_typed_internal_input(
 
     assert await service.create_notification(data) is expected
     repository.create_notification.assert_awaited_once_with(data)
+
+
+@pytest.mark.asyncio
+async def test_create_notification_emits_and_arms_cooldown_when_absent(
+    service: NotificationService,
+    repository: AsyncMock,
+    fake_cache: FakeNotificationCache,
+):
+    data = NotificationCreateData(
+        recipient_id=uuid4(),
+        type=NotificationType.FOLLOW_STARTED,
+        title="Title",
+        body="Body",
+    )
+    expected = NotificationCreateResult(notification=_notification(), created=True)
+    repository.create_notification.return_value = expected
+
+    result = await service.create_notification(
+        data,
+        cooldown_key="cinelog:notif:follow-started:recipient:actor",
+        cooldown_seconds=604800,
+    )
+
+    assert result is expected
+    repository.create_notification.assert_awaited_once_with(data)
+    assert fake_cache.values["cinelog:notif:follow-started:recipient:actor"] == {"emitted": True}
+    assert fake_cache.ttls["cinelog:notif:follow-started:recipient:actor"] == 604800
+
+
+@pytest.mark.asyncio
+async def test_create_notification_returns_none_when_cooldown_is_present(
+    service: NotificationService,
+    repository: AsyncMock,
+    fake_cache: FakeNotificationCache,
+):
+    fake_cache.values["cinelog:notif:follow-started:recipient:actor"] = {"emitted": True}
+    data = NotificationCreateData(
+        recipient_id=uuid4(),
+        type=NotificationType.FOLLOW_STARTED,
+        title="Title",
+        body="Body",
+    )
+
+    result = await service.create_notification(
+        data,
+        cooldown_key="cinelog:notif:follow-started:recipient:actor",
+        cooldown_seconds=604800,
+    )
+
+    assert result is None
+    repository.create_notification.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_create_notification_requires_cooldown_seconds_when_key_is_set(
+    service: NotificationService,
+    repository: AsyncMock,
+):
+    data = NotificationCreateData(
+        recipient_id=uuid4(),
+        type=NotificationType.FOLLOW_STARTED,
+        title="Title",
+        body="Body",
+    )
+
+    with pytest.raises(ValueError, match="cooldown_seconds is required"):
+        await service.create_notification(data, cooldown_key="cinelog:notif:follow-started:recipient:actor")
+
+    repository.create_notification.assert_not_awaited()
 
 
 @pytest.mark.asyncio
