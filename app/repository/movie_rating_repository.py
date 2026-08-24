@@ -5,11 +5,53 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.movie_rating_model import MovieRating
 from app.repository.repository_base import RepositoryBase
+
+
+async def execute_movie_rating_upsert(
+    session: AsyncSession,
+    *,
+    user_id: UUID,
+    movie_id: UUID,
+    rating: int,
+    tmdb_id: int,
+    comment: str | None = None,
+    preserve_existing_comment: bool = False,
+) -> UUID:
+    """Upsert a rating in an existing transaction and return its ID."""
+
+    review = (
+        case((MovieRating.deleted.is_(False), MovieRating.review), else_=None) if preserve_existing_comment else comment
+    )
+    statement = (
+        insert(MovieRating)
+        .values(
+            user_id=user_id,
+            movie_id=movie_id,
+            tmdb_id=tmdb_id,
+            rating=rating,
+            review=None if preserve_existing_comment else comment,
+        )
+        .on_conflict_do_update(
+            index_elements=[MovieRating.user_id, MovieRating.tmdb_id],
+            set_={
+                "movie_id": movie_id,
+                "rating": rating,
+                "review": review,
+                "updated_at": func.now(),
+                "deleted": False,
+                "deleted_at": None,
+            },
+        )
+        .returning(MovieRating.id)
+    )
+    result = await session.execute(statement)
+    return result.scalar_one()
 
 
 class MovieRatingRepository(RepositoryBase):
@@ -58,30 +100,14 @@ class MovieRatingRepository(RepositoryBase):
         """Insert or update a movie rating using PostgreSQL native upsert."""
 
         async with self._session_provider() as session:
-            statement = (
-                insert(MovieRating)
-                .values(
-                    user_id=user_id,
-                    movie_id=movie_id,
-                    tmdb_id=tmdb_id,
-                    rating=rating,
-                    review=comment,
-                )
-                .on_conflict_do_update(
-                    index_elements=[MovieRating.user_id, MovieRating.tmdb_id],
-                    set_={
-                        "movie_id": movie_id,
-                        "rating": rating,
-                        "review": comment,
-                        "updated_at": func.now(),
-                        "deleted": False,
-                        "deleted_at": None,
-                    },
-                )
-                .returning(MovieRating.id)
+            rating_id = await execute_movie_rating_upsert(
+                session,
+                user_id=user_id,
+                movie_id=movie_id,
+                rating=rating,
+                comment=comment,
+                tmdb_id=tmdb_id,
             )
-            result = await session.execute(statement)
-            rating_id = result.scalar_one()
             await session.commit()
 
             rating_record = await session.get(MovieRating, rating_id)

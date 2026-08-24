@@ -84,6 +84,7 @@ class TestLogService:
             date_watched=date(2024, 1, 15),
             viewing_notes="Great movie!",
             watched_where="cinema",
+            rating=9,
         )
         result = await log_service.create_log("user123", request)
 
@@ -91,6 +92,7 @@ class TestLogService:
         assert result.id == "log123"
         assert result.movie_id == "movie123"
         assert result.movie.title == "Test Movie"
+        assert result.movie_rating == 9
         mock_movie_service.find_or_create_movie.assert_awaited_once_with(tmdb_id=550)
         mock_log_repository.create_log.assert_awaited_once()
 
@@ -129,8 +131,9 @@ class TestLogService:
         mock_log_repository.create_log.return_value = mock_log
 
         request = LogCreateRequest(tmdb_id=550, date_watched=date(2024, 1, 15), watched_where="cinema")
-        await log_service.create_log(user_id, request)
+        result = await log_service.create_log(user_id, request)
 
+        assert result.movie_rating is None
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
@@ -202,11 +205,12 @@ class TestLogService:
 
         mock_movie_service.get_movie_by_id.return_value = mock_movie
 
-        request = LogUpdateRequest(viewing_notes="Updated notes")
+        request = LogUpdateRequest(viewing_notes="Updated notes", rating=8)
         log_id = uuid4()
         result = await log_service.update_log("user123", log_id, request)
 
         assert result.viewing_notes == "Updated notes"
+        assert result.movie_rating == 8
         mock_log_repository.update_log.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -245,9 +249,24 @@ class TestLogService:
 
         request = LogUpdateRequest(viewing_notes="Updated notes")
         log_id = uuid4()
-        await log_service.update_log(user_id, log_id, request)
+        result = await log_service.update_log(user_id, log_id, request)
 
+        assert result.movie_rating is None
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
+
+    @pytest.mark.asyncio
+    async def test_update_log_failure_does_not_invalidate_stats(
+        self,
+        log_service,
+        mock_log_repository,
+        mock_stats_cache_service,
+    ):
+        mock_log_repository.update_log.side_effect = RuntimeError("database failure")
+
+        with pytest.raises(RuntimeError):
+            await log_service.update_log(uuid4(), uuid4(), LogUpdateRequest(rating=9))
+
+        mock_stats_cache_service.invalidate_user_stats.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_update_log_not_found(self, log_service, mock_log_repository):

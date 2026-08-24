@@ -91,6 +91,7 @@ class LogService:
             viewing_notes=log.viewing_notes,
             poster_path=log.poster_path,
             watched_where=log.watched_where,
+            movie_rating=request.rating,
         )
 
     async def update_log(
@@ -120,6 +121,7 @@ class LogService:
             viewing_notes=log.viewing_notes,
             poster_path=log.poster_path,
             watched_where=log.watched_where,
+            movie_rating=request.rating,
         )
 
     async def delete_log(self, user_id: UUID, log_id: UUID) -> None:

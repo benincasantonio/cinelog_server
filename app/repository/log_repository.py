@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import ColumnElement, select
 
 from app.models.log_model import Log
+from app.repository.movie_rating_repository import execute_movie_rating_upsert
 from app.repository.repository_base import RepositoryBase
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 from app.utils.datetime_utils import date_end_utc, date_start_utc, to_utc_datetime
@@ -34,6 +35,15 @@ class LogRepository(RepositoryBase):
                 watched_where=create_log_request.watched_where,
             )
             session.add(log)
+            if create_log_request.rating is not None:
+                await execute_movie_rating_upsert(
+                    session,
+                    user_id=user_id,
+                    movie_id=create_log_request.movie_id,
+                    rating=create_log_request.rating,
+                    tmdb_id=create_log_request.tmdb_id,
+                    preserve_existing_comment=True,
+                )
             await session.commit()
             await session.refresh(log)
             return log
@@ -69,11 +79,21 @@ class LogRepository(RepositoryBase):
             if log is None:
                 return None
 
-            update_data = update_request.model_dump(exclude_unset=True)
+            update_data = update_request.model_dump(exclude_unset=True, exclude={"rating"})
             for field, value in update_data.items():
                 if field == "date_watched" and value is not None:
                     value = to_utc_datetime(value)
                 setattr(log, field, value)
+
+            if update_request.rating is not None:
+                await execute_movie_rating_upsert(
+                    session,
+                    user_id=user_id,
+                    movie_id=log.movie_id,
+                    rating=update_request.rating,
+                    tmdb_id=log.tmdb_id,
+                    preserve_existing_comment=True,
+                )
 
             log.updated_at = datetime.now(UTC)
             await session.commit()

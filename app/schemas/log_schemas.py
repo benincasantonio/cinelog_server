@@ -5,7 +5,7 @@ from pydantic import Field, field_validator, model_validator
 
 from app.schemas.base_schemas import BaseSchema
 from app.schemas.movie_schemas import MovieResponse
-from app.types import WatchedWhereStr
+from app.types import RatingInt, WatchedWhereStr
 
 
 class LogCreateRequest(BaseSchema):
@@ -21,6 +21,7 @@ class LogCreateRequest(BaseSchema):
         "other",
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
+    rating: RatingInt | None = Field(None, description="Optional movie rating (1-10)")
 
 
 class LogCreateResponse(BaseSchema):
@@ -35,6 +36,7 @@ class LogCreateResponse(BaseSchema):
         None,
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
+    movie_rating: RatingInt | None = Field(None, description="Movie rating applied by this request")
 
 
 class LogUpdateRequest(BaseSchema):
@@ -46,6 +48,7 @@ class LogUpdateRequest(BaseSchema):
         None,
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
+    rating: RatingInt | None = Field(None, description="Optional movie rating (1-10)")
 
 
 class LogListItem(BaseSchema):
@@ -60,7 +63,7 @@ class LogListItem(BaseSchema):
         None,
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",
     )
-    movie_rating: int | None = Field(None, description="User rating for the movie (if available)")
+    movie_rating: RatingInt | None = Field(None, description="User rating for the movie (if available)")
 
 
 class LogListResponse(BaseSchema):

@@ -47,7 +47,9 @@ Log-related validators used by `log_schemas`.
 
 ### common_validation.py
 
-Validators that span multiple domains. Currently empty — as cross-domain needs emerge (e.g., generic text sanitization), they go here.
+| Type | Description |
+|------|-------------|
+| `RatingInt` | Integer from 1 through 10, shared by log and movie-rating schemas |
 
 ### notification_types.py
 
