@@ -52,6 +52,102 @@ class TestLogE2E:
         assert data["logs"][0]["watchedWhere"] == "streaming"
         assert data["logs"][0]["tmdbId"] == 13
 
+    async def test_create_and_update_log_rating(self, async_client):
+        """Log writes atomically maintain the user's movie-level rating."""
+        login_data = await register_and_login(
+            async_client,
+            {
+                "email": "log_rating_test@example.com",
+                "password": "securepassword123",
+                "firstName": "LogRating",
+                "lastName": "Test",
+                "handle": "logratingtest",
+                "dateOfBirth": "1990-01-01",
+                "locale": "en-US",
+                "profile_visibility": "public",
+            },
+        )
+        csrf_token = login_data["csrfToken"]
+        handle = login_data["handle"]
+
+        first = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"tmdbId": 550, "dateWatched": "2024-01-10", "rating": 8},
+        )
+        assert first.status_code == 201
+        assert first.json()["movieRating"] == 8
+
+        second = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"tmdbId": 550, "dateWatched": "2024-02-10"},
+        )
+        assert second.status_code == 201
+        assert second.json()["movieRating"] is None
+
+        updated = await async_client.put(
+            f"/v1/logs/{second.json()['id']}",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"rating": 10},
+        )
+        assert updated.status_code == 200
+        assert updated.json()["movieRating"] == 10
+
+        null_update = await async_client.put(
+            f"/v1/logs/{second.json()['id']}",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"rating": None, "viewingNotes": "Rating unchanged"},
+        )
+        assert null_update.status_code == 200
+        assert null_update.json()["movieRating"] is None
+
+        rating_response = await async_client.get("/v1/movie-ratings/550")
+        assert rating_response.status_code == 200
+        assert rating_response.json()["rating"] == 10
+
+        logs_response = await async_client.get(f"/v1/logs/{handle}")
+        assert logs_response.status_code == 200
+        assert [log["movieRating"] for log in logs_response.json()["logs"]] == [10, 10]
+
+    async def test_create_and_update_log_reject_invalid_rating(self, async_client):
+        """Both log write endpoints reject ratings outside 1-10."""
+        login_data = await register_and_login(
+            async_client,
+            {
+                "email": "invalid_log_rating_test@example.com",
+                "password": "securepassword123",
+                "firstName": "InvalidRating",
+                "lastName": "Test",
+                "handle": "invalidlograting",
+                "dateOfBirth": "1990-01-01",
+                "locale": "en-US",
+                "profile_visibility": "public",
+            },
+        )
+        csrf_token = login_data["csrfToken"]
+
+        invalid_create = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"tmdbId": 550, "dateWatched": "2024-01-10", "rating": 0},
+        )
+        assert invalid_create.status_code == 422
+
+        created = await async_client.post(
+            "/v1/logs/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"tmdbId": 550, "dateWatched": "2024-01-10"},
+        )
+        assert created.status_code == 201
+
+        invalid_update = await async_client.put(
+            f"/v1/logs/{created.json()['id']}",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"rating": 11},
+        )
+        assert invalid_update.status_code == 422
+
     async def test_get_logs_filter_by_date_range(self, async_client):
         """Test filtering logs by dateWatchedFrom/dateWatchedTo."""
         user_data = {

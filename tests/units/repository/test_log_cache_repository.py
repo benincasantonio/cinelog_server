@@ -266,7 +266,7 @@ async def test_update_log_invalidates_id_user_and_movie_cache():
     inner_repository = _mock_log_repository()
     inner_repository.update_log.return_value = log
     repository = LogCacheRepository(inner_repository)
-    request = LogUpdateRequest(viewing_notes="Updated")
+    request = LogUpdateRequest(rating=9)
 
     with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
         result = await repository.update_log(log.id, log.user_id, request)
@@ -280,6 +280,22 @@ async def test_update_log_invalidates_id_user_and_movie_cache():
         ]
     )
     assert cache.invalidate_pattern.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_update_log_failure_does_not_invalidate_cache():
+    log = _sample_log()
+    cache = _mock_cache()
+    inner_repository = _mock_log_repository()
+    inner_repository.update_log.side_effect = RuntimeError("database failure")
+    repository = LogCacheRepository(inner_repository)
+
+    with patch("app.repository.log_cache_repository.CacheService.get_instance", return_value=cache):
+        with pytest.raises(RuntimeError):
+            await repository.update_log(log.id, log.user_id, LogUpdateRequest(rating=9))
+
+    cache.delete.assert_not_awaited()
+    cache.invalidate_pattern.assert_not_awaited()
 
 
 @pytest.mark.asyncio

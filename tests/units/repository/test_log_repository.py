@@ -9,12 +9,14 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 from pytest_postgresql.janitor import DatabaseJanitor
-from sqlalchemy import text
+from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base_model import Base
 from app.models.log_model import Log
 from app.models.movie_model import Movie
+from app.models.movie_rating_model import MovieRating
 from app.models.user_model import User
 from app.repository.log_repository import LogRepository
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
@@ -98,6 +100,7 @@ def _create_request(
     watched_where: str = "cinema",
     viewing_notes: str | None = "Great watch",
     poster_path: str | None = "/poster.jpg",
+    rating: int | None = None,
 ) -> LogCreateRequest:
     return LogCreateRequest(
         movie_id=movie_id,
@@ -106,6 +109,7 @@ def _create_request(
         viewing_notes=viewing_notes,
         poster_path=poster_path,
         watched_where=watched_where,
+        rating=rating,
     )
 
 
@@ -125,6 +129,39 @@ async def test_create_log_persists_row(repository: LogRepository, seed_session: 
     assert log.date_watched == datetime(2024, 1, 2, tzinfo=UTC)
     assert log.watched_where == "cinema"
     assert log.deleted is False
+    assert await seed_session.scalar(select(func.count()).select_from(MovieRating)) == 0
+
+
+@pytest.mark.asyncio
+async def test_create_log_atomically_creates_rating(repository: LogRepository, seed_session: AsyncSession):
+    user, movie, _ = await _seed_fk_entities(seed_session)
+
+    log = await repository.create_log(
+        user.id,
+        _create_request(movie.id, tmdb_id=movie.tmdb_id, rating=9),
+    )
+
+    rating = await seed_session.scalar(
+        select(MovieRating).where(MovieRating.user_id == user.id, MovieRating.tmdb_id == movie.tmdb_id)
+    )
+    assert log.id is not None
+    assert rating is not None
+    assert rating.movie_id == movie.id
+    assert rating.rating == 9
+    assert rating.review is None
+
+
+@pytest.mark.asyncio
+async def test_create_log_rolls_back_when_rating_fails(repository: LogRepository, seed_session: AsyncSession):
+    user, movie, _ = await _seed_fk_entities(seed_session)
+    request = _create_request(movie.id, tmdb_id=movie.tmdb_id)
+    request.rating = 11
+
+    with pytest.raises(IntegrityError):
+        await repository.create_log(user.id, request)
+
+    assert await seed_session.scalar(select(func.count()).select_from(Log)) == 0
+    assert await seed_session.scalar(select(func.count()).select_from(MovieRating)) == 0
 
 
 @pytest.mark.asyncio
@@ -205,7 +242,129 @@ async def test_update_log_applies_partial_updates_and_rejects_wrong_owner(
     assert updated.watched_where == "streaming"
     assert updated.date_watched == datetime(2024, 1, 5, tzinfo=UTC)
 
-    assert await repository.update_log(log.id, other_user.id, LogUpdateRequest(viewing_notes="Nope")) is None
+    assert await repository.update_log(log.id, other_user.id, LogUpdateRequest(viewing_notes="Nope", rating=2)) is None
+    assert await seed_session.scalar(select(func.count()).select_from(MovieRating)) == 0
+
+
+@pytest.mark.asyncio
+async def test_update_log_rating_preserves_active_comment(repository: LogRepository, seed_session: AsyncSession):
+    user, movie, _ = await _seed_fk_entities(seed_session)
+    log = Log(
+        user_id=user.id,
+        movie_id=movie.id,
+        tmdb_id=movie.tmdb_id,
+        date_watched=datetime(2024, 1, 2, tzinfo=UTC),
+        watched_where="cinema",
+    )
+    rating = MovieRating(
+        user_id=user.id,
+        movie_id=movie.id,
+        tmdb_id=movie.tmdb_id,
+        rating=6,
+        review="Keep me",
+    )
+    await _add(seed_session, log, rating)
+    rating_id = rating.id
+
+    await repository.update_log(log.id, user.id, LogUpdateRequest(rating=9))
+
+    seed_session.expire_all()
+    updated_rating = await seed_session.get(MovieRating, rating_id)
+    assert updated_rating is not None
+    assert updated_rating.rating == 9
+    assert updated_rating.review == "Keep me"
+
+
+@pytest.mark.asyncio
+async def test_update_log_rating_clears_comment_when_reviving_deleted_rating(
+    repository: LogRepository,
+    seed_session: AsyncSession,
+):
+    user, movie, _ = await _seed_fk_entities(seed_session)
+    log = Log(
+        user_id=user.id,
+        movie_id=movie.id,
+        tmdb_id=movie.tmdb_id,
+        date_watched=datetime(2024, 1, 2, tzinfo=UTC),
+        watched_where="cinema",
+    )
+    rating = MovieRating(
+        user_id=user.id,
+        movie_id=movie.id,
+        tmdb_id=movie.tmdb_id,
+        rating=6,
+        review="Deleted text",
+        deleted=True,
+        deleted_at=datetime.now(UTC),
+    )
+    await _add(seed_session, log, rating)
+    rating_id = rating.id
+
+    await repository.update_log(log.id, user.id, LogUpdateRequest(rating=8))
+
+    seed_session.expire_all()
+    updated_rating = await seed_session.get(MovieRating, rating_id)
+    assert updated_rating is not None
+    assert updated_rating.rating == 8
+    assert updated_rating.review is None
+    assert updated_rating.deleted is False
+    assert updated_rating.deleted_at is None
+
+
+@pytest.mark.asyncio
+async def test_update_log_null_rating_leaves_rating_unchanged(repository: LogRepository, seed_session: AsyncSession):
+    user, movie, _ = await _seed_fk_entities(seed_session)
+    log = Log(
+        user_id=user.id,
+        movie_id=movie.id,
+        tmdb_id=movie.tmdb_id,
+        date_watched=datetime(2024, 1, 2, tzinfo=UTC),
+        viewing_notes="Before",
+        watched_where="cinema",
+    )
+    rating = MovieRating(
+        user_id=user.id,
+        movie_id=movie.id,
+        tmdb_id=movie.tmdb_id,
+        rating=6,
+        review="Keep me",
+    )
+    await _add(seed_session, log, rating)
+    rating_id = rating.id
+
+    await repository.update_log(log.id, user.id, LogUpdateRequest(viewing_notes="After", rating=None))
+
+    seed_session.expire_all()
+    unchanged_rating = await seed_session.get(MovieRating, rating_id)
+    assert unchanged_rating is not None
+    assert unchanged_rating.rating == 6
+    assert unchanged_rating.review == "Keep me"
+
+
+@pytest.mark.asyncio
+async def test_update_log_rolls_back_when_rating_fails(repository: LogRepository, seed_session: AsyncSession):
+    user, movie, _ = await _seed_fk_entities(seed_session)
+    log = Log(
+        user_id=user.id,
+        movie_id=movie.id,
+        tmdb_id=movie.tmdb_id,
+        date_watched=datetime(2024, 1, 2, tzinfo=UTC),
+        viewing_notes="Before",
+        watched_where="cinema",
+    )
+    await _add(seed_session, log)
+    log_id = log.id
+    request = LogUpdateRequest(viewing_notes="After")
+    request.rating = 11
+
+    with pytest.raises(IntegrityError):
+        await repository.update_log(log_id, user.id, request)
+
+    seed_session.expire_all()
+    unchanged_log = await seed_session.get(Log, log_id)
+    assert unchanged_log is not None
+    assert unchanged_log.viewing_notes == "Before"
+    assert await seed_session.scalar(select(func.count()).select_from(MovieRating)) == 0
 
 
 @pytest.mark.asyncio

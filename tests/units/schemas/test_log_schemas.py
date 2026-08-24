@@ -41,6 +41,17 @@ class TestLogCreateRequest:
         request = LogCreateRequest(tmdb_id=12345, date_watched=date(2023, 10, 1))
         assert request.watched_where == "other"
 
+    @pytest.mark.parametrize("rating", [1, 10, None])
+    def test_valid_rating(self, rating):
+        request = LogCreateRequest(tmdb_id=12345, date_watched=date(2023, 10, 1), rating=rating)
+
+        assert request.rating == rating
+
+    @pytest.mark.parametrize("rating", [0, 11])
+    def test_invalid_rating(self, rating):
+        with pytest.raises(ValidationError):
+            LogCreateRequest(tmdb_id=12345, date_watched=date(2023, 10, 1), rating=rating)
+
 
 class TestLogUpdateRequest:
     """Tests for LogUpdateRequest schema."""
@@ -68,6 +79,16 @@ class TestLogUpdateRequest:
         assert request.date_watched is None
         assert request.viewing_notes is None
         assert request.watched_where is None
+        assert request.rating is None
+
+    @pytest.mark.parametrize("rating", [1, 10, None])
+    def test_valid_rating(self, rating):
+        assert LogUpdateRequest(rating=rating).rating == rating
+
+    @pytest.mark.parametrize("rating", [0, 11])
+    def test_invalid_rating(self, rating):
+        with pytest.raises(ValidationError):
+            LogUpdateRequest(rating=rating)
 
 
 class TestLogListRequest:

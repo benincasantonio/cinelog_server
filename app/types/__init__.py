@@ -1,3 +1,6 @@
+from app.types.common_validation import (
+    RatingInt as RatingInt,
+)
 from app.types.cursor_pagination_types import (
     TimestampUUIDCursor as TimestampUUIDCursor,
 )

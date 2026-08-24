@@ -34,6 +34,7 @@ def sample_log_create_request():
         "viewingNotes": "Amazing film!",
         "posterPath": "/path/to/poster.jpg",
         "watchedWhere": "cinema",
+        "rating": 9,
     }
 
 
@@ -67,6 +68,7 @@ def sample_log_response(sample_movie_response):
         viewing_notes="Amazing film!",
         poster_path="/path/to/poster.jpg",
         watched_where="cinema",
+        movie_rating=9,
     )
 
 
@@ -125,7 +127,9 @@ class TestCreateLog:
         data = response.json()
         assert "id" in data
         assert "movieId" in data
+        assert data["movieRating"] == 9
         mock_create_log.assert_called_once()
+        assert mock_create_log.call_args.kwargs["request"].rating == 9
 
     def test_create_log_unauthorized(self, client, sample_log_create_request):
         """Test log creation without authentication."""
@@ -161,6 +165,19 @@ class TestCreateLog:
 
         assert response.status_code == 422  # Validation error
 
+    def test_create_log_invalid_rating(self, client, override_auth):
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        response = client.post(
+            "/v1/logs/",
+            json={"tmdbId": 550, "dateWatched": "2024-01-15", "rating": 11},
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+        assert response.status_code == 422
+
 
 class TestUpdateLog:
     """Tests for PUT /v1/logs/{log_id} endpoint."""
@@ -171,7 +188,7 @@ class TestUpdateLog:
         app.dependency_overrides[auth_dependency] = override_auth
         mock_update_log.return_value = sample_log_response
 
-        update_request = {"viewingNotes": "Updated notes", "watchedWhere": "streaming"}
+        update_request = {"viewingNotes": "Updated notes", "watchedWhere": "streaming", "rating": 9}
 
         response = client.put(
             "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
@@ -185,7 +202,9 @@ class TestUpdateLog:
         assert response.status_code == 200
         data = response.json()
         assert "id" in data
+        assert data["movieRating"] == 9
         mock_update_log.assert_called_once()
+        assert mock_update_log.call_args.kwargs["request"].rating == 9
 
     def test_update_log_unauthorized(self, client):
         """Test log update without authentication."""
@@ -214,6 +233,19 @@ class TestUpdateLog:
 
         app.dependency_overrides = {}
 
+        assert response.status_code == 422
+
+    def test_update_log_invalid_rating(self, client, override_auth):
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        response = client.put(
+            "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
+            json={"rating": 0},
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
         assert response.status_code == 422
 
 

@@ -31,6 +31,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Following](technical/following.md) | Follow persistence, eligibility rules, aggregation, and idempotency |
 | [Account Localization](technical/localization.md) | Locale persistence, header negotiation, fallback, and TMDB cache isolation |
+| [Atomic Log and Rating Writes](technical/log-rating-writes.md) | Combined transaction, rating text preservation, and cache invalidation |
 | [Notification Architecture](technical/notifications.md) | Typed persistence, service response mapping, deduplication, and extension contract |
 | [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup and the completed MongoDB → PostgreSQL migration |
 | [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and followers-only authorization stub |
