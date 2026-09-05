@@ -8,6 +8,7 @@ from app.types import (
     HandleStr,
     LocaleStr,
     NameStr,
+    NewPasswordStr,
     ProfileVisibilityStr,
 )
 
@@ -90,7 +91,7 @@ class UserProfileResponse(BaseSchema):
 
 class ChangePasswordRequest(BaseSchema):
     current_password: str = Field(..., min_length=8, max_length=128, description="Current password")
-    new_password: str = Field(..., min_length=8, max_length=128, description="New password")
+    new_password: NewPasswordStr = Field(description="New password: 8–72 characters, at most 72 UTF-8 bytes")
 
 
 class ChangePasswordResponse(BaseSchema):

@@ -2,7 +2,7 @@
 User-domain validation functions and Annotated types.
 
 Provides reusable validators for user-related fields such as names,
-handles, biographies, profile visibility, and locale. Used by
+handles, biographies, profile visibility, locale, and new passwords. Used by
 ``auth_schemas`` and ``user_schemas``.
 
 Types:
@@ -11,6 +11,7 @@ Types:
     BioStr               — optional bio field (None or up to 500 chars, HTML stripped)
     ProfileVisibilityStr — required profile visibility ("public", "followers_only", "private")
     LocaleStr            — supported full locale tag ("en-US", "fr-FR", "it-IT")
+    NewPasswordStr       — new password (8–72 characters, at most 72 UTF-8 bytes)
 """
 
 from typing import Annotated
@@ -61,6 +62,19 @@ def validate_locale(v: str) -> str:
     if locale is None:
         raise ValueError(f"Locale must be one of {LOCALE_CHOICES}")
     return locale
+
+
+def validate_password_byte_length(v: str) -> str:
+    if len(v.encode("utf-8")) > 72:
+        raise ValueError("Password must be at most 72 UTF-8 bytes")
+    return v
+
+
+NewPasswordStr = Annotated[
+    str,
+    StringConstraints(min_length=8, max_length=72),
+    AfterValidator(validate_password_byte_length),
+]
 
 
 NameStr = Annotated[str, AfterValidator(validate_name), StringConstraints(min_length=1, max_length=50)]

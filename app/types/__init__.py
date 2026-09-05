@@ -41,6 +41,9 @@ from app.types.user_validation import (
     NameStr as NameStr,
 )
 from app.types.user_validation import (
+    NewPasswordStr as NewPasswordStr,
+)
+from app.types.user_validation import (
     ProfileVisibilityStr as ProfileVisibilityStr,
 )
 from app.types.user_validation import (
@@ -54,6 +57,9 @@ from app.types.user_validation import (
 )
 from app.types.user_validation import (
     validate_name as validate_name,
+)
+from app.types.user_validation import (
+    validate_password_byte_length as validate_password_byte_length,
 )
 from app.types.user_validation import (
     validate_profile_visibility as validate_profile_visibility,

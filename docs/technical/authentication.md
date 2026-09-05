@@ -8,6 +8,36 @@ This document covers the implementation internals of the Cinelog authentication 
 - **JWT Storage**: `HttpOnly`, `Secure`, `SameSite=Strict` cookies
 - **CSRF**: Double Submit Cookie Pattern via `__Host-csrf_token`
 
+## Password Length Validation
+
+`NewPasswordStr` in `app/types/user_validation.py`, exported through `app.types`,
+enforces 8–72 characters and at most 72 UTF-8 bytes for registration, reset, and
+password-change new passwords. The validator returns the input unchanged and
+uses a fixed error message without credential values. OpenAPI publishes the
+character bounds and describes the additional byte limit. The existing validation
+error handler sanitizes HTTP 422 responses before they reach clients.
+
+Validation measures the submitted string before service-level normalization.
+Registration and reset retain their existing `.strip()` calls; login and password
+change continue to preserve whitespace. Normalization is not changed by this fix.
+
+Bcrypt 5.0.0 raises `ValueError` for inputs over 72 bytes.
+`PasswordService.verify_password` returns `False` for such inputs before calling
+`bcrypt.checkpw`. Login and current-password checks therefore return their normal
+invalid-password errors instead of HTTP 500. Valid-length passwords are verified
+in full, without truncation or suffix equivalence. For example, 71 ASCII characters
+followed by `é` encode to 73 bytes and cannot authenticate.
+
+Hash creation remains untruncated, and bcrypt rejects oversized direct hashing
+calls. Request validation prevents oversized new passwords from reaching hashing
+or the password-change same-password comparison. Login and current-password
+checks retain their existing schema constraints and share the bounded verifier.
+
+Passwords exceeding 72 bytes are unsupported for both creation and verification.
+There is no new hash format, automatic rehash, dependency change, or database migration.
+See the [bcrypt 5.0.0 changelog](https://pypi.org/project/bcrypt/5.0.0/) for the
+upstream length behavior change.
+
 ## Cookie Configuration
 
 | Cookie | Scope | Lifetime | Flags |
