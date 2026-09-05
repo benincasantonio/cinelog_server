@@ -8,6 +8,27 @@ As of February 2026, Cinelog Server uses a self-hosted authentication solution (
 - **Token Storage**: Secure, HttpOnly cookies
 - **CSRF Protection**: Double Submit Cookie Pattern
 
+## Password Limits
+
+New passwords require **8–72 characters and at most 72 UTF-8 bytes**. This applies to
+registration (`password`), password reset (`newPassword`), and
+`PUT /v1/users/settings/password` (`newPassword`). Oversized passwords return HTTP
+422 with field-level validation details, without echoing passwords or verification
+codes. Rejected requests do not create an account, change a password, or consume a
+registration/reset code.
+
+ASCII characters use one byte each, so 72 ASCII characters are allowed and 73 are
+rejected. `é` uses two UTF-8 bytes: 36 repetitions fit, but adding one ASCII character
+exceeds the limit. Many emoji use four bytes each, so 18 repetitions of `🔐` fit.
+Clients should validate UTF-8 byte length as well as character count.
+
+Login passwords and `currentPassword` values exceeding 72 UTF-8 bytes are rejected
+with the normal invalid-credentials or invalid-current-password error. Passwords
+are never truncated: appending characters to a valid 72-byte password will not
+authenticate. The existing request schema constraints remain unchanged (no login
+password length constraint; 8–128 characters for `currentPassword`), and the
+password-change same-password check still applies.
+
 ## Authentication Flow
 
 ### Registration

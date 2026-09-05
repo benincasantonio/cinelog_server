@@ -3,7 +3,7 @@ from datetime import date
 from pydantic import EmailStr, Field
 
 from app.schemas.base_schemas import BaseSchema
-from app.types import BioStr, HandleStr, LocaleStr, NameStr, ProfileVisibilityStr
+from app.types import BioStr, HandleStr, LocaleStr, NameStr, NewPasswordStr, ProfileVisibilityStr
 
 
 class RegisterRequest(BaseSchema):
@@ -12,7 +12,7 @@ class RegisterRequest(BaseSchema):
     first_name: NameStr = Field(description="User's first name")
     last_name: NameStr = Field(description="User's last name")
     email: EmailStr = Field(..., description="User's email address")
-    password: str = Field(..., min_length=8, max_length=128, description="User's password")
+    password: NewPasswordStr = Field(description="User's password: 8–72 characters, at most 72 UTF-8 bytes")
     handle: HandleStr = Field(description="User's unique handle")
     bio: BioStr = Field(None, description="User biography")
     date_of_birth: date = Field(..., description="Date of birth in YYYY-MM-DD format")
@@ -105,7 +105,7 @@ class ResetPasswordRequest(BaseSchema):
 
     email: EmailStr = Field(..., description="User's email address")
     code: str = Field(..., description="Password reset code")
-    new_password: str = Field(..., min_length=8, max_length=128, description="New password")
+    new_password: NewPasswordStr = Field(description="New password: 8–72 characters, at most 72 UTF-8 bytes")
 
 
 class ResetPasswordResponse(BaseSchema):
