@@ -16,6 +16,34 @@ All endpoints are under `/v1/logs` and require a valid session:
 | `DELETE` | `/v1/logs/{log_id}` | Delete an existing log the caller owns | 20 / minute |
 | `GET` | `/v1/logs/{handle}` | List logs for a user by handle (respects profile visibility) | — |
 
+## GET `/v1/logs/{handle}`
+
+Returns the requested user's viewing logs and three top-level counts. Authenticated users can read their own logs and logs belonging to public profiles.
+
+| Field | Meaning |
+|-------|---------|
+| `logs` | Matching viewing entries, in the requested sort order |
+| `totalWatches` | Number of matching viewing entries |
+| `uniqueTitles` | Number of distinct movie IDs in those entries |
+| `totalRewatches` | `totalWatches - uniqueTitles` |
+
+Counts follow the same `dateWatchedFrom`, `dateWatchedTo`, and `watchedWhere` filters as the returned logs. Date boundaries are inclusive. `sortBy` and `sortOrder` affect the entry order, not the counts.
+
+Logging Alien three times and Arrival once produces `totalWatches: 4`, `uniqueTitles: 2`, and `totalRewatches: 2`. Each log counts as one viewing, including separate viewings of the same movie on the same day. Different movies with the same title remain distinct.
+
+Only matching entries contribute: if Alien was watched once last year and once this year, filtering to this year produces `totalWatches: 1`, `uniqueTitles: 1`, and `totalRewatches: 0`. Creating, editing, or deleting a log is reflected on the next list request.
+
+An empty list returns:
+
+```json
+{
+  "logs": [],
+  "totalWatches": 0,
+  "uniqueTitles": 0,
+  "totalRewatches": 0
+}
+```
+
 ## Creating or updating a log with a rating
 
 `POST /v1/logs/` and `PUT /v1/logs/{log_id}` accept an optional top-level `rating` from `1` to `10`. Ratings belong to the user and movie, not to an individual viewing: changing the rating through any log changes the current rating displayed on all of that user's logs for the same movie.
@@ -89,5 +117,6 @@ No request body.
 
 - [Authentication](authentication.md) — cookie and CSRF setup
 - [Rate Limiting](rate-limiting.md) — per-endpoint limits and 429 behavior
+- [User Statistics API](stats-api.md) — viewing statistics and year filters
 - [Atomic Log and Rating Writes (technical)](../technical/log-rating-writes.md) — transaction and text-preservation behavior
 - [Stats Caching (technical)](../technical/stats-caching.md) — how log writes invalidate cached stats

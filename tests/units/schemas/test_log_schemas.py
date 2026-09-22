@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from app.schemas.log_schemas import (
     LogCreateRequest,
     LogListRequest,
+    LogListResponse,
     LogUpdateRequest,
 )
 
@@ -89,6 +90,29 @@ class TestLogUpdateRequest:
     def test_invalid_rating(self, rating):
         with pytest.raises(ValidationError):
             LogUpdateRequest(rating=rating)
+
+
+class TestLogListResponse:
+    def test_empty_list_serializes_zero_counts(self):
+        response = LogListResponse(logs=[], total_watches=0, unique_titles=0, total_rewatches=0)
+
+        assert response.model_dump(by_alias=True) == {
+            "logs": [],
+            "totalWatches": 0,
+            "uniqueTitles": 0,
+            "totalRewatches": 0,
+        }
+
+    @pytest.mark.parametrize("field", ["total_watches", "unique_titles", "total_rewatches"])
+    def test_counts_are_required_and_nonnegative(self, field):
+        data = {"logs": [], "total_watches": 0, "unique_titles": 0, "total_rewatches": 0}
+        data[field] = -1
+        with pytest.raises(ValidationError, match=field):
+            LogListResponse.model_validate(data)
+
+        del data[field]
+        with pytest.raises(ValidationError):
+            LogListResponse.model_validate(data)
 
 
 class TestLogListRequest:

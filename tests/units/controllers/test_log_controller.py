@@ -76,6 +76,9 @@ def sample_log_response(sample_movie_response):
 def sample_log_list_response(sample_movie_response):
     """Sample log list response."""
     return LogListResponse(
+        total_watches=1,
+        unique_titles=1,
+        total_rewatches=0,
         logs=[
             LogListItem(
                 id=uuid4(),
@@ -329,6 +332,9 @@ class TestGetLogsByHandle:
         assert response.status_code == 200
         data = response.json()
         assert len(data["logs"]) == 1
+        assert data["totalWatches"] == 1
+        assert data["uniqueTitles"] == 1
+        assert data["totalRewatches"] == 0
         mock_get_logs_by_handle.assert_called_once()
 
     def test_get_logs_by_handle_unauthorized(self, client):

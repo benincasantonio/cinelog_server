@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.models.movie_model import Movie
 from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogUpdateRequest
 from app.services.log_service import LogService
 from app.utils.error_codes_utils import ErrorCodes
@@ -349,6 +350,53 @@ class TestLogService:
 
         assert len(result.logs) == 1
         assert result.logs[0].movie_rating == 8
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("movie_indexes", "expected_counts"),
+        [([], (0, 0, 0)), ([0], (1, 1, 0)), ([0, 1], (2, 2, 0)), ([0, 0, 0, 1], (4, 2, 2))],
+    )
+    @pytest.mark.parametrize("include_movie_details", [True, False])
+    async def test_get_user_logs_counts(
+        self, log_service, mock_log_repository, movie_indexes, expected_counts, include_movie_details
+    ):
+        """Count movie IDs in the returned logs, including same-day repeats and missing details."""
+        user_id = uuid4()
+        movies = [Movie(id=uuid4(), title="Same title", tmdb_id=550 + index) for index in range(2)]
+        logs = [
+            Mock(
+                id=uuid4(),
+                movie_id=movies[index].id,
+                tmdb_id=movies[index].tmdb_id,
+                date_watched=date(2024, 1, 15),
+                viewing_notes=None,
+                poster_path=None,
+                watched_where="cinema",
+            )
+            for index in movie_indexes
+        ]
+        mock_log_repository.find_logs_by_user_id.return_value = logs
+        log_service.movie_repository = AsyncMock()
+        log_service.movie_repository.find_movies_by_ids.return_value = movies if include_movie_details else []
+        log_service.movie_rating_repository = AsyncMock()
+        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids.return_value = []
+        request = LogListRequest(
+            watched_where="cinema", date_watched_from=date(2024, 1, 1), date_watched_to=date(2024, 1, 31)
+        )
+
+        result = await log_service.get_user_logs(user_id, request)
+
+        assert (result.total_watches, result.unique_titles, result.total_rewatches) == expected_counts
+        assert [item.id for item in result.logs] == [log.id for log in logs]
+        assert all((item.movie is not None) == include_movie_details for item in result.logs)
+        mock_log_repository.find_logs_by_user_id.assert_awaited_once_with(
+            user_id=user_id,
+            watched_where="cinema",
+            date_watched_from=date(2024, 1, 1),
+            date_watched_to=date(2024, 1, 31),
+            sort_by="dateWatched",
+            sort_order="desc",
+        )
 
 
 class TestGetUserLogsByHandle:

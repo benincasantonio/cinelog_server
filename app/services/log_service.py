@@ -175,7 +175,12 @@ class LogService:
                     watched_where=log_data.watched_where,
                 )
             )
-        return LogListResponse(logs=log_items)
+        return LogListResponse(
+            logs=log_items,
+            total_watches=len(logs_data),
+            unique_titles=len(unique_movie_ids),
+            total_rewatches=len(logs_data) - len(unique_movie_ids),
+        )
 
     async def get_user_logs_by_handle(
         self,
