@@ -10,6 +10,76 @@ from tests.e2e.conftest import register, register_and_login
 class TestLogE2E:
     """E2E tests for log controller endpoints."""
 
+    async def test_list_counts_follow_filters_and_log_changes(self, async_client):
+        login_data = await register_and_login(
+            async_client,
+            {
+                "email": "log_counts_test@example.com",
+                "password": "securepassword123",
+                "firstName": "LogCounts",
+                "lastName": "Test",
+                "handle": "logcountstest",
+                "dateOfBirth": "1990-01-01",
+                "locale": "en-US",
+                "profileVisibility": "public",
+            },
+        )
+        headers = {"X-CSRF-Token": login_data["csrfToken"]}
+        url = f"/v1/logs/{login_data['handle']}"
+        log_ids = []
+        for tmdb_id, watched_on, location in [
+            (550, "2023-12-31", "cinema"),
+            (550, "2024-01-15", "streaming"),
+            (550, "2024-01-15", "cinema"),
+            (13, "2024-01-20", "cinema"),
+        ]:
+            response = await async_client.post(
+                "/v1/logs/",
+                headers=headers,
+                json={"tmdbId": tmdb_id, "dateWatched": watched_on, "watchedWhere": location},
+            )
+            assert response.status_code == 201
+            log_ids.append(response.json()["id"])
+
+        for params, expected in [
+            ({}, (4, 2, 2)),
+            ({"sortBy": "dateWatched", "sortOrder": "asc"}, (4, 2, 2)),
+            ({"sortBy": "watchedWhere", "sortOrder": "desc"}, (4, 2, 2)),
+            ({"dateWatchedFrom": "2024-01-01", "dateWatchedTo": "2024-01-31"}, (3, 2, 1)),
+            ({"watchedWhere": "streaming"}, (1, 1, 0)),
+            ({"dateWatchedFrom": "2024-01-01", "watchedWhere": "cinema"}, (2, 2, 0)),
+            ({"dateWatchedFrom": "2025-01-01"}, (0, 0, 0)),
+        ]:
+            response = await async_client.get(url, params=params)
+            assert response.status_code == 200
+            data = response.json()
+            assert (data["totalWatches"], data["uniqueTitles"], data["totalRewatches"]) == expected
+            assert len(data["logs"]) == data["totalWatches"]
+
+        updated = await async_client.put(
+            f"/v1/logs/{log_ids[1]}",
+            headers=headers,
+            json={"dateWatched": "2022-01-01", "watchedWhere": "cinema"},
+        )
+        assert updated.status_code == 200
+        for params, expected in [
+            ({"dateWatchedFrom": "2024-01-01"}, (2, 2, 0)),
+            ({"watchedWhere": "streaming"}, (0, 0, 0)),
+            ({"watchedWhere": "cinema"}, (4, 2, 2)),
+        ]:
+            response = await async_client.get(url, params=params)
+            assert response.status_code == 200
+            data = response.json()
+            assert (data["totalWatches"], data["uniqueTitles"], data["totalRewatches"]) == expected
+
+        for log_id, expected in [(log_ids[3], (3, 1, 2)), (log_ids[2], (2, 1, 1))]:
+            deleted = await async_client.delete(f"/v1/logs/{log_id}", headers=headers)
+            assert deleted.status_code == 204
+            response = await async_client.get(url)
+            assert response.status_code == 200
+            data = response.json()
+            assert (data["totalWatches"], data["uniqueTitles"], data["totalRewatches"]) == expected
+
     async def test_create_log_success(self, async_client):
         """Test creating a new log entry."""
         user_data = {
@@ -346,7 +416,7 @@ class TestLogE2E:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["logs"] == []
+        assert data == {"logs": [], "totalWatches": 0, "uniqueTitles": 0, "totalRewatches": 0}
 
     async def test_create_log_invalid_watched_where(self, async_client):
         """Test creating a log with invalid watchedWhere value."""
@@ -414,7 +484,7 @@ class TestLogE2E:
         response = await async_client.get(f"/v1/logs/{handle_b}")
         assert response.status_code == 200
         data = response.json()
-        assert data["logs"] == []
+        assert data == {"logs": [], "totalWatches": 0, "uniqueTitles": 0, "totalRewatches": 0}
 
     async def test_create_log_reuses_existing_movie(self, async_client):
         """Test that logging the same TMDB ID twice reuses the same movie."""
@@ -554,6 +624,7 @@ class TestLogE2E:
         assert response.status_code == 200
         data = response.json()
         assert len(data["logs"]) == 1
+        assert (data["totalWatches"], data["uniqueTitles"], data["totalRewatches"]) == (1, 1, 0)
         log = data["logs"][0]
         assert log["tmdbId"] == 550
         assert log["dateWatched"] == "2024-01-15"
@@ -634,7 +705,7 @@ class TestLogE2E:
         # Hard delete: the log is gone, not just hidden
         list_resp = await async_client.get(f"/v1/logs/{handle}")
         assert list_resp.status_code == 200
-        assert list_resp.json()["logs"] == []
+        assert list_resp.json() == {"logs": [], "totalWatches": 0, "uniqueTitles": 0, "totalRewatches": 0}
 
         # Second delete on the same id returns 404
         second_delete = await async_client.delete(

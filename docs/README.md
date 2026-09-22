@@ -11,7 +11,7 @@ User-facing documentation covering features, flows, and API usage from the consu
 | [Authentication](functional/authentication.md) | Auth flows, API usage, CSRF guide |
 | [Following](functional/following.md) | Public-profile follow/unfollow operations and profile counts |
 | [Account Localization](functional/localization.md) | Saved locale preference, update API, and live TMDB language behavior |
-| [Logs API](functional/logs-api.md) | Create, update, delete, and list viewing logs |
+| [Logs API](functional/logs-api.md) | Create, update, delete, and list viewing logs with watch and rewatch totals |
 | [In-App Notifications](functional/notifications.md) | Inbox pagination, unread counts, and explicit read operations |
 | [Profile Visibility](functional/profile-visibility.md) | User profile visibility settings and public profile lookup |
 | [Rate Limiting](functional/rate-limiting.md) | Rate limits per endpoint, response headers, and 429 behavior |

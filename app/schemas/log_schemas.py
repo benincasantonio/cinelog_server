@@ -68,6 +68,9 @@ class LogListItem(BaseSchema):
 
 class LogListResponse(BaseSchema):
     logs: list[LogListItem] = Field(..., description="List of log entries")
+    total_watches: int = Field(..., ge=0, description="Number of viewing logs matching the filters")
+    unique_titles: int = Field(..., ge=0, description="Number of distinct movie IDs in the matching logs")
+    total_rewatches: int = Field(..., ge=0, description="Matching viewing logs minus distinct movie IDs")
 
 
 class LogListRequest(BaseSchema):
