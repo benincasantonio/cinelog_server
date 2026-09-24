@@ -51,6 +51,10 @@ Other quality gates are handled by separate workflows:
 
 - Type checking: `.github/workflows/typecheck.yml`, which runs `make typecheck`
 - Security scanning: `.github/workflows/security.yml`, which runs Bandit against `app/`
+- Lockfile consistency: `.github/workflows/uv_lockfile.yml`, which runs `uv lock --check`
+- E2E tests: `.github/workflows/e2e_tests.yml`, which runs the Uvicorn-backed suite against PostgreSQL and Redis
+
+After the new lockfile job has run on a pull request, add it and the seven existing PR checks to the main branch ruleset as required checks.
 
 ## Local Usage
 
@@ -61,6 +65,7 @@ make lint
 make format-check
 make typecheck
 make security
+uv lock --check
 ```
 
 Use `make format` when local files need to be reformatted or auto-fixed.

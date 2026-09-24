@@ -73,4 +73,3 @@ jobs:
           REGISTRATION_VERIFICATION_HMAC_SECRET: test-registration-verification-hmac-secret
           CURSOR_PAGINATION_HMAC_SECRET: test-cursor-pagination-hmac-secret
           REDIS_URL: redis://localhost:6380/0
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
