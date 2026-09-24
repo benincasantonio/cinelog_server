@@ -89,7 +89,7 @@ class TestCacheServiceEnabled:
         fake_pipeline = FakePipeline()
         service._mock_client.pipeline = MagicMock(return_value=fake_pipeline)
 
-        result = await service.hset_with_ttl("auth:register-verification:key", {"code_hash": "abc"}, 900)
+        result = await service.hset_with_ttl("auth:register-verification:key", {"code_hash": "abc", "attempts": 0}, 900)
 
         assert result == 2
         service._mock_client.pipeline.assert_called_once_with(transaction=True)
@@ -97,7 +97,7 @@ class TestCacheServiceEnabled:
             (
                 "hset",
                 ("auth:register-verification:key",),
-                {"mapping": {"code_hash": "abc"}},
+                {"mapping": {"code_hash": "abc", "attempts": 0}},
             ),
             ("expire", ("auth:register-verification:key", 900), {}),
         ]

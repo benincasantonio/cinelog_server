@@ -34,7 +34,7 @@ Rate-limited auth routes also require `RATE_LIMIT_HMAC_SECRET` so account-based 
 | `set(key, value, ttl?)` | `bool` | Serialize and store a value with TTL |
 | `delete(key)` | `bool` | Delete a single cached key |
 | `hgetall(key)` | `dict[str, str]` | Read a Redis hash |
-| `hset_with_ttl(key, mapping, ttl)` | `int` | Store a Redis hash and TTL atomically |
+| `hset_with_ttl(key, mapping, ttl)` | `int` | Store a hash with string field names, string or integer values, and a TTL atomically |
 | `hincrby(key, field, amount?)` | `int` | Increment a numeric Redis hash field |
 | `delete_many(keys)` | `int` | Bulk delete multiple keys |
 | `invalidate_pattern(pattern)` | `int` | Delete all keys matching a glob pattern (uses `SCAN`) |

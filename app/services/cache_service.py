@@ -61,7 +61,7 @@ class CacheService:
 
     async def hset_with_ttl(self, key: str, mapping: dict[str, HashValue], ttl: int) -> int:
         async with self._client.pipeline(transaction=True) as pipe:
-            pipe.hset(key, mapping=mapping)
+            pipe.hset(key, mapping=dict(mapping.items()))
             pipe.expire(key, ttl)
             results = await pipe.execute()
         return int(results[0])
