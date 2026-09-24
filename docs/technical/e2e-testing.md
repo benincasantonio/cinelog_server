@@ -6,7 +6,7 @@ This guide walks through setting up and running end-to-end tests locally.
 
 - **Docker** - For running PostgreSQL and Redis
 - **Python 3.12+** - With `uv` installed
-- **.env file** - With `TMDB_API_KEY` configured
+- **OpenSSL** - Creates a temporary certificate for HTTPS requests
 
 ## Quick Start
 
@@ -42,7 +42,9 @@ DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db
 REDIS_URL=redis://localhost:6380/0
 ```
 
-**Note:** `TMDB_API_KEY` is loaded from `.env` for log tests that fetch movie data.
+Pytest starts Uvicorn on a free local HTTPS port for each test. The server runs in the pytest process so existing email and TMDB test doubles still work. Uvicorn runs the same FastAPI lifespan used by the application, including PostgreSQL initialization and the Redis startup check. The client accepts only the temporary self-signed test certificate; application Secure cookies remain enabled and are sent over HTTPS.
+
+The tests use real PostgreSQL and Redis. Email delivery and TMDB HTTP calls remain deterministic test doubles, so a TMDB API key is not required.
 
 ## Test Structure
 
@@ -71,7 +73,4 @@ uv run pytest tests/e2e/test_auth_e2e.py::TestAuthE2E::test_register_success -v
 
 The GitHub workflow (`.github/workflows/e2e_tests.yml`) runs e2e tests automatically on pull requests and pushes to `main`.
 
-The workflow runs `uv run alembic upgrade head` before pytest so the schema is created from the same Alembic revisions used in development.
-
-**Required secrets:**
-- `TMDB_API_KEY` - For movie data fetching
+The workflow runs `uv run alembic upgrade head` before pytest so the schema is created from the same Alembic revisions used in development. The E2E suite then exercises Uvicorn over HTTPS, including authenticated requests that rely on Secure cookies.

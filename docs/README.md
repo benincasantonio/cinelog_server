@@ -27,6 +27,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Authentication](technical/authentication.md) | Auth implementation internals, middleware, cookie config |
 | [Code Quality CI](technical/code-quality-ci.md) | GitHub Actions quality gates for lint, format, type checking, and security |
 | [CORS Configuration](technical/cors-configuration.md) | CORS environment variables and behavior |
+| [Dependency Automation](technical/dependency-automation.md) | uv Dependabot updates, lockfile checks, and security updates |
 | [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Following](technical/following.md) | Follow persistence, eligibility rules, aggregation, and idempotency |
@@ -58,7 +59,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | `make dev` | Install runtime + development dependencies and configure git hooks |
 | `make hooks` | Configure git pre-commit hooks (lint, format, typecheck) |
 | `make test-unit` | Run unit tests with coverage report |
-| `make test-e2e` | Run e2e tests against PostgreSQL (auto starts/stops Docker) |
+| `make test-e2e` | Run HTTPS Uvicorn e2e tests against PostgreSQL and Redis (auto starts/stops Docker) |
 | `make db-schema-migrate` | Run Alembic schema migrations against `DATABASE_URL` |
 | `make db-schema-migrate-dry-run` | Print Alembic schema migration SQL without applying it |
 | `make db-schema-rollback` | Roll back the latest Alembic schema migration |
