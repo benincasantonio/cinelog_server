@@ -17,7 +17,6 @@ from app.dependencies.repository_dependency import (
     get_stats_repository,
     get_user_repository,
 )
-from app.repository.log_cache_repository import LogCacheRepository
 from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.services.auth_service import AuthService
 from app.services.follow_service import FollowService
@@ -27,10 +26,6 @@ from app.services.movie_service import MovieService
 from app.services.notification_service import NotificationService
 from app.services.stats_service import StatsService
 from app.services.user_service import UserService
-
-
-def _get_runtime_log_repository():
-    return LogCacheRepository(get_log_repository())
 
 
 @lru_cache
@@ -76,10 +71,8 @@ def get_movie_rating_service() -> MovieRatingService:
 @lru_cache
 def get_log_service() -> LogService:
     return LogService(
-        log_repository=_get_runtime_log_repository(),
+        log_repository=get_log_repository(),
         movie_service=get_movie_service(),
-        movie_repository=get_movie_repository(),
-        movie_rating_repository=get_movie_rating_repository(),
         user_repository=get_user_repository(),
     )
 

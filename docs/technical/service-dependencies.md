@@ -23,7 +23,7 @@ Controllers receive services through FastAPI `Depends(...)`.
 | `get_follow_service()` | `FollowService` (composes `NotificationService` for `follow.started`) |
 | `get_movie_service()` | `MovieService` |
 | `get_movie_rating_service()` | `MovieRatingService` |
-| `get_log_service()` | `LogService` (wraps the log repository with `LogCacheRepository`) |
+| `get_log_service()` | `LogService` (uses `LogRepository` and `LogListCacheService`) |
 | `get_notification_service()` | `NotificationService` |
 | `get_stats_service()` | `StatsService` with `StatsRepository`; response caching is composed through `StatsCacheService` |
 

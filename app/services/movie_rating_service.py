@@ -2,6 +2,7 @@ from uuid import UUID
 
 from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
 from app.schemas.movie_rating_schemas import MovieRatingResponse
+from app.services.log_list_cache_service import LogListCacheService
 from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
 from app.utils.error_codes_utils import ErrorCodes
@@ -13,10 +14,12 @@ class MovieRatingService:
         self,
         movie_rating_repository: MovieRatingRepositoryProtocol,
         movie_service: MovieService,
+        log_list_cache_service: LogListCacheService | None = None,
         stats_cache_service: StatsCacheService | None = None,
     ):
         self.movie_rating_repository = movie_rating_repository
         self.movie_service = movie_service
+        self.log_list_cache_service = log_list_cache_service or LogListCacheService()
         self.stats_cache_service = stats_cache_service or StatsCacheService()
 
     async def create_update_movie_rating(
@@ -40,6 +43,7 @@ class MovieRatingService:
             tmdb_id=tmdb_id,
         )
 
+        await self.log_list_cache_service.invalidate_user(user_id)
         await self.stats_cache_service.invalidate_user_stats(user_id)
 
         return self._get_movie_rating_response(movie_rating)

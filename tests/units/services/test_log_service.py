@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from app.models.movie_model import Movie
-from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogUpdateRequest
+from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogListResponse, LogUpdateRequest
 from app.services.log_service import LogService
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
@@ -27,6 +27,13 @@ def mock_stats_cache_service():
 
 
 @pytest.fixture
+def mock_log_list_cache_service():
+    cache = AsyncMock()
+    cache.get.return_value = None
+    return cache
+
+
+@pytest.fixture
 def mock_user_repository():
     return AsyncMock()
 
@@ -35,12 +42,14 @@ def mock_user_repository():
 def log_service(
     mock_log_repository,
     mock_movie_service,
+    mock_log_list_cache_service,
     mock_stats_cache_service,
     mock_user_repository,
 ):
     return LogService(
         log_repository=mock_log_repository,
         movie_service=mock_movie_service,
+        log_list_cache_service=mock_log_list_cache_service,
         stats_cache_service=mock_stats_cache_service,
         user_repository=mock_user_repository,
     )
@@ -103,6 +112,7 @@ class TestLogService:
         log_service,
         mock_log_repository,
         mock_movie_service,
+        mock_log_list_cache_service,
         mock_stats_cache_service,
     ):
         """Test that creating a log invalidates the stats cache."""
@@ -135,6 +145,7 @@ class TestLogService:
         result = await log_service.create_log(user_id, request)
 
         assert result.movie_rating is None
+        mock_log_list_cache_service.invalidate_user.assert_awaited_once_with(user_id)
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
@@ -220,6 +231,7 @@ class TestLogService:
         log_service,
         mock_log_repository,
         mock_movie_service,
+        mock_log_list_cache_service,
         mock_stats_cache_service,
     ):
         """Test that updating a log invalidates the stats cache."""
@@ -253,6 +265,7 @@ class TestLogService:
         result = await log_service.update_log(user_id, log_id, request)
 
         assert result.movie_rating is None
+        mock_log_list_cache_service.invalidate_user.assert_awaited_once_with(user_id)
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
@@ -260,6 +273,7 @@ class TestLogService:
         self,
         log_service,
         mock_log_repository,
+        mock_log_list_cache_service,
         mock_stats_cache_service,
     ):
         mock_log_repository.update_log.side_effect = RuntimeError("database failure")
@@ -267,6 +281,7 @@ class TestLogService:
         with pytest.raises(RuntimeError):
             await log_service.update_log(uuid4(), uuid4(), LogUpdateRequest(rating=9))
 
+        mock_log_list_cache_service.invalidate_user.assert_not_awaited()
         mock_stats_cache_service.invalidate_user_stats.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -280,7 +295,9 @@ class TestLogService:
             await log_service.update_log("user123", uuid4(), request)
 
     @pytest.mark.asyncio
-    async def test_delete_log_success(self, log_service, mock_log_repository, mock_stats_cache_service):
+    async def test_delete_log_success(
+        self, log_service, mock_log_repository, mock_log_list_cache_service, mock_stats_cache_service
+    ):
         """Test successful log deletion invalidates the stats cache."""
         user_id = uuid4()
         log_id = uuid4()
@@ -289,10 +306,13 @@ class TestLogService:
         await log_service.delete_log(user_id=user_id, log_id=log_id)
 
         mock_log_repository.delete_log.assert_awaited_once_with(log_id=log_id, user_id=user_id)
+        mock_log_list_cache_service.invalidate_user.assert_awaited_once_with(user_id)
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
-    async def test_delete_log_not_found_raises(self, log_service, mock_log_repository, mock_stats_cache_service):
+    async def test_delete_log_not_found_raises(
+        self, log_service, mock_log_repository, mock_log_list_cache_service, mock_stats_cache_service
+    ):
         """Test deleting a missing log raises LOG_NOT_FOUND and does not invalidate cache."""
         user_id = uuid4()
         mock_log_repository.delete_log.return_value = None
@@ -301,10 +321,11 @@ class TestLogService:
             await log_service.delete_log(user_id=user_id, log_id=uuid4())
 
         assert exc_info.value.error.error_code == ErrorCodes.LOG_NOT_FOUND.error_code
+        mock_log_list_cache_service.invalidate_user.assert_not_awaited()
         mock_stats_cache_service.invalidate_user_stats.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_get_user_logs(self, log_service, mock_log_repository, mock_movie_service):
+    async def test_get_user_logs(self, log_service, mock_log_repository, mock_log_list_cache_service):
         """Test getting user logs."""
         mock_movie = Mock()
         mock_movie.id = uuid4()
@@ -331,25 +352,28 @@ class TestLogService:
         # Ensure the movie.id matches log.movie_id
         mock_movie.id = mock_log.movie_id
 
-        mock_log_repository.find_logs_by_user_id.return_value = [mock_log]
-
-        mock_movie_repository = Mock()
-        mock_movie_repository.find_movies_by_ids = AsyncMock(return_value=[mock_movie])
-
-        mock_rating = Mock()
-        mock_rating.rating = 8
-        mock_rating.movie_id = mock_log.movie_id  # Match the log's movie_id
-        mock_movie_rating_repository = Mock()
-        mock_movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = AsyncMock(return_value=[mock_rating])
-
-        log_service.movie_repository = mock_movie_repository
-        log_service.movie_rating_repository = mock_movie_rating_repository
+        mock_log_repository.find_logs_by_user_id.return_value = [(mock_log, mock_movie, 8)]
 
         request = LogListRequest(sort_by="dateWatched", sort_order="desc")
         result = await log_service.get_user_logs(uuid4(), request)
 
         assert len(result.logs) == 1
         assert result.logs[0].movie_rating == 8
+        mock_log_list_cache_service.set.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_get_user_logs_cache_hit_skips_database(
+        self, log_service, mock_log_repository, mock_log_list_cache_service
+    ):
+        user_id = uuid4()
+        request = LogListRequest(watched_where="cinema")
+        cached = LogListResponse(logs=[], total_watches=0, unique_titles=0, total_rewatches=0)
+        mock_log_list_cache_service.get.return_value = cached
+
+        assert await log_service.get_user_logs(user_id, request) is cached
+        mock_log_list_cache_service.get.assert_awaited_once_with(user_id, request)
+        mock_log_repository.find_logs_by_user_id.assert_not_awaited()
+        mock_log_list_cache_service.set.assert_not_awaited()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -375,11 +399,10 @@ class TestLogService:
             )
             for index in movie_indexes
         ]
-        mock_log_repository.find_logs_by_user_id.return_value = logs
-        log_service.movie_repository = AsyncMock()
-        log_service.movie_repository.find_movies_by_ids.return_value = movies if include_movie_details else []
-        log_service.movie_rating_repository = AsyncMock()
-        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids.return_value = []
+        mock_log_repository.find_logs_by_user_id.return_value = [
+            (log, movies[index] if include_movie_details else None, None)
+            for log, index in zip(logs, movie_indexes, strict=True)
+        ]
         request = LogListRequest(
             watched_where="cinema", date_watched_from=date(2024, 1, 1), date_watched_to=date(2024, 1, 31)
         )
@@ -426,9 +449,7 @@ class TestGetUserLogsByHandle:
         mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "cinema"
 
-        log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[mock_log])
-        log_service.movie_repository.find_movies_by_ids = AsyncMock(return_value=[])
-        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = AsyncMock(return_value=[])
+        log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[(mock_log, None, None)])
 
         request = LogListRequest()
         result = await log_service.get_user_logs_by_handle(handle="johndoe", requester_id="other_user", request=request)
@@ -458,10 +479,6 @@ class TestGetUserLogsByHandle:
         mock_movie.created_at = None
         mock_movie.updated_at = None
 
-        mock_rating = Mock()
-        mock_rating.movie_id = movie_id
-        mock_rating.rating = 8
-
         mock_log = Mock()
         mock_log.id = log_id
         mock_log.movie_id = movie_id
@@ -471,11 +488,7 @@ class TestGetUserLogsByHandle:
         mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "cinema"
 
-        log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[mock_log])
-        log_service.movie_repository.find_movies_by_ids = AsyncMock(return_value=[mock_movie])
-        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = AsyncMock(
-            return_value=[mock_rating]
-        )
+        log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[(mock_log, mock_movie, 8)])
 
         request = LogListRequest()
         result = await log_service.get_user_logs_by_handle(handle="johndoe", requester_id=uuid4(), request=request)
@@ -491,8 +504,6 @@ class TestGetUserLogsByHandle:
         mock_user_repository.find_user_by_handle.return_value = mock_user
 
         log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[])
-        log_service.movie_repository.find_movies_by_ids = AsyncMock(return_value=[])
-        log_service.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids = AsyncMock(return_value=[])
 
         request = LogListRequest()
         result = await log_service.get_user_logs_by_handle(handle="johndoe", requester_id="user123", request=request)
@@ -500,13 +511,15 @@ class TestGetUserLogsByHandle:
         assert result.logs == []
 
     @pytest.mark.asyncio
-    async def test_private_profile_blocks_access(self, log_service, mock_user_repository):
+    async def test_private_profile_blocks_access(self, log_service, mock_user_repository, mock_log_list_cache_service):
         mock_user = self._create_mock_user(user_id="user456", handle="johndoe", profile_visibility="private")
         mock_user_repository.find_user_by_handle.return_value = mock_user
 
         request = LogListRequest()
         with pytest.raises(AppException) as exc_info:
             await log_service.get_user_logs_by_handle(handle="johndoe", requester_id="other_user", request=request)
+
+        mock_log_list_cache_service.get.assert_not_awaited()
 
         assert exc_info.value.error.error_code == ErrorCodes.PROFILE_NOT_PUBLIC.error_code
 

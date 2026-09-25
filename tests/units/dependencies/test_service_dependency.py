@@ -5,16 +5,16 @@ from app.dependencies.repository_dependency import (
     get_user_repository,
 )
 from app.dependencies.service_dependency import (
-    _get_runtime_log_repository,
     get_follow_service,
+    get_log_service,
     get_notification_service,
     get_stats_service,
     get_user_service,
 )
 from app.repository.follow_repository import FollowRepository
-from app.repository.log_cache_repository import LogCacheRepository
 from app.repository.log_repository import LogRepository
 from app.repository.stats_repository import StatsRepository
+from app.services.log_list_cache_service import LogListCacheService
 
 
 def clear_caches() -> None:
@@ -23,18 +23,19 @@ def clear_caches() -> None:
     get_stats_repository.cache_clear()
     get_user_repository.cache_clear()
     get_follow_service.cache_clear()
+    get_log_service.cache_clear()
     get_notification_service.cache_clear()
     get_stats_service.cache_clear()
     get_user_service.cache_clear()
 
 
-def test_get_runtime_log_repository_wraps_postgres_repository_with_cache():
+def test_get_log_service_uses_postgres_repository_and_response_cache():
     clear_caches()
 
-    repository = _get_runtime_log_repository()
+    service = get_log_service()
 
-    assert isinstance(repository, LogCacheRepository)
-    assert isinstance(repository.repository, LogRepository)
+    assert isinstance(service.log_repository, LogRepository)
+    assert isinstance(service.log_list_cache_service, LogListCacheService)
 
     clear_caches()
 

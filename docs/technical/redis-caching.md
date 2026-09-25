@@ -10,7 +10,6 @@ Redis is **required** — the application will not start without a reachable Red
 |----------|---------|-------------|
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL |
 | `REDIS_DEFAULT_TTL` | `300` | Default TTL in seconds (5 minutes) |
-| `LOG_CACHE_TTL` | `86400` | TTL in seconds for cached log repository lookups |
 
 Configuration is read by `app/config/redis.py` and passed to `CacheService.initialize()` during app startup.
 
@@ -45,7 +44,7 @@ Rate-limited auth routes also require `RATE_LIMIT_HMAC_SECRET` so account-based 
 
 `CacheService` is a low-level wrapper, so Redis errors propagate directly from its methods. Higher-level layers decide whether to fail open or fail closed.
 
-`LogCacheRepository` fails open: cache errors are logged and the repository falls back to the database query. This keeps log create, update, delete, and lookup flows available when Redis is temporarily unavailable.
+`LogListCacheService` fails open: cache errors are logged and log lists fall back to PostgreSQL. Cache failures do not block log or rating writes.
 
 `StatsCacheService`, `TMDBCacheService`, rate limiting, and registration verification do not catch Redis errors. The application fails fast on startup if Redis is unreachable, and these flows require Redis to remain healthy at runtime.
 
@@ -55,9 +54,7 @@ Cache keys follow the pattern: `cinelog:{entity}:{identifier}`
 
 Examples:
 - `cinelog:movie:550` — movie with TMDB ID 550
-- `cinelog:logs:id:{user_id}:{log_id}` — one log by ID, scoped to its owner
-- `cinelog:logs:user:{user_id}:where:{watched_where}:from:{from}:to:{to}:sort:{sort_by}:{sort_order}` — filtered user logs
-- `cinelog:logs:movie:{movie_id}:user:{user_id_or_all}` — logs for a movie, optionally scoped to a user
+- `cinelog:log-list-response:v1:{user_id}:where:{watched_where}:from:{from}:to:{to}:sort:{sort_by}:{sort_order}` — complete filtered log-list response
 - `cinelog:stats:{user_id}:all` — stats for a specific user
 - `cinelog:notif:follow-started:{recipient_id}:{follower_id}` — rolling cooldown for `follow.started` emission
 
@@ -67,36 +64,19 @@ Key construction is the caller's responsibility — `CacheService` is key-agnost
 
 Cinelog uses cache layers at the same boundary as the data being cached:
 
-- `*_cache_service.py` is for service-level, composed, or external API responses. Examples: `StatsCacheService` caches a `StatsResponse`, and `TMDBCacheService` caches TMDB API responses.
-- `*_cache_repository.py` is for raw persistence lookups. `LogCacheRepository` wraps a `LogRepository` instance and caches raw `Log` documents before `LogService` enriches them with movie and rating data.
+- `*_cache_service.py` is for service-level, composed, or external API responses. `LogListCacheService` caches a complete `LogListResponse`; `StatsCacheService` and `TMDBCacheService` cache their respective responses.
 
 Use the narrowest boundary that owns the data dependencies. If a response combines multiple repositories or services, caching it at that level also makes invalidation responsible for all of those dependencies.
 
-### Composition over Inheritance
+`CacheService` itself is infrastructure. Domain cache layers use it through `CacheService.get_instance()` rather than inherit from it.
 
-Repository cache decorators use composition. `LogCacheRepository` wraps a `LogRepository` instance via constructor injection, exposes the same method surface, and can be used anywhere a log repository dependency is expected.
+## Log List Response Cache
 
-Use composition when the cache layer is only a helper for storing, reading, or invalidating cached payloads. `StatsService` composes `StatsCacheService`, and `TMDBService` composes `TMDBCacheService`; those cache services are not substitutes for the full service APIs.
+`LogListCacheService` stores the complete `LogListResponse` for each target user, filter, and sort combination. `LogService` checks profile visibility before reading the cache. A miss runs the PostgreSQL log/movie/rating join and caches the mapped response for the default five-minute TTL.
 
-`CacheService` itself is infrastructure. Domain cache layers should use it through `CacheService.get_instance()` rather than inherit from it.
+Successful log creation, update, deletion, and direct rating writes invalidate all response keys for the affected user. External movie-row changes are visible when the TTL expires. The former raw-log keys have a different prefix and expire naturally.
 
-## Log Repository Cache
-
-`LogCacheRepository` (`app/repository/log_cache_repository.py`) decorates a `LogRepository` instance and caches:
-
-- `find_log_by_id(log_id, user_id)`
-- `find_logs_by_user_id(...)`
-- `find_logs_by_movie_id(movie_id, user_id?)`
-
-Log repository cache entries default to a one-day TTL. Explicit invalidation on writes is the primary freshness mechanism; the TTL is a safety net for entries that are not touched by a write path.
-
-Writes invalidate affected log cache entries:
-
-| Method | Invalidation |
-|--------|--------------|
-| `create_log` | User log-list keys and movie log-list keys |
-| `update_log` | Owner-scoped log ID key, user log-list keys, and movie log-list keys |
-| `delete_log` | Owner-scoped log ID key, user log-list keys, and movie log-list keys after successful delete |
+See [Log List Query](log-list-query.md) for the join and response semantics.
 
 ## TTL Strategy
 
