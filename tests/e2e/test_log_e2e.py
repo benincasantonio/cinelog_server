@@ -148,6 +148,10 @@ class TestLogE2E:
         assert first.status_code == 201
         assert first.json()["movieRating"] == 8
 
+        first_list = await async_client.get(f"/v1/logs/{handle}")
+        assert first_list.status_code == 200
+        assert [log["movieRating"] for log in first_list.json()["logs"]] == [8]
+
         second = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
@@ -155,6 +159,10 @@ class TestLogE2E:
         )
         assert second.status_code == 201
         assert second.json()["movieRating"] is None
+
+        second_list = await async_client.get(f"/v1/logs/{handle}")
+        assert second_list.status_code == 200
+        assert [log["movieRating"] for log in second_list.json()["logs"]] == [8, 8]
 
         updated = await async_client.put(
             f"/v1/logs/{second.json()['id']}",
@@ -179,6 +187,16 @@ class TestLogE2E:
         logs_response = await async_client.get(f"/v1/logs/{handle}")
         assert logs_response.status_code == 200
         assert [log["movieRating"] for log in logs_response.json()["logs"]] == [10, 10]
+
+        direct_rating = await async_client.post(
+            "/v1/movie-ratings/",
+            headers={"X-CSRF-Token": csrf_token},
+            json={"tmdbId": 550, "rating": 7},
+        )
+        assert direct_rating.status_code == 200
+        refreshed_logs = await async_client.get(f"/v1/logs/{handle}")
+        assert refreshed_logs.status_code == 200
+        assert [log["movieRating"] for log in refreshed_logs.json()["logs"]] == [7, 7]
 
     async def test_create_and_update_log_reject_invalid_rating(self, async_client):
         """Both log write endpoints reject ratings outside 1-10."""

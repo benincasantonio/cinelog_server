@@ -54,7 +54,7 @@ All routes are registered under the `/v1/` prefix:
 - Controllers depend on services via `Depends(get_*_service)` from `app/dependencies/service_dependency.py`
 - Each `get_*_service` provider is `@lru_cache`-d and constructs the service with its repositories from `app/dependencies/repository_dependency.py`
 - Repositories handle direct database operations through async SQLAlchemy sessions
-- `LogCacheRepository` is a composition-based Redis decorator over the log repository and is wired in `get_log_service()` / `get_stats_service()`
+- `LogService` composes `LogRepository` with `LogListCacheService`, which caches complete log-list responses
 
 **Repository Conventions:**
 
@@ -291,8 +291,8 @@ The user repository provides two deletion strategies:
 
 - **Required dependency:** Redis must be reachable during FastAPI startup. `app/__init__.py` initializes `CacheService`, pings Redis via `health_check()`, and raises `RuntimeError` if Redis is unavailable.
 - **Configuration:** `REDIS_URL` selects the Redis instance and defaults to `redis://localhost:6379/0`; there is no `REDIS_ENABLED` toggle.
-- **Error behavior:** `CacheService` is a low-level wrapper and lets Redis errors propagate. Higher-level callers decide whether to fail open or fail closed. `LogCacheRepository` catches cache errors and falls back to PostgreSQL; registration verification, rate limiting, stats caching, and TMDB caching require Redis to remain healthy.
-- **Serialization:** Callers pass JSON-ready dicts to `set()` and revalidate after `get()` — keeps CacheService model-agnostic. `LogCacheRepository` serializes ORM rows through an internal Pydantic mirror model.
+- **Error behavior:** `CacheService` is a low-level wrapper and lets Redis errors propagate. Higher-level callers decide whether to fail open or fail closed. `LogListCacheService` catches cache errors and falls back to PostgreSQL; registration verification, rate limiting, stats caching, and TMDB caching require Redis to remain healthy.
+- **Serialization:** Callers pass JSON-ready dicts to `set()` and revalidate after `get()` — keeps CacheService model-agnostic. `LogListCacheService` serializes the complete Pydantic log-list response.
 - **Key naming:** `cinelog:{entity}:{identifier}` — key construction is the caller's responsibility
 - **Default TTL:** 300 seconds (5 minutes), configurable via `REDIS_DEFAULT_TTL`
 - **Pattern invalidation:** Uses `SCAN` (not `KEYS`) for production-safe pattern-based cache invalidation

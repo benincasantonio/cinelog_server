@@ -2,14 +2,11 @@ from uuid import UUID
 
 from app.dependencies.repository_dependency import (
     get_log_repository,
-    get_movie_rating_repository,
     get_movie_repository,
     get_user_repository,
 )
 from app.models.movie_model import Movie
 from app.repository.log_repository_protocol import LogRepositoryProtocol
-from app.repository.movie_rating_repository_protocol import MovieRatingRepositoryProtocol
-from app.repository.movie_repository_protocol import MovieRepositoryProtocol
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.log_schemas import (
     LogCreateRequest,
@@ -20,6 +17,7 @@ from app.schemas.log_schemas import (
     LogUpdateRequest,
 )
 from app.schemas.movie_schemas import MovieResponse
+from app.services.log_list_cache_service import LogListCacheService
 from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
 from app.utils.error_codes_utils import ErrorCodes
@@ -33,19 +31,13 @@ class LogService:
         self,
         log_repository: LogRepositoryProtocol | None = None,
         movie_service: MovieService | None = None,
-        movie_repository: MovieRepositoryProtocol | None = None,
-        movie_rating_repository: MovieRatingRepositoryProtocol | None = None,
+        log_list_cache_service: LogListCacheService | None = None,
         stats_cache_service: StatsCacheService | None = None,
         user_repository: UserRepositoryProtocol | None = None,
     ):
         self.log_repository = log_repository or get_log_repository()
-        resolved_movie_repository = movie_repository or get_movie_repository()
-        if movie_service is None:
-            movie_service = MovieService(resolved_movie_repository)
-
-        self.movie_service = movie_service
-        self.movie_rating_repository = movie_rating_repository or get_movie_rating_repository()
-        self.movie_repository = resolved_movie_repository
+        self.movie_service = movie_service or MovieService(get_movie_repository())
+        self.log_list_cache_service = log_list_cache_service or LogListCacheService()
         self.stats_cache_service = stats_cache_service or StatsCacheService()
         self.user_repository = user_repository or get_user_repository()
 
@@ -80,6 +72,7 @@ class LogService:
 
         log = await self.log_repository.create_log(user_id=user_id, create_log_request=request)
 
+        await self.log_list_cache_service.invalidate_user(user_id)
         await self.stats_cache_service.invalidate_user_stats(user_id)
 
         return LogCreateResponse(
@@ -106,6 +99,7 @@ class LogService:
         if not log:
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
 
+        await self.log_list_cache_service.invalidate_user(user_id)
         movie = await self.movie_service.get_movie_by_id(log.movie_id)
         if movie is None:
             raise AppException(ErrorCodes.MOVIE_NOT_FOUND)
@@ -130,57 +124,49 @@ class LogService:
         if deleted_log is None:
             raise AppException(ErrorCodes.LOG_NOT_FOUND)
 
+        await self.log_list_cache_service.invalidate_user(user_id)
         await self.stats_cache_service.invalidate_user_stats(user_id)
 
     async def get_user_logs(self, user_id: UUID, request: LogListRequest) -> LogListResponse:
         """Get list of user's viewing logs with optional filtering and sorting."""
 
-        logs_data = await self.log_repository.find_logs_by_user_id(
+        cached = await self.log_list_cache_service.get(user_id, request)
+        if cached is not None:
+            return cached
+
+        rows = await self.log_repository.find_logs_by_user_id(
             user_id=user_id,
             watched_where=request.watched_where,
-            date_watched_from=request.date_watched_from or None,
-            date_watched_to=request.date_watched_to or None,
+            date_watched_from=request.date_watched_from,
+            date_watched_to=request.date_watched_to,
             sort_by=request.sort_by,
             sort_order=request.sort_order,
         )
 
-        unique_movie_ids = {log_data.movie_id for log_data in logs_data}
-
-        movie_ratings = await self.movie_rating_repository.find_movie_ratings_by_user_and_movie_ids(
-            user_id=user_id, movie_ids=unique_movie_ids
-        )
-
-        movies = await self.movie_repository.find_movies_by_ids(unique_movie_ids)
-
-        movie_map = {movie.id: movie for movie in movies}
-        rating_map = {rating.movie_id: rating.rating for rating in movie_ratings}
-
+        unique_movie_ids = {log.movie_id for log, _, _ in rows}
         log_items = []
-        for log_data in logs_data:
-            movie = movie_map.get(log_data.movie_id)
-            movie_response = self._map_movie_to_response(movie) if movie else None
-
-            movie_rating = rating_map.get(log_data.movie_id)
-
+        for log, movie, rating in rows:
             log_items.append(
                 LogListItem(
-                    id=log_data.id,
-                    movie_id=log_data.movie_id,
-                    movie=movie_response,
-                    movie_rating=movie_rating,
-                    tmdb_id=log_data.tmdb_id,
-                    date_watched=log_data.date_watched,
-                    viewing_notes=log_data.viewing_notes,
-                    poster_path=log_data.poster_path,
-                    watched_where=log_data.watched_where,
+                    id=log.id,
+                    movie_id=log.movie_id,
+                    movie=self._map_movie_to_response(movie) if movie else None,
+                    movie_rating=rating,
+                    tmdb_id=log.tmdb_id,
+                    date_watched=log.date_watched,
+                    viewing_notes=log.viewing_notes,
+                    poster_path=log.poster_path,
+                    watched_where=log.watched_where,
                 )
             )
-        return LogListResponse(
+        response = LogListResponse(
             logs=log_items,
-            total_watches=len(logs_data),
+            total_watches=len(rows),
             unique_titles=len(unique_movie_ids),
-            total_rewatches=len(logs_data) - len(unique_movie_ids),
+            total_rewatches=len(rows) - len(unique_movie_ids),
         )
+        await self.log_list_cache_service.set(user_id, request, response)
+        return response
 
     async def get_user_logs_by_handle(
         self,

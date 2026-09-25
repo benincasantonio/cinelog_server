@@ -29,6 +29,8 @@ Returns the requested user's viewing logs and three top-level counts. Authentica
 
 Counts follow the same `dateWatchedFrom`, `dateWatchedTo`, and `watchedWhere` filters as the returned logs. Date boundaries are inclusive. `sortBy` and `sortOrder` affect the entry order, not the counts.
 
+Each entry includes movie details when the movie is active and the user's current movie rating when one exists. Rewatches of the same movie show the same current rating. Missing or deleted related data appears as `null` without removing the viewing log. Successful log or rating changes refresh the next list response. Other movie-detail changes may take up to five minutes by default (`REDIS_DEFAULT_TTL`) to appear.
+
 Logging Alien three times and Arrival once produces `totalWatches: 4`, `uniqueTitles: 2`, and `totalRewatches: 2`. Each log counts as one viewing, including separate viewings of the same movie on the same day. Different movies with the same title remain distinct.
 
 Only matching entries contribute: if Alien was watched once last year and once this year, filtering to this year produces `totalWatches: 1`, `uniqueTitles: 1`, and `totalRewatches: 0`. Creating, editing, or deleting a log is reflected on the next list request.
@@ -119,4 +121,5 @@ No request body.
 - [Rate Limiting](rate-limiting.md) — per-endpoint limits and 429 behavior
 - [User Statistics API](stats-api.md) — viewing statistics and year filters
 - [Atomic Log and Rating Writes (technical)](../technical/log-rating-writes.md) — transaction and text-preservation behavior
+- [Log List Query (technical)](../technical/log-list-query.md) — PostgreSQL joins and response caching
 - [Stats Caching (technical)](../technical/stats-caching.md) — how log writes invalidate cached stats
