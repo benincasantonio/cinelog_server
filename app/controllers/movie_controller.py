@@ -1,0 +1,35 @@
+from fastapi import APIRouter, Depends, Request, Response
+
+from app.config.rate_limiter import limiter
+from app.dependencies.locale_dependency import locale_dependency
+from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult
+from app.services.tmdb_service import TMDBService
+
+router = APIRouter()
+
+tmdb_service = TMDBService.get_instance()
+
+
+@router.get("/search")
+@limiter.limit("20/minute")
+async def search_movies(
+    request: Request,
+    response: Response,
+    query: str,
+    locale: str = Depends(locale_dependency),
+) -> TMDBMovieSearchResult:
+    """
+    Search for movies using TMDB API.
+    """
+    return await tmdb_service.search_movie(query=query, locale=locale)
+
+
+@router.get("/{tmdb_id}")
+async def get_movie_details(
+    tmdb_id: int,
+    locale: str = Depends(locale_dependency),
+) -> TMDBMovieDetails:
+    """
+    Get full movie details from TMDB by movie ID.
+    """
+    return await tmdb_service.get_movie_details(tmdb_id=tmdb_id, locale=locale)

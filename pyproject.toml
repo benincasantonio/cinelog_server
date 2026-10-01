@@ -1,0 +1,87 @@
+[project]
+name = "cinelog-server"
+version = "0.1.0"
+description = "Cinelog FastAPI backend"
+requires-python = ">=3.12"
+dependencies = [
+    "bcrypt==5.0.0",
+    "fastapi==0.141.1",
+    "httpx==0.28.1",
+    "pydantic[email]==2.13.5",
+    "pyjwt==2.15.1",
+    "python-dotenv==1.2.3",
+    "python-multipart==0.0.32",
+    "redis[hiredis]==8.1.0",
+    "uvicorn==0.54.0",
+    "slowapi~=0.1.9",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.31.0",
+    "alembic>=1.18.4",
+]
+
+[dependency-groups]
+dev = [
+    "bandit==1.9.4",
+    "freezegun==1.5.5",
+    "mypy==2.3.1",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "pytest-cov==7.1.0",
+    "pytest-postgresql==9.1.0",
+    "psycopg[binary]==3.3.6",
+    "ruff==0.16.9",
+    "pip-audit>=2.10.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "PT", "T20"]
+ignore = [
+    # FastAPI dependency injection intentionally uses function calls in defaults.
+    "B008",
+    # Project exception naming follows the existing AppException convention.
+    "N818",
+    # Cookie, token, and test fixture names produce false positives for hardcoded secret checks.
+    "S105",
+    "S106",
+    "S107",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    # Pytest tests should use bare asserts and broad exception assertions where behavior requires it.
+    "B017",
+    "PT011",
+    "S101",
+]
+# The dev email fallback prints progress to stdout by design.
+"app/services/email_service.py" = ["T20"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs = true
+show_error_codes = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+

@@ -1,0 +1,332 @@
+from datetime import date
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
+from app.repository.follow_repository_protocol import FollowSummary
+from app.schemas.user_schemas import UpdateProfileRequest, UserProfileResponse
+from app.services.user_service import UserService
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
+
+
+@pytest.fixture
+def mock_user_repository():
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_follow_repository():
+    repository = AsyncMock()
+    repository.get_follow_summary.return_value = FollowSummary(
+        follower_count=0,
+        following_count=0,
+        is_following=False,
+    )
+    return repository
+
+
+@pytest.fixture
+def user_service(mock_user_repository, mock_follow_repository):
+    return UserService(
+        user_repository=mock_user_repository,
+        follow_repository=mock_follow_repository,
+    )
+
+
+def create_mock_user(
+    user_id="user123",
+    first_name="John",
+    last_name="Doe",
+    email="john@example.com",
+    handle="johndoe",
+    bio=None,
+    date_of_birth=None,
+    password_hash="$2b$12$hashed_password",
+    locale="en-US",
+    profile_visibility="private",
+):
+    mock_user = Mock()
+    mock_user.id = user_id
+    mock_user.first_name = first_name
+    mock_user.last_name = last_name
+    mock_user.email = email
+    mock_user.handle = handle
+    mock_user.bio = bio
+    mock_user.date_of_birth = date_of_birth or date(1990, 1, 1)
+    mock_user.password_hash = password_hash
+    mock_user.locale = locale
+    mock_user.profile_visibility = profile_visibility
+    return mock_user
+
+
+class TestUserService:
+    @pytest.mark.asyncio
+    async def test_get_user_info_success(self, user_service, mock_user_repository):
+        mock_user = create_mock_user()
+        mock_user_repository.find_user_by_id.return_value = mock_user
+
+        result = await user_service.get_user_info("user123")
+
+        assert result.id == "user123"
+        assert result.first_name == "John"
+        assert result.last_name == "Doe"
+        assert result.locale == "en-US"
+        assert result.profile_visibility == "private"
+        mock_user_repository.find_user_by_id.assert_awaited_once_with("user123")
+
+    @pytest.mark.asyncio
+    async def test_get_user_info_user_not_found(self, user_service, mock_user_repository):
+        mock_user_repository.find_user_by_id.return_value = None
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.get_user_info("nonexistent_user")
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+
+
+class TestGetVisibleProfile:
+    @pytest.mark.asyncio
+    async def test_public_profile_returns_full_info(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_follow_repository,
+    ):
+        mock_user = create_mock_user(handle="johndoe", profile_visibility="public")
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+        mock_follow_repository.get_follow_summary.return_value = FollowSummary(
+            follower_count=3,
+            following_count=2,
+            is_following=True,
+        )
+
+        result = await user_service.get_visible_profile(handle="johndoe", requester_id="other_user")
+
+        assert isinstance(result, UserProfileResponse)
+        assert result.first_name == "John"
+        assert result.handle == "johndoe"
+        assert result.profile_visibility == "public"
+        assert result.date_of_birth == date(1990, 1, 1)
+        assert result.follower_count == 3
+        assert result.following_count == 2
+        assert result.is_following is True
+        mock_follow_repository.get_follow_summary.assert_awaited_once_with("user123", "other_user")
+
+    @pytest.mark.asyncio
+    async def test_private_profile_hides_date_of_birth(self, user_service, mock_user_repository):
+        mock_user = create_mock_user(handle="johndoe", profile_visibility="private")
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        result = await user_service.get_visible_profile(handle="johndoe", requester_id="other_user")
+
+        assert result.date_of_birth is None
+        assert result.first_name == "John"
+        assert result.handle == "johndoe"
+
+    @pytest.mark.asyncio
+    async def test_followers_only_profile_hides_date_of_birth(self, user_service, mock_user_repository):
+        mock_user = create_mock_user(handle="johndoe", profile_visibility="followers_only")
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+
+        result = await user_service.get_visible_profile(handle="johndoe", requester_id="other_user")
+
+        assert result.date_of_birth is None
+
+    @pytest.mark.asyncio
+    async def test_own_profile_returns_full_info(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_follow_repository,
+    ):
+        mock_user = create_mock_user(user_id="user123", handle="johndoe", profile_visibility="private")
+        mock_user_repository.find_user_by_handle.return_value = mock_user
+        mock_follow_repository.get_follow_summary.return_value = FollowSummary(
+            follower_count=4,
+            following_count=5,
+            is_following=False,
+        )
+
+        result = await user_service.get_visible_profile(handle="johndoe", requester_id="user123")
+
+        assert result.date_of_birth == date(1990, 1, 1)
+        assert result.first_name == "John"
+        assert result.follower_count == 4
+        assert result.following_count == 5
+        assert result.is_following is False
+
+    @pytest.mark.asyncio
+    async def test_user_not_found(self, user_service, mock_user_repository, mock_follow_repository):
+        mock_user_repository.find_user_by_handle.return_value = None
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.get_visible_profile(handle="nonexistent", requester_id="user123")
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+        mock_follow_repository.get_follow_summary.assert_not_awaited()
+
+
+class TestUpdateProfile:
+    @pytest.mark.asyncio
+    async def test_update_profile_success(self, user_service, mock_user_repository):
+        updated_user = create_mock_user(first_name="Jane", bio="New bio")
+        mock_user_repository.update_user_profile.return_value = updated_user
+
+        request = UpdateProfileRequest(first_name="Jane", bio="New bio")
+        result = await user_service.update_profile("user123", request)
+
+        assert result.first_name == "Jane"
+        assert result.bio == "New bio"
+        mock_user_repository.update_user_profile.assert_awaited_once_with(
+            "user123", {"first_name": "Jane", "bio": "New bio"}
+        )
+
+    @pytest.mark.asyncio
+    async def test_update_profile_with_visibility(self, user_service, mock_user_repository):
+        updated_user = create_mock_user(profile_visibility="public")
+        mock_user_repository.update_user_profile.return_value = updated_user
+
+        request = UpdateProfileRequest(profile_visibility="public")
+        result = await user_service.update_profile("user123", request)
+
+        assert result.profile_visibility == "public"
+        mock_user_repository.update_user_profile.assert_awaited_once_with("user123", {"profile_visibility": "public"})
+
+    @pytest.mark.asyncio
+    async def test_update_profile_partial_fields(self, user_service, mock_user_repository):
+        updated_user = create_mock_user(last_name="Smith")
+        mock_user_repository.update_user_profile.return_value = updated_user
+
+        request = UpdateProfileRequest(last_name="Smith")
+        await user_service.update_profile("user123", request)
+
+        mock_user_repository.update_user_profile.assert_awaited_once_with("user123", {"last_name": "Smith"})
+
+    @pytest.mark.asyncio
+    async def test_update_profile_user_not_found(self, user_service, mock_user_repository):
+        mock_user_repository.update_user_profile.return_value = None
+
+        request = UpdateProfileRequest(first_name="Jane")
+        with pytest.raises(AppException) as exc_info:
+            await user_service.update_profile("nonexistent", request)
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+
+    @pytest.mark.asyncio
+    async def test_update_profile_empty_request_raises(self, user_service, mock_user_repository):
+        request = UpdateProfileRequest()
+        with pytest.raises(AppException) as exc_info:
+            await user_service.update_profile("user123", request)
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+        mock_user_repository.update_user_profile.assert_not_awaited()
+
+
+class TestGetLocale:
+    @pytest.mark.asyncio
+    async def test_get_locale_success(self, user_service, mock_user_repository):
+        mock_user_repository.find_user_by_id.return_value = create_mock_user(locale="fr-FR")
+
+        result = await user_service.get_locale("user123")
+
+        assert result == "fr-FR"
+        mock_user_repository.find_user_by_id.assert_awaited_once_with("user123")
+
+    @pytest.mark.asyncio
+    async def test_get_locale_user_not_found(self, user_service, mock_user_repository):
+        mock_user_repository.find_user_by_id.return_value = None
+
+        result = await user_service.get_locale("missing")
+
+        assert result is None
+
+
+class TestUpdateLocale:
+    @pytest.mark.asyncio
+    async def test_update_locale_success(self, user_service, mock_user_repository):
+        mock_user_repository.update_user_locale.return_value = create_mock_user(locale="it-IT")
+
+        result = await user_service.update_locale("user123", "it-IT")
+
+        assert result.locale == "it-IT"
+        mock_user_repository.update_user_locale.assert_awaited_once_with("user123", "it-IT")
+
+    @pytest.mark.asyncio
+    async def test_update_locale_user_not_found(self, user_service, mock_user_repository):
+        mock_user_repository.update_user_locale.return_value = None
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.update_locale("missing", "fr-FR")
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+
+
+class TestChangePassword:
+    @pytest.mark.asyncio
+    async def test_change_password_success(self, user_service, mock_user_repository):
+        mock_user = create_mock_user(password_hash="$2b$12$hashed")
+        mock_user_repository.find_user_by_id.return_value = mock_user
+        mock_user_repository.update_password.return_value = mock_user
+
+        with (
+            patch(
+                "app.services.user_service.PasswordService.verify_password",
+                side_effect=[True, False],
+            ),
+            patch(
+                "app.services.user_service.PasswordService.get_password_hash",
+                return_value="$2b$12$new_hashed",
+            ),
+        ):
+            result = await user_service.change_password("user123", "current_pass", "new_pass")
+
+        assert result.message == "Password changed successfully"
+        mock_user_repository.update_password.assert_awaited_once_with(mock_user, "$2b$12$new_hashed")
+
+    @pytest.mark.asyncio
+    async def test_change_password_user_not_found(self, user_service, mock_user_repository):
+        mock_user_repository.find_user_by_id.return_value = None
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.change_password("nonexistent", "current", "new")
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+
+    @pytest.mark.asyncio
+    async def test_change_password_no_password_hash(self, user_service, mock_user_repository):
+        mock_user = create_mock_user(password_hash=None)
+        mock_user_repository.find_user_by_id.return_value = mock_user
+
+        with pytest.raises(AppException) as exc_info:
+            await user_service.change_password("user123", "current", "new")
+
+        assert exc_info.value.error.error_code == ErrorCodes.USER_NOT_FOUND.error_code
+
+    @pytest.mark.asyncio
+    async def test_change_password_wrong_current_password(self, user_service, mock_user_repository):
+        mock_user = create_mock_user(password_hash="$2b$12$hashed")
+        mock_user_repository.find_user_by_id.return_value = mock_user
+
+        with patch(
+            "app.services.user_service.PasswordService.verify_password",
+            return_value=False,
+        ):
+            with pytest.raises(AppException) as exc_info:
+                await user_service.change_password("user123", "wrong", "new_pass")
+
+        assert exc_info.value.error.error_code == ErrorCodes.INVALID_CURRENT_PASSWORD.error_code
+
+    @pytest.mark.asyncio
+    async def test_change_password_same_as_current(self, user_service, mock_user_repository):
+        mock_user = create_mock_user(password_hash="$2b$12$hashed")
+        mock_user_repository.find_user_by_id.return_value = mock_user
+
+        with patch(
+            "app.services.user_service.PasswordService.verify_password",
+            return_value=True,
+        ):
+            with pytest.raises(AppException) as exc_info:
+                await user_service.change_password("user123", "same_pass", "same_pass")
+
+        assert exc_info.value.error.error_code == ErrorCodes.SAME_PASSWORD.error_code
