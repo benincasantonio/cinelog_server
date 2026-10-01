@@ -1,0 +1,107 @@
+from datetime import datetime
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app import app
+from app.dependencies.auth_dependency import auth_dependency
+from app.dependencies.service_dependency import get_movie_rating_service
+from app.schemas.movie_rating_schemas import MovieRatingResponse
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+
+@pytest.fixture
+def override_auth():
+    """Mock successful authentication."""
+    return lambda: "user123"
+
+
+class TestMovieRatingController:
+    """Tests for movie rating controller endpoints."""
+
+    @patch.object(get_movie_rating_service(), "create_update_movie_rating", new_callable=AsyncMock)
+    def test_create_movie_rating_success(self, mock_create_rating, client, override_auth):
+        """Test creating a movie rating."""
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        mock_create_rating.return_value = MovieRatingResponse(
+            id="rating123",
+            user_id="user123",
+            movie_id="movie123",
+            tmdb_id="550",
+            rating=8,
+            comment="Great movie!",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+        response = client.post(
+            "/v1/movie-ratings/",
+            json={"tmdbId": "550", "rating": 8, "comment": "Great movie!"},
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["rating"] == 8
+
+    def test_create_movie_rating_unauthorized(self, client):
+        """Test creating movie rating without authentication."""
+        app.dependency_overrides = {}
+        response = client.post(
+            "/v1/movie-ratings/",
+            json={"tmdbId": "550", "rating": 8, "comment": "Great movie!"},
+            cookies={"__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+        assert response.status_code == 401
+
+    @patch.object(get_movie_rating_service(), "get_movie_ratings_by_tmdb_id", new_callable=AsyncMock)
+    def test_get_movie_rating_success(self, mock_get_rating, client, override_auth):
+        """Test getting a movie rating."""
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        mock_get_rating.return_value = MovieRatingResponse(
+            id="rating123",
+            user_id="user123",
+            movie_id="movie123",
+            tmdb_id="550",
+            rating=8,
+            comment="Great movie!",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+        response = client.get("/v1/movie-ratings/550", cookies={"__Host-access_token": "token"})
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["rating"] == 8
+
+    @patch.object(get_movie_rating_service(), "get_movie_ratings_by_tmdb_id", new_callable=AsyncMock)
+    def test_get_movie_rating_not_found(self, mock_get_rating, client, override_auth):
+        """Test getting a movie rating that doesn't exist returns 204."""
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_get_rating.return_value = None
+
+        response = client.get("/v1/movie-ratings/999", cookies={"__Host-access_token": "token"})
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 204
+
+    def test_get_movie_rating_unauthorized(self, client):
+        """Test getting movie rating without authentication."""
+        app.dependency_overrides = {}
+        response = client.get("/v1/movie-ratings/550")
+        assert response.status_code == 401

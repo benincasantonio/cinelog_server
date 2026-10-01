@@ -1,0 +1,117 @@
+from unittest.mock import Mock, patch
+from uuid import UUID
+
+import pytest
+from fastapi import HTTPException
+from jwt import ExpiredSignatureError, InvalidTokenError
+
+from app.dependencies.auth_dependency import auth_dependency
+
+
+class TestAuthDependency:
+    """Test cases for the AuthDependency class."""
+
+    def test_when_sub_is_not_a_uuid_rejects_token(self):
+        """Test that a stale pre-cutover (Mongo ObjectId) sub is rejected with 401."""
+        mock_request = Mock()
+        mock_request.cookies = {"__Host-access_token": "valid_token"}
+        mock_request.headers = {}
+
+        with patch("app.dependencies.auth_dependency.TokenService.decode_token") as mock_decode:
+            mock_decode.return_value = {"sub": "507f1f77bcf86cd799439011", "type": "access"}
+
+            with pytest.raises(HTTPException) as exc_info:
+                auth_dependency(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Unauthorized"
+
+    def test_when_cookie_contains_uuid_sub_returns_uuid(self):
+        """Test that auth_dependency returns UUID when JWT sub is a UUID string."""
+        mock_request = Mock()
+        mock_request.cookies = {"__Host-access_token": "valid_token"}
+        mock_request.headers = {}
+        user_id_str = "3f6f4d8c-c729-4c09-93aa-fbffcd2d1c4f"
+
+        with patch("app.dependencies.auth_dependency.TokenService.decode_token") as mock_decode:
+            mock_decode.return_value = {"sub": user_id_str, "type": "access"}
+
+            result = auth_dependency(mock_request)
+
+            assert result == UUID(user_id_str)
+            assert mock_request.state.user_id == user_id_str
+            mock_decode.assert_called_once_with("valid_token")
+
+    def test_when_cookie_is_missing(self):
+        """Test that auth_dependency raises an HTTPException when no cookie is provided."""
+        mock_request = Mock()
+        mock_request.cookies = {}
+        mock_request.headers = {}
+
+        with pytest.raises(HTTPException) as exc_info:
+            auth_dependency(mock_request)
+
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.detail == "Unauthorized"
+
+    def test_when_token_is_invalid(self):
+        """Test function raises HTTPException when token is invalid."""
+        mock_request = Mock()
+        mock_request.cookies = {"__Host-access_token": "invalid_token"}
+        mock_request.headers = {}
+
+        with patch(
+            "app.dependencies.auth_dependency.TokenService.decode_token",
+            side_effect=InvalidTokenError,
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_dependency(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Unauthorized"
+
+    def test_when_token_is_expired(self):
+        """Test function raises HTTPException when token is expired."""
+        mock_request = Mock()
+        mock_request.cookies = {"__Host-access_token": "expired_token"}
+        mock_request.headers = {}
+
+        with patch(
+            "app.dependencies.auth_dependency.TokenService.decode_token",
+            side_effect=ExpiredSignatureError,
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_dependency(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Unauthorized"
+
+    def test_when_token_type_is_invalid(self):
+        """Test function raises HTTPException when token type is not 'access'."""
+        mock_request = Mock()
+        mock_request.cookies = {"__Host-access_token": "refresh_token"}
+        mock_request.headers = {}
+
+        with patch("app.dependencies.auth_dependency.TokenService.decode_token") as mock_decode:
+            mock_decode.return_value = {"sub": "user123", "type": "refresh"}
+
+            with pytest.raises(HTTPException) as exc_info:
+                auth_dependency(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Invalid token type"
+
+    def test_when_token_payload_missing_sub(self):
+        """Test function raises HTTPException when token payload is missing 'sub'."""
+        mock_request = Mock()
+        mock_request.cookies = {"__Host-access_token": "valid_token"}
+        mock_request.headers = {}
+
+        with patch("app.dependencies.auth_dependency.TokenService.decode_token") as mock_decode:
+            mock_decode.return_value = {"type": "access"}  # Missing sub
+
+            with pytest.raises(HTTPException) as exc_info:
+                auth_dependency(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Invalid token payload"

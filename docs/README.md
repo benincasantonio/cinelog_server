@@ -1,0 +1,76 @@
+# Cinelog Server Documentation
+
+Welcome to the Cinelog Server documentation.
+
+## Functional Docs
+
+User-facing documentation covering features, flows, and API usage from the consumer perspective.
+
+| Document | Description |
+|----------|-------------|
+| [Authentication](functional/authentication.md) | Auth flows, API usage, CSRF guide |
+| [Following](functional/following.md) | Public-profile follow/unfollow operations and profile counts |
+| [Account Localization](functional/localization.md) | Saved locale preference, update API, and live TMDB language behavior |
+| [Logs API](functional/logs-api.md) | Create, update, delete, and list viewing logs with watch and rewatch totals |
+| [In-App Notifications](functional/notifications.md) | Inbox pagination, unread counts, and explicit read operations |
+| [Profile Visibility](functional/profile-visibility.md) | User profile visibility settings and public profile lookup |
+| [Rate Limiting](functional/rate-limiting.md) | Rate limits per endpoint, response headers, and 429 behavior |
+| [User Statistics API](functional/stats-api.md) | Viewing summary, distribution, ratings, and year filters |
+| [TMDB Movie Service](functional/tmdb-service.md) | Movie search and details endpoints, data flow, response fields |
+
+## Technical Docs
+
+Developer-facing documentation covering infrastructure, implementation details, and internal systems.
+
+| Document | Description |
+|----------|-------------|
+| [Authentication](technical/authentication.md) | Auth implementation internals, middleware, cookie config |
+| [Code Quality CI](technical/code-quality-ci.md) | GitHub Actions quality gates for lint, format, type checking, and security |
+| [CORS Configuration](technical/cors-configuration.md) | CORS environment variables and behavior |
+| [Dependency Automation](technical/dependency-automation.md) | uv Dependabot updates, lockfile checks, and security updates |
+| [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
+| [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
+| [Following](technical/following.md) | Follow persistence, eligibility rules, aggregation, and idempotency |
+| [Account Localization](technical/localization.md) | Locale persistence, header negotiation, fallback, and TMDB cache isolation |
+| [Atomic Log and Rating Writes](technical/log-rating-writes.md) | Combined transaction, rating text preservation, and cache invalidation |
+| [Log List Query](technical/log-list-query.md) | PostgreSQL joins, response mapping, and response caching |
+| [Notification Architecture](technical/notifications.md) | Typed persistence, service response mapping, deduplication, and extension contract |
+| [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup and the completed MongoDB → PostgreSQL migration |
+| [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and followers-only authorization stub |
+| [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |
+| [Rate Limiting](technical/rate-limiting.md) | slowapi setup, Redis backend, endpoint decoration, test strategy |
+| [Redis Caching](technical/redis-caching.md) | Cache layer configuration, design, and usage |
+| [Service Dependencies](technical/service-dependencies.md) | Service providers, FastAPI `Depends` wiring, test overrides |
+| [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
+| [Statistics Query](technical/stats-query.md) | PostgreSQL cross-table stats aggregation and semantics |
+| [TMDB Service](technical/tmdb-service.md) | Singleton lifecycle, HTTP client, cache keys, MovieService integration |
+| [Validation Error Sanitization](technical/validation-error-sanitization.md) | Why 422 responses never echo submitted request values |
+
+## Quick Links
+
+- **API Base URL**: `http://localhost:5009`
+- **Development Guide**: [AGENTS.md](../AGENTS.md)
+- **Architecture Reference**: [ARCHITECTURE.md](../ARCHITECTURE.md)
+
+## Makefile Commands
+
+| Command | Description |
+|---------|-------------|
+| `make install` | Install runtime dependencies (`uv sync`) |
+| `make dev` | Install runtime + development dependencies and configure git hooks |
+| `make hooks` | Configure git pre-commit hooks (lint, format, typecheck) |
+| `make test-unit` | Run unit tests with coverage report |
+| `make test-e2e` | Run HTTPS Uvicorn e2e tests against PostgreSQL and Redis (auto starts/stops Docker) |
+| `make db-schema-migrate` | Run Alembic schema migrations against `DATABASE_URL` |
+| `make db-schema-migrate-dry-run` | Print Alembic schema migration SQL without applying it |
+| `make db-schema-rollback` | Roll back the latest Alembic schema migration |
+| `make lint` | Run Ruff linter |
+| `make format` | Format code with Ruff and apply auto-fixes |
+| `make format-check` | Check Ruff formatting without modifying files |
+| `make typecheck` | Run mypy type checking for `app/` |
+| `make security` | Run Bandit security scan and pip-audit dependency scan |
+| `make run` | Run API locally via `python main.py` |
+| `make docker-up` | Start local Docker stack (`docker-compose.local.yml`) |
+| `make docker-down` | Stop local Docker stack (`docker-compose.local.yml`) |
+| `make docker-prod-up` | Build and start the production Docker stack (`docker-compose.prod.yml`) |
+| `make docker-prod-down` | Stop the production Docker stack (`docker-compose.prod.yml`) |

@@ -1,0 +1,137 @@
+"""PostgreSQL movie-rating repository implementation."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Sequence
+from uuid import UUID
+
+from sqlalchemy import case, func, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.movie_rating_model import MovieRating
+from app.repository.repository_base import RepositoryBase
+
+
+async def execute_movie_rating_upsert(
+    session: AsyncSession,
+    *,
+    user_id: UUID,
+    movie_id: UUID,
+    rating: int,
+    tmdb_id: int,
+    comment: str | None = None,
+    preserve_existing_comment: bool = False,
+) -> UUID:
+    """Upsert a rating in an existing transaction and return its ID."""
+
+    review = (
+        case((MovieRating.deleted.is_(False), MovieRating.review), else_=None) if preserve_existing_comment else comment
+    )
+    statement = (
+        insert(MovieRating)
+        .values(
+            user_id=user_id,
+            movie_id=movie_id,
+            tmdb_id=tmdb_id,
+            rating=rating,
+            review=None if preserve_existing_comment else comment,
+        )
+        .on_conflict_do_update(
+            index_elements=[MovieRating.user_id, MovieRating.tmdb_id],
+            set_={
+                "movie_id": movie_id,
+                "rating": rating,
+                "review": review,
+                "updated_at": func.now(),
+                "deleted": False,
+                "deleted_at": None,
+            },
+        )
+        .returning(MovieRating.id)
+    )
+    result = await session.execute(statement)
+    return result.scalar_one()
+
+
+class MovieRatingRepository(RepositoryBase):
+    """Repository class for PostgreSQL movie-rating operations."""
+
+    async def find_movie_rating_by_user_and_movie(
+        self,
+        user_id: UUID,
+        movie_id: UUID,
+    ) -> MovieRating | None:
+        """Find an active movie rating by user ID and movie ID."""
+
+        async with self._session_provider() as session:
+            statement = select(MovieRating).where(
+                MovieRating.user_id == user_id,
+                MovieRating.movie_id == movie_id,
+                MovieRating.active(),
+            )
+            result = await session.execute(statement)
+            return result.scalar_one_or_none()
+
+    async def find_movie_rating_by_user_and_tmdb(
+        self,
+        user_id: UUID,
+        tmdb_id: int,
+    ) -> MovieRating | None:
+        """Find an active movie rating by user ID and TMDB ID."""
+
+        async with self._session_provider() as session:
+            statement = select(MovieRating).where(
+                MovieRating.user_id == user_id,
+                MovieRating.tmdb_id == tmdb_id,
+                MovieRating.active(),
+            )
+            result = await session.execute(statement)
+            return result.scalar_one_or_none()
+
+    async def create_update_movie_rating(
+        self,
+        user_id: UUID,
+        movie_id: UUID,
+        rating: int,
+        comment: str | None,
+        tmdb_id: int,
+    ) -> MovieRating:
+        """Insert or update a movie rating using PostgreSQL native upsert."""
+
+        async with self._session_provider() as session:
+            rating_id = await execute_movie_rating_upsert(
+                session,
+                user_id=user_id,
+                movie_id=movie_id,
+                rating=rating,
+                comment=comment,
+                tmdb_id=tmdb_id,
+            )
+            await session.commit()
+
+            rating_record = await session.get(MovieRating, rating_id)
+            if rating_record is None:
+                raise LookupError("Movie rating not found after upsert.")
+
+            return rating_record
+
+    async def find_movie_ratings_by_user_and_movie_ids(
+        self,
+        user_id: UUID,
+        movie_ids: Iterable[UUID],
+    ) -> Sequence[MovieRating]:
+        """Find active movie ratings for a user across movie IDs."""
+
+        movie_ids = list(movie_ids)
+        if not movie_ids:
+            return []
+
+        async with self._session_provider() as session:
+            statement = select(MovieRating).where(
+                MovieRating.user_id == user_id,
+                MovieRating.movie_id.in_(movie_ids),
+                MovieRating.active(),
+            )
+            result = await session.execute(statement)
+            return list(result.scalars().all())

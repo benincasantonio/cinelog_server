@@ -1,0 +1,185 @@
+from uuid import UUID
+
+from app.dependencies.repository_dependency import (
+    get_log_repository,
+    get_movie_repository,
+    get_user_repository,
+)
+from app.models.movie_model import Movie
+from app.repository.log_repository_protocol import LogRepositoryProtocol
+from app.repository.user_repository_protocol import UserRepositoryProtocol
+from app.schemas.log_schemas import (
+    LogCreateRequest,
+    LogCreateResponse,
+    LogListItem,
+    LogListRequest,
+    LogListResponse,
+    LogUpdateRequest,
+)
+from app.schemas.movie_schemas import MovieResponse
+from app.services.log_list_cache_service import LogListCacheService
+from app.services.movie_service import MovieService
+from app.services.stats_cache_service import StatsCacheService
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
+
+
+class LogService:
+    """Service layer for log operations."""
+
+    def __init__(
+        self,
+        log_repository: LogRepositoryProtocol | None = None,
+        movie_service: MovieService | None = None,
+        log_list_cache_service: LogListCacheService | None = None,
+        stats_cache_service: StatsCacheService | None = None,
+        user_repository: UserRepositoryProtocol | None = None,
+    ):
+        self.log_repository = log_repository or get_log_repository()
+        self.movie_service = movie_service or MovieService(get_movie_repository())
+        self.log_list_cache_service = log_list_cache_service or LogListCacheService()
+        self.stats_cache_service = stats_cache_service or StatsCacheService()
+        self.user_repository = user_repository or get_user_repository()
+
+    def _map_movie_to_response(self, movie: Movie) -> MovieResponse:
+        return MovieResponse(
+            id=movie.id,
+            title=movie.title,
+            tmdb_id=movie.tmdb_id,
+            poster_path=movie.poster_path,
+            release_date=movie.release_date,
+            overview=movie.overview,
+            vote_average=movie.vote_average,
+            runtime=movie.runtime,
+            original_language=movie.original_language,
+            created_at=movie.created_at,
+            updated_at=movie.updated_at,
+        )
+
+    async def create_log(self, user_id: UUID, request: LogCreateRequest) -> LogCreateResponse:
+        """
+        Create a new viewing log entry.
+
+        If the movie doesn't exist in our database, it will be fetched from TMDB
+        and created automatically.
+        """
+        movie: Movie = await self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
+
+        request.movie_id = movie.id
+
+        if not request.poster_path and movie.poster_path:
+            request.poster_path = movie.poster_path
+
+        log = await self.log_repository.create_log(user_id=user_id, create_log_request=request)
+
+        await self.log_list_cache_service.invalidate_user(user_id)
+        await self.stats_cache_service.invalidate_user_stats(user_id)
+
+        return LogCreateResponse(
+            id=str(log.id),
+            movie_id=str(log.movie_id),
+            movie=self._map_movie_to_response(movie),
+            tmdb_id=log.tmdb_id,
+            date_watched=log.date_watched,
+            viewing_notes=log.viewing_notes,
+            poster_path=log.poster_path,
+            watched_where=log.watched_where,
+            movie_rating=request.rating,
+        )
+
+    async def update_log(
+        self,
+        user_id: UUID,
+        log_id: UUID,
+        request: LogUpdateRequest,
+    ) -> LogCreateResponse:
+        """Update an existing log entry."""
+        log = await self.log_repository.update_log(log_id=log_id, user_id=user_id, update_request=request)
+
+        if not log:
+            raise AppException(ErrorCodes.LOG_NOT_FOUND)
+
+        await self.log_list_cache_service.invalidate_user(user_id)
+        movie = await self.movie_service.get_movie_by_id(log.movie_id)
+        if movie is None:
+            raise AppException(ErrorCodes.MOVIE_NOT_FOUND)
+
+        await self.stats_cache_service.invalidate_user_stats(user_id)
+
+        return LogCreateResponse(
+            id=str(log.id),
+            movie_id=str(log.movie_id),
+            movie=self._map_movie_to_response(movie),
+            tmdb_id=log.tmdb_id,
+            date_watched=log.date_watched,
+            viewing_notes=log.viewing_notes,
+            poster_path=log.poster_path,
+            watched_where=log.watched_where,
+            movie_rating=request.rating,
+        )
+
+    async def delete_log(self, user_id: UUID, log_id: UUID) -> None:
+        """Delete a viewing log entry owned by the given user."""
+        deleted_log = await self.log_repository.delete_log(log_id=log_id, user_id=user_id)
+        if deleted_log is None:
+            raise AppException(ErrorCodes.LOG_NOT_FOUND)
+
+        await self.log_list_cache_service.invalidate_user(user_id)
+        await self.stats_cache_service.invalidate_user_stats(user_id)
+
+    async def get_user_logs(self, user_id: UUID, request: LogListRequest) -> LogListResponse:
+        """Get list of user's viewing logs with optional filtering and sorting."""
+
+        cached, generation = await self.log_list_cache_service.get(user_id, request)
+        if cached is not None:
+            return cached
+
+        rows = await self.log_repository.find_logs_by_user_id(
+            user_id=user_id,
+            watched_where=request.watched_where,
+            date_watched_from=request.date_watched_from,
+            date_watched_to=request.date_watched_to,
+            sort_by=request.sort_by,
+            sort_order=request.sort_order,
+        )
+
+        unique_movie_ids = {log.movie_id for log, _, _ in rows}
+        log_items = []
+        for log, movie, rating in rows:
+            log_items.append(
+                LogListItem(
+                    id=log.id,
+                    movie_id=log.movie_id,
+                    movie=self._map_movie_to_response(movie) if movie else None,
+                    movie_rating=rating,
+                    tmdb_id=log.tmdb_id,
+                    date_watched=log.date_watched,
+                    viewing_notes=log.viewing_notes,
+                    poster_path=log.poster_path,
+                    watched_where=log.watched_where,
+                )
+            )
+        response = LogListResponse(
+            logs=log_items,
+            total_watches=len(rows),
+            unique_titles=len(unique_movie_ids),
+            total_rewatches=len(rows) - len(unique_movie_ids),
+        )
+        await self.log_list_cache_service.set(user_id, request, response, generation)
+        return response
+
+    async def get_user_logs_by_handle(
+        self,
+        handle: str,
+        requester_id: UUID,
+        request: LogListRequest,
+    ) -> LogListResponse:
+        user = await self.user_repository.find_user_by_handle(handle.strip())
+        if not user:
+            raise AppException(ErrorCodes.USER_NOT_FOUND)
+
+        is_owner = str(user.id) == str(requester_id)
+        if not is_owner and user.profile_visibility != "public":
+            raise AppException(ErrorCodes.PROFILE_NOT_PUBLIC)
+
+        return await self.get_user_logs(user_id=user.id, request=request)
