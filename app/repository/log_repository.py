@@ -6,9 +6,11 @@ from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, and_, select
 
 from app.models.log_model import Log
+from app.models.movie_model import Movie
+from app.models.movie_rating_model import MovieRating
 from app.repository.movie_rating_repository import execute_movie_rating_upsert
 from app.repository.repository_base import RepositoryBase
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
@@ -108,13 +110,23 @@ class LogRepository(RepositoryBase):
         date_watched_to: date | None = None,
         sort_by: str = "dateWatched",
         sort_order: str = "desc",
-    ) -> list[Log]:
-        """Find active logs for a user with optional filters and sorting."""
+    ) -> list[tuple[Log, Movie | None, int | None]]:
+        """Find active logs with their active movie and user rating."""
 
         async with self._session_provider() as session:
-            statement = select(Log).where(
-                Log.user_id == user_id,
-                Log.active(),
+            statement = (
+                select(Log, Movie, MovieRating.rating)
+                .outerjoin(Movie, and_(Movie.id == Log.movie_id, Movie.active()))
+                .outerjoin(
+                    MovieRating,
+                    and_(
+                        MovieRating.user_id == Log.user_id,
+                        MovieRating.movie_id == Log.movie_id,
+                        MovieRating.tmdb_id == Log.tmdb_id,
+                        MovieRating.active(),
+                    ),
+                )
+                .where(Log.user_id == user_id, Log.active())
             )
 
             if watched_where is not None:
@@ -138,7 +150,7 @@ class LogRepository(RepositoryBase):
                 )
 
             result = await session.execute(statement.order_by(*order_by))
-            return list(result.scalars().all())
+            return list(result.tuples().all())
 
     async def find_logs_by_movie_id(
         self,

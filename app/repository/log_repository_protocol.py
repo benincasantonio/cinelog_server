@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from datetime import date
 from typing import Protocol, TypeVar
 
+from app.models.movie_model import Movie
 from app.schemas.log_schemas import LogCreateRequest, LogUpdateRequest
 
 IdType = TypeVar("IdType", contravariant=True)
@@ -33,8 +34,8 @@ class LogRepositoryProtocol(Protocol[IdType, LogType]):
         date_watched_to: date | None = None,
         sort_by: str = "dateWatched",
         sort_order: str = "desc",
-    ) -> Sequence[LogType]:
-        """Find logs for a specific user with optional filtering and sorting."""
+    ) -> Sequence[tuple[LogType, Movie | None, int | None]]:
+        """Find user logs with their active movie and rating."""
 
     async def find_logs_by_movie_id(
         self,

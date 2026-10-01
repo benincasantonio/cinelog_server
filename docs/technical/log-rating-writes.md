@@ -1,6 +1,6 @@
 # Atomic Log and Rating Writes
 
-The log create and update APIs can change a viewing log and the authenticated user's movie-level score in one request. `LogService` resolves the movie as usual, then delegates the database write to the cache-decorated `LogRepository`.
+The log create and update APIs can change a viewing log and the authenticated user's movie-level score in one request. `LogService` resolves the movie as usual, then delegates the database write to `LogRepository`.
 
 ## Transaction boundary
 
@@ -19,10 +19,11 @@ The shared `execute_movie_rating_upsert()` repository primitive does not commit.
 
 ## Cache invalidation
 
-The `LogCacheRepository` invalidates the owner log key plus affected user/movie list keys only after the inner repository returns from its successful commit. `LogService` then invalidates the user's cached statistics once. A failed database transaction reaches neither invalidation step.
+After a successful repository commit, `LogService` invalidates the user's cached log-list responses and statistics. Direct rating writes also invalidate that user's cached log-list responses. A failed database transaction reaches neither invalidation step.
 
 ## See Also
 
 - [Logs API](../functional/logs-api.md)
 - [Redis Caching](redis-caching.md)
 - [Stats Caching](stats-caching.md)
+- [Log List Query](log-list-query.md)
