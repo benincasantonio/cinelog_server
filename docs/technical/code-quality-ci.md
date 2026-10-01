@@ -53,6 +53,7 @@ Other quality gates are handled by separate workflows:
 - Security scanning: `.github/workflows/security.yml`, which runs Bandit against `app/`
 - Lockfile consistency: `.github/workflows/uv_lockfile.yml`, which runs `uv lock --check`
 - E2E tests: `.github/workflows/e2e_tests.yml`, which runs the Uvicorn-backed suite against PostgreSQL and Redis
+- Dependabot formatting: `.github/workflows/dependabot_format.yml`, which runs `make format` on `dependabot[bot]` pull requests and amends the existing commit. See [Dependency Automation](dependency-automation.md).
 
 After the new lockfile job has run on a pull request, add it and the seven existing PR checks to the main branch ruleset as required checks.
 
