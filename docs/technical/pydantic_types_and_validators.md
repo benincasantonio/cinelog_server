@@ -66,6 +66,7 @@ Import types from the `app.types` package:
 ```python
 from app.types import NameStr, HandleStr, BioStr
 
+
 class RegisterRequest(BaseSchema):
     first_name: NameStr = Field(description="User's first name")
     last_name: NameStr = Field(description="User's last name")

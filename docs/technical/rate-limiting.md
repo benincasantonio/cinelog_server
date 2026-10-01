@@ -141,8 +141,7 @@ Example:
 ```python
 @router.post("/register")
 @limiter.limit("5/hour")
-async def register(request: Request, response: Response, body: RegisterRequest = Body(...)):
-    ...
+async def register(request: Request, response: Response, body: RegisterRequest = Body(...)): ...
 ```
 
 ## Response Headers

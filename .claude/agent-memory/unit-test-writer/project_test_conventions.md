@@ -23,8 +23,8 @@ Patch `app.services.tmdb_service.httpx.AsyncClient.get` with `new_callable=Async
 `TMDBCacheService` resolves its backing `CacheService` lazily via a `_cache` property. To inject a mock without hitting the singleton:
 ```python
 svc = TMDBCacheService()
-svc._cache_instance = AsyncMock()   # the mock CacheService
-svc._cache_resolved = True          # skip lazy resolution
+svc._cache_instance = AsyncMock()  # the mock CacheService
+svc._cache_resolved = True  # skip lazy resolution
 ```
 
 ## Mocking TMDBCacheService inside TMDBService
@@ -44,8 +44,12 @@ def _make_mock_cache():
 
 Tests that touch `CacheService._singleton` must reset it:
 ```python
-def setup_method(self): CacheService._singleton = None
-def teardown_method(self): CacheService._singleton = None
+def setup_method(self):
+    CacheService._singleton = None
+
+
+def teardown_method(self):
+    CacheService._singleton = None
 ```
 
 ## Service cleanup
