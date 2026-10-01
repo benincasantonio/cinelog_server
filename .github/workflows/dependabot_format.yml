@@ -1,0 +1,58 @@
+name: Format Dependabot PRs
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    types: [opened, synchronize]
+
+concurrency:
+  group: dependabot-format-${{ github.head_ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.DEPENDABOT_FORMAT_TOKEN }}
+          persist-credentials: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: |
+          uv sync --frozen --group dev
+
+      - name: Format with Ruff
+        run: |
+          make format
+
+      - name: Amend into the existing commit
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No formatting changes."
+            exit 0
+          fi
+
+          git config user.name "dependabot[bot]"
+          git config user.email "49699333+dependabot[bot]@users.noreply.github.com"
+          git add -A
+          git commit --amend --no-edit
+          git push --force-with-lease origin "HEAD:${HEAD_REF}"

@@ -1,0 +1,153 @@
+from app.schemas.error_schemas import ErrorSchema
+
+
+class ErrorCodes:
+    # Authentication Errors
+    HANDLE_ALREADY_TAKEN = ErrorSchema(
+        error_code_name="HANDLE_ALREADY_TAKEN",
+        error_code=409,
+        error_message="Handle already taken",
+        error_description="The handle provided is already in use by another user.",
+    )
+
+    EMAIL_ALREADY_EXISTS = ErrorSchema(
+        error_code_name="EMAIL_ALREADY_EXISTS",
+        error_code=409,
+        error_message="Email already exists",
+        error_description="The email provided is already in use by another user.",
+    )
+
+    ERROR_CREATING_USER = ErrorSchema(
+        error_code_name="ERROR_CREATING_USER",
+        error_code=500,
+        error_message="Error creating user",
+        error_description="An error occurred while creating the user.",
+    )
+
+    EMAIL_VERIFICATION_CODE_REQUIRED = ErrorSchema(
+        error_code_name="EMAIL_VERIFICATION_CODE_REQUIRED",
+        error_code=400,
+        error_message="Email verification code required",
+        error_description="A valid email verification code is required to create an account.",
+    )
+
+    EMAIL_VERIFICATION_CODE_EXPIRED = ErrorSchema(
+        error_code_name="EMAIL_VERIFICATION_CODE_EXPIRED",
+        error_code=401,
+        error_message="Email verification code expired",
+        error_description="The email verification code is missing or has expired. Request a new code.",
+    )
+
+    INVALID_EMAIL_VERIFICATION_CODE = ErrorSchema(
+        error_code_name="INVALID_EMAIL_VERIFICATION_CODE",
+        error_code=401,
+        error_message="Invalid email verification code",
+        error_description="The email verification code provided is incorrect.",
+    )
+
+    EMAIL_VERIFICATION_CODE_ATTEMPTS_EXCEEDED = ErrorSchema(
+        error_code_name="EMAIL_VERIFICATION_CODE_ATTEMPTS_EXCEEDED",
+        error_code=429,
+        error_message="Too many verification attempts",
+        error_description="Too many incorrect verification attempts were submitted for this code.",
+    )
+
+    USER_NOT_FOUND = ErrorSchema(
+        error_code_name="USER_NOT_FOUND",
+        error_code=404,
+        error_message="User not found",
+        error_description="The requested user was not found.",
+    )
+
+    INVALID_CREDENTIALS = ErrorSchema(
+        error_code_name="INVALID_CREDENTIALS",
+        error_code=401,
+        error_message="Invalid credentials",
+        error_description="The email or password provided is incorrect.",
+    )
+
+    INVALID_CURRENT_PASSWORD = ErrorSchema(
+        error_code_name="INVALID_CURRENT_PASSWORD",
+        error_code=401,
+        error_message="Invalid current password",
+        error_description="The current password provided is incorrect.",
+    )
+
+    SAME_PASSWORD = ErrorSchema(
+        error_code_name="SAME_PASSWORD",
+        error_code=400,
+        error_message="New password must be different",
+        error_description="The new password must be different from the current password.",
+    )
+
+    # Movie Errors
+
+    MOVIE_NOT_FOUND = ErrorSchema(
+        error_code_name="MOVIE_NOT_FOUND",
+        error_code=404,
+        error_message="Movie not found",
+        error_description="The requested movie was not found.",
+    )
+
+    MOVIE_ALREADY_EXISTS = ErrorSchema(
+        error_code_name="MOVIE_ALREADY_EXISTS",
+        error_code=409,
+        error_message="Movie already exists",
+        error_description="The movie already exists in the database.",
+    )
+
+    # Movie Rating Errors
+    MOVIE_RATING_VALUE_REQUIRED = ErrorSchema(
+        error_code_name="MOVIE_RATING_VALUE_REQUIRED",
+        error_code=422,
+        error_message="Movie rating value is required",
+        error_description="The movie rating must have a rating value.",
+    )
+
+    # Log Not Found Error
+    LOG_NOT_FOUND = ErrorSchema(
+        error_code_name="LOG_NOT_FOUND",
+        error_code=404,
+        error_message="Log not found",
+        error_description="The requested log entry was not found.",
+    )
+
+    # Notification Not Found Error
+    NOTIFICATION_NOT_FOUND = ErrorSchema(
+        error_code_name="NOTIFICATION_NOT_FOUND",
+        error_code=404,
+        error_message="Notification not found",
+        error_description="The requested notification was not found.",
+    )
+
+    # Pagination Errors
+    INVALID_PAGINATION_CURSOR = ErrorSchema(
+        error_code_name="INVALID_PAGINATION_CURSOR",
+        error_code=422,
+        error_message="Invalid pagination cursor",
+        error_description="The pagination cursor is malformed, expired, or was issued for another request.",
+    )
+
+    # Profile Visibility Errors
+    PROFILE_NOT_PUBLIC = ErrorSchema(
+        error_code_name="PROFILE_NOT_PUBLIC",
+        error_code=403,
+        error_message="Profile is not public",
+        error_description="The requested user's profile is not publicly visible.",
+    )
+
+    # Follow Errors
+    SELF_FOLLOW_NOT_ALLOWED = ErrorSchema(
+        error_code_name="SELF_FOLLOW_NOT_ALLOWED",
+        error_code=400,
+        error_message="Self-follow is not allowed",
+        error_description="A user cannot follow their own profile.",
+    )
+
+    # Rate Limiting Errors
+    RATE_LIMIT_EXCEEDED = ErrorSchema(
+        error_code_name="RATE_LIMIT_EXCEEDED",
+        error_code=429,
+        error_message="Too many requests",
+        error_description="You have exceeded the request limit. Please wait before trying again.",
+    )
