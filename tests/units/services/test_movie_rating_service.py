@@ -23,14 +23,21 @@ def mock_stats_cache_service():
 
 
 @pytest.fixture
+def mock_log_list_cache_service():
+    return AsyncMock()
+
+
+@pytest.fixture
 def movie_rating_service(
     mock_movie_rating_repository,
     mock_movie_service,
+    mock_log_list_cache_service,
     mock_stats_cache_service,
 ):
     return MovieRatingService(
         movie_rating_repository=mock_movie_rating_repository,
         movie_service=mock_movie_service,
+        log_list_cache_service=mock_log_list_cache_service,
         stats_cache_service=mock_stats_cache_service,
     )
 
@@ -53,7 +60,7 @@ class TestMovieRatingService:
 
     @pytest.mark.asyncio
     async def test_create_update_movie_rating(
-        self, movie_rating_service, mock_movie_rating_repository, mock_movie_service
+        self, movie_rating_service, mock_movie_rating_repository, mock_movie_service, mock_log_list_cache_service
     ):
         """Test creating/updating a movie rating."""
         # Setup mocks
@@ -74,8 +81,9 @@ class TestMovieRatingService:
         mock_movie_rating_repository.create_update_movie_rating.return_value = mock_rating
 
         # Execute
+        user_id = uuid4()
         result = await movie_rating_service.create_update_movie_rating(
-            user_id=uuid4(), tmdb_id=550, rating=8, comment="Great movie!"
+            user_id, tmdb_id=550, rating=8, comment="Great movie!"
         )
 
         # Verify
@@ -83,6 +91,7 @@ class TestMovieRatingService:
         assert result.rating == 8
         assert result.comment == "Great movie!"
         mock_movie_service.find_or_create_movie.assert_awaited_once_with(tmdb_id=550)
+        mock_log_list_cache_service.invalidate_user.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
     async def test_create_update_movie_rating_invalidates_stats_cache(
@@ -112,6 +121,18 @@ class TestMovieRatingService:
         await movie_rating_service.create_update_movie_rating(user_id=user_id, tmdb_id=550, rating=8, comment="Great!")
 
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
+
+    @pytest.mark.asyncio
+    async def test_failed_rating_write_does_not_invalidate_log_list(
+        self, movie_rating_service, mock_movie_rating_repository, mock_movie_service, mock_log_list_cache_service
+    ):
+        mock_movie_service.find_or_create_movie.return_value = Mock(id=uuid4())
+        mock_movie_rating_repository.create_update_movie_rating.side_effect = RuntimeError("database failure")
+
+        with pytest.raises(RuntimeError):
+            await movie_rating_service.create_update_movie_rating(user_id=uuid4(), tmdb_id=550, rating=8)
+
+        mock_log_list_cache_service.invalidate_user.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_get_movie_rating_found(self, movie_rating_service, mock_movie_rating_repository):

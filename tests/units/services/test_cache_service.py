@@ -110,6 +110,20 @@ class TestCacheServiceEnabled:
         service._mock_client.hincrby.assert_awaited_once_with("auth:register-verification:key", "attempts", 1)
 
     @pytest.mark.asyncio
+    async def test_generation_is_scoped_by_context_and_user(self, service):
+        key = service.generation_key("log-list", "user-1")
+        assert key != service.generation_key("stats", "user-1")
+        assert key != service.generation_key("log-list", "user-2")
+
+        service._mock_client.hget = AsyncMock(side_effect=[None, "2"])
+        service._mock_client.hincrby = AsyncMock(return_value=3)
+        assert await service.get_generation("log-list", "user-1") == 0
+        assert await service.get_generation("log-list", "user-1") == 2
+        assert await service.bump_generation("log-list", "user-1") == 3
+        service._mock_client.hget.assert_awaited_with(key, "value")
+        service._mock_client.hincrby.assert_awaited_once_with(key, "value", 1)
+
+    @pytest.mark.asyncio
     async def test_delete_many(self, service):
         service._mock_client.delete = AsyncMock(return_value=3)
         result = await service.delete_many(["k1", "k2", "k3"])

@@ -465,30 +465,67 @@ async def test_find_logs_by_user_id_filters_and_sorts(
     await _add(seed_session, older_streaming, newer_streaming, cinema, other_users_log, deleted)
 
     no_filters = await repository.find_logs_by_user_id(user.id)
-    assert [log.id for log in no_filters] == [cinema.id, newer_streaming.id, older_streaming.id]
+    assert [log.id for log, _, _ in no_filters] == [cinema.id, newer_streaming.id, older_streaming.id]
 
     watched_where_only = await repository.find_logs_by_user_id(user.id, watched_where="streaming")
-    assert [log.id for log in watched_where_only] == [newer_streaming.id, older_streaming.id]
+    assert [log.id for log, _, _ in watched_where_only] == [newer_streaming.id, older_streaming.id]
 
     date_filtered = await repository.find_logs_by_user_id(
         user.id,
         date_watched_from=date(2024, 1, 3),
         date_watched_to=date(2024, 1, 4),
     )
-    assert [log.id for log in date_filtered] == [cinema.id, newer_streaming.id]
+    assert [log.id for log, _, _ in date_filtered] == [cinema.id, newer_streaming.id]
 
     date_sort_asc = await repository.find_logs_by_user_id(user.id, sort_by="dateWatched", sort_order="asc")
-    assert [log.id for log in date_sort_asc] == [older_streaming.id, newer_streaming.id, cinema.id]
+    assert [log.id for log, _, _ in date_sort_asc] == [older_streaming.id, newer_streaming.id, cinema.id]
 
     watched_where_sort_asc = await repository.find_logs_by_user_id(user.id, sort_by="watchedWhere", sort_order="asc")
-    assert [log.id for log in watched_where_sort_asc] == [cinema.id, older_streaming.id, newer_streaming.id]
+    assert [log.id for log, _, _ in watched_where_sort_asc] == [cinema.id, older_streaming.id, newer_streaming.id]
 
     watched_where_sort_desc = await repository.find_logs_by_user_id(
         user.id,
         sort_by="watchedWhere",
         sort_order="desc",
     )
-    assert [log.id for log in watched_where_sort_desc] == [newer_streaming.id, older_streaming.id, cinema.id]
+    assert [log.id for log, _, _ in watched_where_sort_desc] == [newer_streaming.id, older_streaming.id, cinema.id]
+
+
+@pytest.mark.asyncio
+async def test_find_logs_by_user_id_joins_related_rows_without_dropping_rewatches(
+    repository: LogRepository,
+    seed_session: AsyncSession,
+):
+    user, movie_a, movie_b = await _seed_fk_entities(seed_session)
+    logs = [
+        Log(
+            user_id=user.id,
+            movie_id=movie.id,
+            tmdb_id=movie.tmdb_id,
+            date_watched=datetime(2024, 1, day, tzinfo=UTC),
+        )
+        for day, movie in [(1, movie_a), (2, movie_a), (3, movie_b)]
+    ]
+    rating = MovieRating(user_id=user.id, movie_id=movie_a.id, tmdb_id=movie_a.tmdb_id, rating=8)
+    await _add(seed_session, *logs, rating)
+
+    rows = await repository.find_logs_by_user_id(user.id, sort_order="asc")
+
+    assert [log.id for log, _, _ in rows] == [log.id for log in logs]
+    assert [(movie.id if movie else None, score) for _, movie, score in rows] == [
+        (movie_a.id, 8),
+        (movie_a.id, 8),
+        (movie_b.id, None),
+    ]
+
+    movie_b.deleted = True
+    rating.deleted = True
+    await seed_session.commit()
+    rows = await repository.find_logs_by_user_id(user.id, sort_order="asc")
+
+    assert len(rows) == 3
+    assert rows[2][1:] == (None, None)
+    assert rows[0][2] is None
 
 
 @pytest.mark.asyncio

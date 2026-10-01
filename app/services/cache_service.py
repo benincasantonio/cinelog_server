@@ -69,6 +69,17 @@ class CacheService:
     async def hincrby(self, key: str, field: str, amount: int = 1) -> int:
         return int(await cast("Awaitable[int]", self._client.hincrby(key, field, amount)))
 
+    @staticmethod
+    def generation_key(context: str, scope_id: str) -> str:
+        return f"cinelog:cache-generation:{context}:{scope_id}"
+
+    async def get_generation(self, context: str, scope_id: str) -> int:
+        value = await cast("Awaitable[str | None]", self._client.hget(self.generation_key(context, scope_id), "value"))
+        return int(value) if value is not None else 0
+
+    async def bump_generation(self, context: str, scope_id: str) -> int:
+        return await self.hincrby(self.generation_key(context, scope_id), "value")
+
     async def delete_many(self, keys: list[str]) -> int:
         if not keys:
             return 0
