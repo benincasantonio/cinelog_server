@@ -53,9 +53,14 @@ tests/e2e/
 ├── conftest.py          # Fixtures and database cleanup
 ├── test_auth_e2e.py     # Registration tests
 ├── test_movie_rating_e2e.py # Movie rating tests
+├── test_movie_identity_consistency_e2e.py # Movie identity data consistency (DB assertions)
 ├── test_user_e2e.py     # User info & logs tests
 └── test_log_e2e.py      # Log CRUD tests
 ```
+
+## Data Consistency Assertions
+
+Assert through the API where it exposes the fact. For what no endpoint shows, such as duplicate movie rows, `tests/e2e/conftest.py` provides `count_movie_rows`, which queries PostgreSQL through the `postgres_engine` fixture. `logged_in_client` gives each user a separate client for concurrent requests, and `fake_movie_provider.detail_barrier = asyncio.Barrier(n)` makes `n` first imports race.
 
 ## Debugging
 

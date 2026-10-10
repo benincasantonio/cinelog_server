@@ -1,5 +1,6 @@
 """Deterministic Cinelog provider fake: no HTTP, Redis or upstream DTOs."""
 
+import asyncio
 from datetime import UTC, date, datetime
 
 from app.schemas.movie_provider_schemas import (
@@ -57,9 +58,15 @@ class FakeMovieProvider:
     def __init__(self):
         self.detail_requests: list[MovieDetailsQuery] = []
         self.search_requests: list[MovieSearchQuery] = []
+        # Optional rendezvous that holds concurrent detail requests until all parties arrive,
+        # so every caller has already missed the catalog lookup before any import is stored.
+        self.detail_barrier: asyncio.Barrier | None = None
 
     async def get_movie_details(self, request: MovieDetailsQuery) -> MovieMetadataDTO:
         self.detail_requests.append(request)
+        if self.detail_barrier is not None:
+            async with asyncio.timeout(5):
+                await self.detail_barrier.wait()
         return movie_metadata(request.external_id, request.locale)
 
     async def search_movie(self, request: MovieSearchQuery) -> MovieSearchResultDTO:

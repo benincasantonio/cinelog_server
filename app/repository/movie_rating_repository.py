@@ -19,7 +19,6 @@ async def execute_movie_rating_upsert(
     user_id: UUID,
     movie_id: UUID,
     rating: int,
-    tmdb_id: int,
     comment: str | None = None,
     preserve_existing_comment: bool = False,
 ) -> UUID:
@@ -33,14 +32,12 @@ async def execute_movie_rating_upsert(
         .values(
             user_id=user_id,
             movie_id=movie_id,
-            tmdb_id=tmdb_id,
             rating=rating,
             review=None if preserve_existing_comment else comment,
         )
         .on_conflict_do_update(
-            index_elements=[MovieRating.user_id, MovieRating.tmdb_id],
+            index_elements=[MovieRating.user_id, MovieRating.movie_id],
             set_={
-                "movie_id": movie_id,
                 "rating": rating,
                 "review": review,
                 "updated_at": func.now(),
@@ -73,29 +70,12 @@ class MovieRatingRepository(RepositoryBase):
             result = await session.execute(statement)
             return result.scalar_one_or_none()
 
-    async def find_movie_rating_by_user_and_tmdb(
-        self,
-        user_id: UUID,
-        tmdb_id: int,
-    ) -> MovieRating | None:
-        """Find an active movie rating by user ID and TMDB ID."""
-
-        async with self._session_provider() as session:
-            statement = select(MovieRating).where(
-                MovieRating.user_id == user_id,
-                MovieRating.tmdb_id == tmdb_id,
-                MovieRating.active(),
-            )
-            result = await session.execute(statement)
-            return result.scalar_one_or_none()
-
     async def create_update_movie_rating(
         self,
         user_id: UUID,
         movie_id: UUID,
         rating: int,
         comment: str | None,
-        tmdb_id: int,
     ) -> MovieRating:
         """Insert or update a movie rating using PostgreSQL native upsert."""
 
@@ -106,7 +86,6 @@ class MovieRatingRepository(RepositoryBase):
                 movie_id=movie_id,
                 rating=rating,
                 comment=comment,
-                tmdb_id=tmdb_id,
             )
             await session.commit()
 

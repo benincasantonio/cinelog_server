@@ -99,7 +99,6 @@ def _create_request(
     date_watched: date = date(2024, 1, 2),
     watched_where: str = "cinema",
     viewing_notes: str | None = "Great watch",
-    poster_path: str | None = "/poster.jpg",
     rating: int | None = None,
 ) -> LogCreateRequest:
     return LogCreateRequest(
@@ -107,7 +106,6 @@ def _create_request(
         tmdb_id=tmdb_id,
         date_watched=date_watched,
         viewing_notes=viewing_notes,
-        poster_path=poster_path,
         watched_where=watched_where,
         rating=rating,
     )
@@ -125,7 +123,6 @@ async def test_create_log_persists_row(repository: LogRepository, seed_session: 
     assert log.id is not None
     assert log.user_id == user.id
     assert log.movie_id == movie.id
-    assert log.tmdb_id == movie.tmdb_id
     assert log.date_watched == datetime(2024, 1, 2, tzinfo=UTC)
     assert log.watched_where == "cinema"
     assert log.deleted is False
@@ -142,7 +139,7 @@ async def test_create_log_atomically_creates_rating(repository: LogRepository, s
     )
 
     rating = await seed_session.scalar(
-        select(MovieRating).where(MovieRating.user_id == user.id, MovieRating.tmdb_id == movie.tmdb_id)
+        select(MovieRating).where(MovieRating.user_id == user.id, MovieRating.movie_id == movie.id)
     )
     assert log.id is not None
     assert rating is not None
@@ -182,14 +179,12 @@ async def test_find_log_by_id_respects_owner_and_deleted_rows(
     active = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         watched_where="cinema",
     )
     deleted = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=999,
         date_watched=datetime(2024, 1, 3, tzinfo=UTC),
         watched_where="streaming",
         deleted=True,
@@ -220,7 +215,6 @@ async def test_update_log_applies_partial_updates_and_rejects_wrong_owner(
     log = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         viewing_notes="Before",
         watched_where="cinema",
@@ -252,14 +246,12 @@ async def test_update_log_rating_preserves_active_comment(repository: LogReposit
     log = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         watched_where="cinema",
     )
     rating = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         rating=6,
         review="Keep me",
     )
@@ -284,14 +276,12 @@ async def test_update_log_rating_clears_comment_when_reviving_deleted_rating(
     log = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         watched_where="cinema",
     )
     rating = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         rating=6,
         review="Deleted text",
         deleted=True,
@@ -317,7 +307,6 @@ async def test_update_log_null_rating_leaves_rating_unchanged(repository: LogRep
     log = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         viewing_notes="Before",
         watched_where="cinema",
@@ -325,7 +314,6 @@ async def test_update_log_null_rating_leaves_rating_unchanged(repository: LogRep
     rating = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         rating=6,
         review="Keep me",
     )
@@ -347,7 +335,6 @@ async def test_update_log_rolls_back_when_rating_fails(repository: LogRepository
     log = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         viewing_notes="Before",
         watched_where="cinema",
@@ -383,7 +370,6 @@ async def test_delete_log_hard_deletes_row(repository: LogRepository, seed_sessi
     log = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         watched_where="cinema",
     )
@@ -419,7 +405,6 @@ async def test_find_logs_by_user_id_filters_and_sorts(
     older_streaming = Log(
         user_id=user.id,
         movie_id=movie_a.id,
-        tmdb_id=movie_a.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         viewing_notes="Older",
         watched_where="streaming",
@@ -429,7 +414,6 @@ async def test_find_logs_by_user_id_filters_and_sorts(
     newer_streaming = Log(
         user_id=user.id,
         movie_id=movie_b.id,
-        tmdb_id=movie_b.tmdb_id,
         date_watched=datetime(2024, 1, 3, tzinfo=UTC),
         viewing_notes="Newer",
         watched_where="streaming",
@@ -439,7 +423,6 @@ async def test_find_logs_by_user_id_filters_and_sorts(
     cinema = Log(
         user_id=user.id,
         movie_id=movie_a.id,
-        tmdb_id=movie_a.tmdb_id,
         date_watched=datetime(2024, 1, 4, tzinfo=UTC),
         viewing_notes="Cinema",
         watched_where="cinema",
@@ -449,14 +432,12 @@ async def test_find_logs_by_user_id_filters_and_sorts(
     other_users_log = Log(
         user_id=other_user.id,
         movie_id=movie_b.id,
-        tmdb_id=movie_b.tmdb_id,
         date_watched=datetime(2024, 1, 5, tzinfo=UTC),
         watched_where="tv",
     )
     deleted = Log(
         user_id=user.id,
         movie_id=movie_b.id,
-        tmdb_id=999,
         date_watched=datetime(2024, 1, 6, tzinfo=UTC),
         watched_where="tv",
         deleted=True,
@@ -501,18 +482,17 @@ async def test_find_logs_by_user_id_joins_related_rows_without_dropping_rewatche
         Log(
             user_id=user.id,
             movie_id=movie.id,
-            tmdb_id=movie.tmdb_id,
             date_watched=datetime(2024, 1, day, tzinfo=UTC),
         )
         for day, movie in [(1, movie_a), (2, movie_a), (3, movie_b)]
     ]
-    rating = MovieRating(user_id=user.id, movie_id=movie_a.id, tmdb_id=movie_a.tmdb_id, rating=8)
+    rating = MovieRating(user_id=user.id, movie_id=movie_a.id, rating=8)
     await _add(seed_session, *logs, rating)
 
     rows = await repository.find_logs_by_user_id(user.id, sort_order="asc")
 
     assert [log.id for log, _, _ in rows] == [log.id for log in logs]
-    assert [(movie.id if movie else None, score) for _, movie, score in rows] == [
+    assert [(movie.id, score) for _, movie, score in rows] == [
         (movie_a.id, 8),
         (movie_a.id, 8),
         (movie_b.id, None),
@@ -524,7 +504,10 @@ async def test_find_logs_by_user_id_joins_related_rows_without_dropping_rewatche
     rows = await repository.find_logs_by_user_id(user.id, sort_order="asc")
 
     assert len(rows) == 3
-    assert rows[2][1:] == (None, None)
+    # The soft-deleted movie is still joined: it owns the identity and poster of the log.
+    assert rows[2][1].id == movie_b.id
+    assert rows[2][1].deleted is True
+    assert rows[2][2] is None
     assert rows[0][2] is None
 
 
@@ -546,7 +529,6 @@ async def test_find_logs_by_movie_id_supports_optional_user_filter_and_created_o
     first = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 2, tzinfo=UTC),
         watched_where="cinema",
         created_at=datetime(2024, 1, 2, 8, 0, tzinfo=UTC),
@@ -555,7 +537,6 @@ async def test_find_logs_by_movie_id_supports_optional_user_filter_and_created_o
     second = Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 3, tzinfo=UTC),
         watched_where="streaming",
         created_at=datetime(2024, 1, 2, 20, 0, tzinfo=UTC),
@@ -564,7 +545,6 @@ async def test_find_logs_by_movie_id_supports_optional_user_filter_and_created_o
     other_users_log = Log(
         user_id=other_user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=datetime(2024, 1, 4, tzinfo=UTC),
         watched_where="tv",
     )

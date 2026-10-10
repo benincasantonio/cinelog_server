@@ -30,10 +30,8 @@ class LogRepository(RepositoryBase):
             log = Log(
                 user_id=user_id,
                 movie_id=create_log_request.movie_id,
-                tmdb_id=create_log_request.tmdb_id,
                 date_watched=to_utc_datetime(create_log_request.date_watched),
                 viewing_notes=create_log_request.viewing_notes,
-                poster_path=create_log_request.poster_path,
                 watched_where=create_log_request.watched_where,
             )
             session.add(log)
@@ -43,7 +41,6 @@ class LogRepository(RepositoryBase):
                     user_id=user_id,
                     movie_id=create_log_request.movie_id,
                     rating=create_log_request.rating,
-                    tmdb_id=create_log_request.tmdb_id,
                     preserve_existing_comment=True,
                 )
             await session.commit()
@@ -93,7 +90,6 @@ class LogRepository(RepositoryBase):
                     user_id=user_id,
                     movie_id=log.movie_id,
                     rating=update_request.rating,
-                    tmdb_id=log.tmdb_id,
                     preserve_existing_comment=True,
                 )
 
@@ -110,19 +106,22 @@ class LogRepository(RepositoryBase):
         date_watched_to: date | None = None,
         sort_by: str = "dateWatched",
         sort_order: str = "desc",
-    ) -> list[tuple[Log, Movie | None, int | None]]:
-        """Find active logs with their active movie and user rating."""
+    ) -> list[tuple[Log, Movie, int | None]]:
+        """Find active logs with their movie and the user's active rating.
+
+        The movie is joined regardless of soft deletion: it owns the TMDB identity and
+        poster every log response derives from. Callers decide whether to expose it.
+        """
 
         async with self._session_provider() as session:
             statement = (
                 select(Log, Movie, MovieRating.rating)
-                .outerjoin(Movie, and_(Movie.id == Log.movie_id, Movie.active()))
+                .join(Movie, Movie.id == Log.movie_id)
                 .outerjoin(
                     MovieRating,
                     and_(
                         MovieRating.user_id == Log.user_id,
                         MovieRating.movie_id == Log.movie_id,
-                        MovieRating.tmdb_id == Log.tmdb_id,
                         MovieRating.active(),
                     ),
                 )

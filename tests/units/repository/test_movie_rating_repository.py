@@ -9,14 +9,14 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from pytest_postgresql.janitor import DatabaseJanitor
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base_model import Base
 from app.models.movie_model import Movie
 from app.models.movie_rating_model import MovieRating
 from app.models.user_model import User
-from app.repository.movie_rating_repository import MovieRatingRepository
+from app.repository.movie_rating_repository import MovieRatingRepository, execute_movie_rating_upsert
 
 
 def _async_url(pg, dbname: str) -> str:
@@ -101,7 +101,6 @@ async def test_create_update_movie_rating_creates_new_row(
         movie_id=movie.id,
         rating=8,
         comment="Great movie!",
-        tmdb_id=movie.tmdb_id,
     )
 
     assert rating.id is not None
@@ -117,12 +116,11 @@ async def test_find_movie_rating_by_user_and_movie_excludes_deleted_and_unknown(
     repository: MovieRatingRepository,
     seed_session: AsyncSession,
 ):
-    user, movie, _ = await _seed_fk_entities(seed_session)
-    active = MovieRating(user_id=user.id, movie_id=movie.id, tmdb_id=movie.tmdb_id, rating=9, review="Loved it")
+    user, movie, other_movie = await _seed_fk_entities(seed_session)
+    active = MovieRating(user_id=user.id, movie_id=movie.id, rating=9, review="Loved it")
     deleted = MovieRating(
         user_id=user.id,
-        movie_id=movie.id,
-        tmdb_id=999,
+        movie_id=other_movie.id,
         rating=7,
         review="Deleted",
         deleted=True,
@@ -135,38 +133,7 @@ async def test_find_movie_rating_by_user_and_movie_excludes_deleted_and_unknown(
     assert found is not None
     assert found.id == active.id
     assert await repository.find_movie_rating_by_user_and_movie(user.id, uuid4()) is None
-
-
-@pytest.mark.asyncio
-async def test_find_movie_rating_by_user_and_tmdb_returns_active_row(
-    repository: MovieRatingRepository,
-    seed_session: AsyncSession,
-):
-    user, movie, _ = await _seed_fk_entities(seed_session)
-    deleted_rating = MovieRating(
-        user_id=user.id,
-        movie_id=movie.id,
-        tmdb_id=777,
-        rating=5,
-        review="Gone",
-        deleted=True,
-        deleted_at=datetime.now(UTC),
-    )
-    active_rating = MovieRating(
-        user_id=user.id,
-        movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
-        rating=8,
-        review="Active",
-    )
-    await _add(seed_session, deleted_rating, active_rating)
-
-    found = await repository.find_movie_rating_by_user_and_tmdb(user.id, movie.tmdb_id)
-
-    assert found is not None
-    assert found.id == active_rating.id
-    assert await repository.find_movie_rating_by_user_and_tmdb(user.id, 777) is None
-    assert await repository.find_movie_rating_by_user_and_tmdb(uuid4(), movie.tmdb_id) is None
+    assert await repository.find_movie_rating_by_user_and_movie(user.id, other_movie.id) is None
 
 
 @pytest.mark.asyncio
@@ -178,7 +145,6 @@ async def test_create_update_movie_rating_updates_existing_row_on_conflict(
     existing = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         rating=6,
         review="Initial",
     )
@@ -189,7 +155,6 @@ async def test_create_update_movie_rating_updates_existing_row_on_conflict(
         movie_id=movie.id,
         rating=10,
         comment="Updated",
-        tmdb_id=movie.tmdb_id,
     )
 
     assert updated.id == existing.id
@@ -206,7 +171,6 @@ async def test_create_update_movie_rating_revives_soft_deleted_row(
     deleted = MovieRating(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         rating=4,
         review="Old",
         deleted=True,
@@ -219,7 +183,6 @@ async def test_create_update_movie_rating_revives_soft_deleted_row(
         movie_id=movie.id,
         rating=9,
         comment="Back",
-        tmdb_id=movie.tmdb_id,
     )
 
     assert revived.id == deleted.id
@@ -230,16 +193,44 @@ async def test_create_update_movie_rating_revives_soft_deleted_row(
 
 
 @pytest.mark.asyncio
+async def test_log_and_rating_upserts_share_one_row_per_user_and_movie(
+    repository: MovieRatingRepository,
+    seed_session: AsyncSession,
+):
+    user, movie, _ = await _seed_fk_entities(seed_session)
+
+    log_rating_id = await execute_movie_rating_upsert(
+        seed_session,
+        user_id=user.id,
+        movie_id=movie.id,
+        rating=6,
+        preserve_existing_comment=True,
+    )
+    await seed_session.commit()
+
+    updated = await repository.create_update_movie_rating(
+        user_id=user.id,
+        movie_id=movie.id,
+        rating=9,
+        comment="Rated directly",
+    )
+
+    assert updated.id == log_rating_id
+    assert updated.rating == 9
+    assert updated.review == "Rated directly"
+    assert await seed_session.scalar(select(func.count()).select_from(MovieRating)) == 1
+
+
+@pytest.mark.asyncio
 async def test_find_movie_ratings_by_user_and_movie_ids_filters_deleted_and_unknown(
     repository: MovieRatingRepository,
     seed_session: AsyncSession,
 ):
     user, movie_a, movie_b = await _seed_fk_entities(seed_session)
-    active = MovieRating(user_id=user.id, movie_id=movie_a.id, tmdb_id=movie_a.tmdb_id, rating=7, review="A")
+    active = MovieRating(user_id=user.id, movie_id=movie_a.id, rating=7, review="A")
     deleted = MovieRating(
         user_id=user.id,
         movie_id=movie_b.id,
-        tmdb_id=movie_b.tmdb_id,
         rating=3,
         review="B",
         deleted=True,

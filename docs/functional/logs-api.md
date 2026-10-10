@@ -78,6 +78,8 @@ The log and rating changes are atomic. If either database write fails, neither c
 }
 ```
 
+`posterPath` in log responses is always the movie's poster; create requests don't accept one. If the movie for `tmdbId` has been removed from the catalog, creating a log or rating returns `409 Conflict` with `MOVIE_UNAVAILABLE`.
+
 Both endpoints return the log response with `movieRating`. It contains the score applied by that request, or `null` when the request omitted the rating or supplied `null`.
 
 ## DELETE `/v1/logs/{log_id}`
