@@ -61,3 +61,33 @@ def test_follow_and_user_services_share_follow_repository():
     assert follow_service.notification_service is get_notification_service()
 
     clear_caches()
+
+
+def test_provider_factory_supplies_all_movie_consumers(monkeypatch):
+    from app.dependencies import provider_dependency
+    from app.dependencies.service_dependency import (
+        clear_movie_related_service_dependencies,
+        get_movie_rating_service,
+        get_movie_service,
+    )
+    from tests.fakes.movie_provider import FakeMovieProvider
+
+    fake = FakeMovieProvider()
+    monkeypatch.setattr(provider_dependency, "get_movie_provider", lambda: fake)
+    clear_movie_related_service_dependencies()
+    try:
+        movie_service = get_movie_service()
+        assert movie_service.provider is fake
+        log_service = get_log_service()
+        rating_service = get_movie_rating_service()
+        assert log_service.movie_service is movie_service
+        assert rating_service.movie_service is movie_service
+        clear_movie_related_service_dependencies()
+        new_movie_service = get_movie_service()
+        assert new_movie_service is not movie_service
+        assert get_log_service() is not log_service
+        assert get_movie_rating_service() is not rating_service
+        assert get_log_service().movie_service is new_movie_service
+        assert get_movie_rating_service().movie_service is new_movie_service
+    finally:
+        clear_movie_related_service_dependencies()

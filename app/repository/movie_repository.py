@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -11,26 +11,12 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models.movie_model import Movie
 from app.repository.repository_base import RepositoryBase
-from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
-from app.schemas.tmdb_schemas import TMDBMovieDetails
-from app.utils.datetime_utils import parse_iso_date
+from app.schemas.movie_import_schemas import MovieCreateDTO
+from app.schemas.movie_schemas import MovieUpdateRequest
 
 
 class MovieRepository(RepositoryBase):
     """Repository class for PostgreSQL movie-related operations."""
-
-    async def create_movie(self, request: MovieCreateRequest) -> Movie:
-        """Create a new movie in PostgreSQL."""
-
-        async with self._session_provider() as session:
-            movie = Movie(
-                tmdb_id=request.tmdb_id,
-                title=request.title,
-            )
-            session.add(movie)
-            await session.commit()
-            await session.refresh(movie)
-            return movie
 
     async def update_movie(self, movie_id: UUID, request: MovieUpdateRequest) -> None:
         """Update a movie in PostgreSQL. No-op for missing or soft-deleted rows."""
@@ -72,21 +58,28 @@ class MovieRepository(RepositoryBase):
             result = await session.execute(statement)
             return result.scalar_one_or_none()
 
-    async def create_from_tmdb_data(self, tmdb_data: TMDBMovieDetails) -> Movie:
-        """Create a movie from TMDB details or return existing row on duplicate TMDB ID."""
+    async def create_movie(self, data: MovieCreateDTO) -> Movie:
+        """Persist a Cinelog import or return the active movie with the same source identity.
+
+        Source data uses the existing TMDB columns until #248.
+        """
+
+        if data.source.source != "tmdb":
+            raise ValueError("The current storage schema supports only the tmdb source")
+        external_id = int(data.source.external_id)
 
         async with self._session_provider() as session:
             movie = Movie(
-                tmdb_id=tmdb_data.id,
-                title=tmdb_data.title,
-                release_date=parse_iso_date(tmdb_data.release_date),
-                overview=tmdb_data.overview,
-                poster_path=tmdb_data.poster_path,
-                vote_average=tmdb_data.vote_average,
-                runtime=tmdb_data.runtime,
-                original_language=tmdb_data.original_language,
-                tmdb_payload=tmdb_data.model_dump(mode="json"),
-                tmdb_last_synced_at=datetime.now(UTC),
+                tmdb_id=external_id,
+                title=data.title,
+                release_date=datetime.combine(data.release_date, time.min) if data.release_date else None,
+                overview=data.overview,
+                poster_path=data.poster_path,
+                vote_average=data.vote_average,
+                runtime=data.runtime,
+                original_language=data.original_language,
+                tmdb_payload=data.source_payload,
+                tmdb_last_synced_at=data.observed_at,
             )
 
             session.add(movie)
@@ -98,7 +91,7 @@ class MovieRepository(RepositoryBase):
             except IntegrityError:
                 await session.rollback()
                 statement = select(Movie).where(
-                    Movie.tmdb_id == tmdb_data.id,
+                    Movie.tmdb_id == external_id,
                     Movie.active(),
                 )
                 result = await session.execute(statement)

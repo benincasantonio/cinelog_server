@@ -2,7 +2,6 @@ from uuid import UUID
 
 from app.dependencies.repository_dependency import (
     get_log_repository,
-    get_movie_repository,
     get_user_repository,
 )
 from app.models.movie_model import Movie
@@ -29,14 +28,14 @@ class LogService:
 
     def __init__(
         self,
+        movie_service: MovieService,
         log_repository: LogRepositoryProtocol | None = None,
-        movie_service: MovieService | None = None,
         log_list_cache_service: LogListCacheService | None = None,
         stats_cache_service: StatsCacheService | None = None,
         user_repository: UserRepositoryProtocol | None = None,
     ):
         self.log_repository = log_repository or get_log_repository()
-        self.movie_service = movie_service or MovieService(get_movie_repository())
+        self.movie_service = movie_service
         self.log_list_cache_service = log_list_cache_service or LogListCacheService()
         self.stats_cache_service = stats_cache_service or StatsCacheService()
         self.user_repository = user_repository or get_user_repository()

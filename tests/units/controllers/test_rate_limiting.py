@@ -28,9 +28,9 @@ from app.dependencies.service_dependency import (
 )
 from app.schemas.auth_schemas import RegisterResponse
 from app.schemas.log_schemas import LogCreateResponse
+from app.schemas.movie_api_schemas import MovieSearchResult
 from app.schemas.movie_schemas import MovieResponse
 from app.schemas.notification_schemas import MarkAllNotificationsReadResponse
-from app.schemas.tmdb_schemas import TMDBMovieSearchResult
 from app.services.auth_rate_limit_service import (
     AuthRateLimitService,
 )
@@ -917,7 +917,7 @@ class TestSearchMoviesRateLimit:
         return TokenService.create_access_token({"sub": "0f0e8400-e29b-41d4-a716-446655440012"})
 
     @patch(
-        "app.controllers.movie_controller.tmdb_service.search_movie",
+        "app.services.movie_service.MovieService.search_movie",
         new_callable=AsyncMock,
     )
     def test_search_movies_user_limit_is_scoped_to_authenticated_user(
@@ -926,7 +926,7 @@ class TestSearchMoviesRateLimit:
         """A second user on the same IP should get a fresh bucket."""
         first_client = TestClient(app, base_url="https://testserver")
         second_client = TestClient(app, base_url="https://testserver")
-        mock_search.return_value = TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
+        mock_search.return_value = MovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
 
         try:
             first_client.cookies.set("__Host-access_token", user_one_token)
@@ -946,14 +946,14 @@ class TestSearchMoviesRateLimit:
             second_client.close()
 
     @patch(
-        "app.controllers.movie_controller.tmdb_service.search_movie",
+        "app.services.movie_service.MovieService.search_movie",
         new_callable=AsyncMock,
     )
     def test_search_movies_same_user_shares_limit_across_clients(self, mock_search, user_one_token):
         """Two clients for the same authenticated user should share one bucket."""
         first_client = TestClient(app, base_url="https://testserver")
         second_client = TestClient(app, base_url="https://testserver")
-        mock_search.return_value = TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
+        mock_search.return_value = MovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
 
         try:
             first_client.cookies.set("__Host-access_token", user_one_token)
@@ -970,14 +970,14 @@ class TestSearchMoviesRateLimit:
             second_client.close()
 
     @patch(
-        "app.controllers.movie_controller.tmdb_service.search_movie",
+        "app.services.movie_service.MovieService.search_movie",
         new_callable=AsyncMock,
     )
     def test_search_movies_allows_requests_within_limit(self, mock_search, client, override_auth):
         """First 20 requests should succeed (200) with rate limit headers."""
         app.dependency_overrides[auth_dependency] = override_auth
         client.cookies.set("__Host-access_token", "token")
-        mock_search.return_value = TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
+        mock_search.return_value = MovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
 
         try:
             for _ in range(20):
@@ -989,14 +989,14 @@ class TestSearchMoviesRateLimit:
             app.dependency_overrides = {}
 
     @patch(
-        "app.controllers.movie_controller.tmdb_service.search_movie",
+        "app.services.movie_service.MovieService.search_movie",
         new_callable=AsyncMock,
     )
     def test_search_movies_blocks_request_over_limit(self, mock_search, client, override_auth):
         """21st request should be rate-limited (429) with proper headers and body."""
         app.dependency_overrides[auth_dependency] = override_auth
         client.cookies.set("__Host-access_token", "token")
-        mock_search.return_value = TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
+        mock_search.return_value = MovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
 
         try:
             for _ in range(20):

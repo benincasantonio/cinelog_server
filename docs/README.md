@@ -16,7 +16,7 @@ User-facing documentation covering features, flows, and API usage from the consu
 | [Profile Visibility](functional/profile-visibility.md) | User profile visibility settings and public profile lookup |
 | [Rate Limiting](functional/rate-limiting.md) | Rate limits per endpoint, response headers, and 429 behavior |
 | [User Statistics API](functional/stats-api.md) | Viewing summary, distribution, ratings, and year filters |
-| [TMDB Movie Service](functional/tmdb-service.md) | Movie search and details endpoints, data flow, response fields |
+| [Movie Search and Details](functional/tmdb-service.md) | Compatible numeric APIs, localization and provider errors |
 
 ## Technical Docs
 
@@ -37,13 +37,13 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Notification Architecture](technical/notifications.md) | Typed persistence, service response mapping, deduplication, and extension contract |
 | [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup and the completed MongoDB → PostgreSQL migration |
 | [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and followers-only authorization stub |
-| [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Reusable Annotated validation types by domain |
+| [Pydantic Types and Validators](technical/pydantic_types_and_validators.md) | Cinelog domain validation types and the boundary with private provider validation |
 | [Rate Limiting](technical/rate-limiting.md) | slowapi setup, Redis backend, endpoint decoration, test strategy |
-| [Redis Caching](technical/redis-caching.md) | Cache layer configuration, design, and usage |
+| [Redis Caching](technical/redis-caching.md) | RedisClient, shared cache-generation helpers and application/provider cache policies |
 | [Service Dependencies](technical/service-dependencies.md) | Service providers, FastAPI `Depends` wiring, test overrides |
 | [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
 | [Statistics Query](technical/stats-query.md) | PostgreSQL cross-table stats aggregation and semantics |
-| [TMDB Service](technical/tmdb-service.md) | Singleton lifecycle, HTTP client, cache keys, MovieService integration |
+| [TMDB Movie Provider](technical/tmdb-service.md) | Integration package, separate provider/import DTOs, observation timestamps and generation cache |
 | [Validation Error Sanitization](technical/validation-error-sanitization.md) | Why 422 responses never echo submitted request values |
 
 ## Quick Links

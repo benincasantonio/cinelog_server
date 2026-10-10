@@ -23,12 +23,12 @@ The supported-header path performs no preference query. PostgreSQL remains autho
 
 ## TMDB Integration
 
-`TMDBService.search_movie` and `get_movie_details` pass the selected full locale tag as TMDB's `language` query parameter. Cache keys include locale to prevent one language's payload from serving another:
+`TMDBMovieProvider` and its private HTTP client pass the selected full locale tag as TMDB's `language` query parameter. Cache keys include locale to prevent one language's payload from serving another:
 
 | Operation | Key |
 |-----------|-----|
-| Search | `cinelog:tmdb:search:{locale}:{normalized_query}` |
-| Details | `cinelog:tmdb:details:{locale}:{tmdb_id}` |
+| Search | `cinelog:tmdb:search:v2:{locale}:{normalized_query}` |
+| Details | `cinelog:tmdb:details:v2:{locale}:{external_id}:generation:{generation}` |
 
 Legacy cache keys are no longer read and expire through their existing TTL.
 

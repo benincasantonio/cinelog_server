@@ -1,0 +1,1 @@
+"""External movie metadata adapters."""

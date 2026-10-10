@@ -11,19 +11,19 @@ Redis is **required** — the application will not start without a reachable Red
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL |
 | `REDIS_DEFAULT_TTL` | `300` | Default TTL in seconds (5 minutes) |
 
-Configuration is read by `app/config/redis.py` and passed to `CacheService.initialize()` during app startup.
+Configuration is read by `app/config/redis.py` and passed to `RedisClient.initialize()` during app startup.
 
 Rate-limited auth routes also require `RATE_LIMIT_HMAC_SECRET` so account-based limiter keys can be derived independently from JWT signing.
 
-## CacheService Design
+## RedisClient Design
 
-`CacheService` (`app/services/cache_service.py`) is a singleton that wraps `redis.asyncio` operations.
+`RedisClient` (`app/infrastructure/redis.py`) is a singleton that wraps `redis.asyncio` operations.
 
 ### Singleton Lifecycle
 
-- **Initialization:** `CacheService.initialize(config)` is called during the FastAPI lifespan startup (in `app/__init__.py`)
-- **Access:** `CacheService.get_instance()` returns the singleton — raises `RuntimeError` if not initialized
-- **Shutdown:** `CacheService.aclose_all()` closes the Redis client and clears the singleton
+- **Initialization:** `RedisClient.initialize(config)` is called during the FastAPI lifespan startup (in `app/__init__.py`)
+- **Access:** `RedisClient.get_instance()` returns the singleton — raises `RuntimeError` if not initialized
+- **Shutdown:** `RedisClient.aclose_all()` closes the Redis client and clears the singleton
 
 ### Methods
 
@@ -32,11 +32,10 @@ Rate-limited auth routes also require `RATE_LIMIT_HMAC_SECRET` so account-based 
 | `get(key)` | `dict \| list \| None` | Retrieve and deserialize a cached value |
 | `set(key, value, ttl?)` | `bool` | Serialize and store a value with TTL |
 | `delete(key)` | `bool` | Delete a single cached key |
+| `hget(key, field)` | `str \| None` | Read one Redis hash field |
 | `hgetall(key)` | `dict[str, str]` | Read a Redis hash |
 | `hset_with_ttl(key, mapping, ttl)` | `int` | Store a hash with string field names, string or integer values, and a TTL atomically |
 | `hincrby(key, field, amount?)` | `int` | Increment a numeric Redis hash field |
-| `get_generation(context, scope_id)` | `int` | Read a context-scoped cache generation (defaults to zero) |
-| `bump_generation(context, scope_id)` | `int` | Atomically increment a context-scoped cache generation |
 | `delete_many(keys)` | `int` | Bulk delete multiple keys |
 | `invalidate_pattern(pattern)` | `int` | Delete all keys matching a glob pattern (uses `SCAN`) |
 | `health_check()` | `bool` | Ping Redis to verify connectivity |
@@ -44,11 +43,13 @@ Rate-limited auth routes also require `RATE_LIMIT_HMAC_SECRET` so account-based 
 
 ### Error Behavior
 
-`CacheService` is a low-level wrapper, so Redis errors propagate directly from its methods. Higher-level layers decide whether to fail open or fail closed.
+`RedisClient` is a low-level wrapper, so Redis errors propagate directly from its methods. Higher-level layers decide whether to fail open or fail closed.
 
 `LogListCacheService` fails open: cache errors are logged and log lists fall back to PostgreSQL. Cache failures do not block log or rating writes.
 
-`StatsCacheService`, `TMDBCacheService`, rate limiting, and registration verification do not catch Redis errors. The application fails fast on startup if Redis is unreachable, and these flows require Redis to remain healthy at runtime.
+`StatsCacheService`, `TMDBCache`, rate limiting, and registration verification do not catch Redis errors. The application fails fast on startup if Redis is unreachable, and these flows require Redis to remain healthy at runtime.
+
+`TMDBCache` treats invalid cached JSON or DTO/envelope validation failures as misses. The provider then fetches fresh TMDB data. Successful fills replace the unreadable entry using the captured detail generation. This recovery is specific to stored snapshots; Redis connection failures and generation-counter errors still propagate.
 
 ## Key Naming Convention
 
@@ -61,17 +62,33 @@ Examples:
 - `cinelog:stats:{user_id}:all` — stats for a specific user
 - `cinelog:notif:follow-started:{recipient_id}:{follower_id}` — rolling cooldown for `follow.started` emission
 
-Response-key construction is the caller's responsibility. `CacheService` provides the shared `cinelog:cache-generation:{context}:{scope_id}` convention so independent cache contexts do not invalidate one another.
+Response-key construction is the caller's responsibility. `app/infrastructure/cache_generation.py` provides the shared `cinelog:cache-generation:{context}:{scope_id}` convention so independent cache contexts do not invalidate one another.
+
+## Shared Cache Generations
+
+`app/infrastructure/cache_generation.py` contains the generation mechanism used by `LogListCacheService` and `TMDBCache`. Each caller chooses its context, scope and invalidation policy, and passes the `RedisClient` it already uses. These functions neither resolve a singleton nor own its lifecycle.
+
+| Function | Return | Description |
+|----------|--------|-------------|
+| `generation_key(context, scope_id)` | `str` | Build the shared generation-counter key |
+| `get_generation(client, context, scope_id)` | `int` | Read the counter through `hget`; a missing counter defaults to zero |
+| `bump_generation(client, context, scope_id)` | `int` | Atomically increment the counter through `hincrby` and return the new value |
+
+Counters retain the existing Redis hash format (`value` field) and do not expire. `RedisClient` only exposes the hash operations; it has no generation helpers or cache namespace knowledge. Errors propagate to the calling cache, preserving its existing failure policy.
+
+## TMDB Observation Cache
+
+TMDB uses versioned `v2` search/detail keys and payload envelopes containing `observed_at`. Detail invalidation uses the shared generation helpers with context `tmdb-details:v2` and scope `{external_id}:{locale}`; search retains TTL-only expiry. The original timestamp and captured generation are preserved across a fill. See [TMDB Movie Provider](tmdb-service.md#cache-and-observation-time).
 
 ## Cache Layer Boundaries
 
 Cinelog uses cache layers at the same boundary as the data being cached:
 
-- `*_cache_service.py` is for service-level, composed, or external API responses. `LogListCacheService` caches a complete `LogListResponse`; `StatsCacheService` and `TMDBCacheService` cache their respective responses.
+- `*_cache_service.py` is for service-level, composed, or external API responses. `LogListCacheService` caches a complete `LogListResponse`; `StatsCacheService` caches statistics responses. Source-specific `TMDBCache` instead lives inside `app/providers/tmdb/` and stores upstream snapshots with their original acquisition time.
 
 Use the narrowest boundary that owns the data dependencies. If a response combines multiple repositories or services, caching it at that level also makes invalidation responsible for all of those dependencies.
 
-`CacheService` itself is infrastructure. Domain cache layers use it through `CacheService.get_instance()` rather than inherit from it.
+`RedisClient` itself is infrastructure. Application and provider cache layers use it through `RedisClient.get_instance()` rather than inherit from it.
 
 ## Log List Response Cache
 
@@ -90,7 +107,7 @@ See [Log List Query](log-list-query.md) for the join and response semantics.
 
 ## Serialization
 
-`CacheService` is model-agnostic — it stores and retrieves raw JSON:
+`RedisClient` is model-agnostic — it stores and retrieves raw JSON:
 
 - **Writing:** Callers serialize Pydantic models with `model.model_dump(mode="json")` before calling `set()`
 - **Reading:** Callers deserialize with `Model.model_validate()` after calling `get()`

@@ -6,7 +6,7 @@ Controllers receive services through FastAPI `Depends(...)`.
 
 - Service providers live in `app/dependencies/service_dependency.py`.
 - Repository providers live in `app/dependencies/repository_dependency.py`.
-- Each provider is `@lru_cache`-d, so it returns the same process-wide instance.
+- Each service/repository factory is `@lru_cache`-d, so it returns the same process-wide instance.
 - Controllers use `Depends(get_*_service)` exclusively.
 
 ## Repository Providers
@@ -26,6 +26,14 @@ Controllers receive services through FastAPI `Depends(...)`.
 | `get_log_service()` | `LogService` (uses `LogRepository` and `LogListCacheService`) |
 | `get_notification_service()` | `NotificationService` |
 | `get_stats_service()` | `StatsService` with `StatsRepository`; response caching is composed through `StatsCacheService` |
+
+## Movie Provider Composition
+
+`app/dependencies/provider_dependency.py` selects the production `TMDBMovieProvider` singleton. `get_movie_service()` injects that object into `MovieService`; log and rating services share the movie service. Generic services import the neutral `MovieProviderProtocol` from `app/providers/movie_provider_protocol.py`, not the concrete integration.
+
+E2E tests patch `provider_dependency.get_movie_provider` to return a deterministic fake. They clear cached service compositions before and after using the fake; patching this factory is different from overriding a FastAPI dependency, because service factories call it directly. No production test-mode setting or TMDB-method patch is needed.
+
+Shutdown calls `clear_movie_related_service_dependencies()` to discard movie/log/rating compositions holding the closed provider. Infrastructure connections live in `app/infrastructure/` as the PostgreSQL module and shared `RedisClient`.
 
 ## Endpoint Usage
 

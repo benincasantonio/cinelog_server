@@ -52,7 +52,7 @@ class TestGetStats:
         mock_cache.get = AsyncMock(return_value=None)
 
         with patch(
-            "app.services.stats_cache_service.CacheService.get_instance",
+            "app.services.stats_cache_service.RedisClient.get_instance",
             return_value=mock_cache,
         ):
             service = StatsCacheService()
@@ -66,7 +66,7 @@ class TestGetStats:
         mock_cache.get = AsyncMock(return_value=stats.model_dump(mode="json"))
 
         with patch(
-            "app.services.stats_cache_service.CacheService.get_instance",
+            "app.services.stats_cache_service.RedisClient.get_instance",
             return_value=mock_cache,
         ):
             service = StatsCacheService()
@@ -85,7 +85,7 @@ class TestSetStats:
         mock_cache.set = AsyncMock(return_value=True)
 
         with patch(
-            "app.services.stats_cache_service.CacheService.get_instance",
+            "app.services.stats_cache_service.RedisClient.get_instance",
             return_value=mock_cache,
         ):
             service = StatsCacheService()
@@ -107,7 +107,7 @@ class TestInvalidateUserStats:
         mock_cache.invalidate_pattern = AsyncMock(return_value=3)
 
         with patch(
-            "app.services.stats_cache_service.CacheService.get_instance",
+            "app.services.stats_cache_service.RedisClient.get_instance",
             return_value=mock_cache,
         ):
             service = StatsCacheService()

@@ -53,7 +53,7 @@ def fake_cache():
 @pytest.fixture
 def service(fake_cache):
     with patch(
-        "app.services.registration_verification_service.CacheService.get_instance",
+        "app.services.registration_verification_service.RedisClient.get_instance",
         return_value=fake_cache,
     ):
         yield RegistrationVerificationService()

@@ -55,7 +55,7 @@ Emission is skipped on the already-following path. Failures are swallowed and lo
 
 The follow producer uses `cinelog:notif:follow-started:{recipient_id}:{follower_id}` with `FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS` (7 days). Redis is the rolling primary gate; the ISO-week `deduplication_key` is the durable backstop if Redis loses state. A rolling 7-day expiry always lands in a later ISO week, so the database key cannot suppress an emission Redis approved.
 
-`CacheService` is resolved lazily through `CacheService.get_instance()` so the `@lru_cache`d `NotificationService` does not capture the singleton before startup initialization.
+`RedisClient` is resolved lazily through `RedisClient.get_instance()` so the `@lru_cache`d `NotificationService` does not capture the singleton before startup initialization.
 
 ## Repository and Read Semantics
 

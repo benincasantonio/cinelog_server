@@ -42,9 +42,9 @@ DATABASE_URL=postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db
 REDIS_URL=redis://localhost:6380/0
 ```
 
-Pytest starts Uvicorn on a free local HTTPS port for each test. The server runs in the pytest process so existing email and TMDB test doubles still work. Uvicorn runs the same FastAPI lifespan used by the application, including PostgreSQL initialization and the Redis startup check. The client accepts only the temporary self-signed test certificate; application Secure cookies remain enabled and are sent over HTTPS.
+Pytest starts Uvicorn on a free local HTTPS port for each test. The server runs in the pytest process so email test doubles and the injected movie provider fake work. Uvicorn runs the same FastAPI lifespan used by the application, including PostgreSQL initialization and the Redis startup check. The client accepts only the temporary self-signed test certificate; application Secure cookies remain enabled and are sent over HTTPS.
 
-The tests use real PostgreSQL and Redis. Email delivery and TMDB HTTP calls remain deterministic test doubles, so a TMDB API key is not required.
+The tests use real PostgreSQL and Redis. Email delivery remains mocked. Movie metadata uses a deterministic fake injected through `provider_dependency.get_movie_provider`, so a TMDB API key is not required. Provider HTTP and mapping are covered separately by unit tests with mocked upstream responses.
 
 ## Test Structure
 

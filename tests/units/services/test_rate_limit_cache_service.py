@@ -21,7 +21,7 @@ class TestGetSession:
         mock_cache.get = AsyncMock(return_value=None)
 
         with patch(
-            "app.services.rate_limit_cache_service.CacheService.get_instance",
+            "app.services.rate_limit_cache_service.RedisClient.get_instance",
             return_value=mock_cache,
         ):
             service = RateLimitCacheService()
@@ -35,7 +35,7 @@ class TestGetSession:
         mock_cache.get = AsyncMock(return_value=RATE_LIMIT_SESSION_CACHE_VALUE)
 
         with patch(
-            "app.services.rate_limit_cache_service.CacheService.get_instance",
+            "app.services.rate_limit_cache_service.RedisClient.get_instance",
             return_value=mock_cache,
         ):
             service = RateLimitCacheService()
@@ -51,7 +51,7 @@ class TestUpsertSession:
         mock_cache.set = AsyncMock(return_value=True)
 
         with patch(
-            "app.services.rate_limit_cache_service.CacheService.get_instance",
+            "app.services.rate_limit_cache_service.RedisClient.get_instance",
             return_value=mock_cache,
         ):
             service = RateLimitCacheService()

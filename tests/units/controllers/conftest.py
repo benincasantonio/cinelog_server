@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.cache_service import CacheService
+from app.infrastructure.redis import RedisClient
 from app.services.rate_limit_cache_service import RateLimitCacheService
 
 
@@ -53,19 +53,19 @@ def fake_cache_client() -> FakeRedisClient:
 
 @pytest.fixture(autouse=True)
 def initialize_controller_cache_service(fake_cache_client: FakeRedisClient):
-    CacheService._singleton = None
+    RedisClient._singleton = None
     with patch(
-        "app.services.cache_service.aioredis.from_url",
+        "app.infrastructure.redis.aioredis.from_url",
         return_value=fake_cache_client,
     ):
-        CacheService.initialize(
+        RedisClient.initialize(
             {
                 "url": "redis://localhost:6379/0",
                 "default_ttl": 300,
             }
         )
         yield
-    CacheService._singleton = None
+    RedisClient._singleton = None
 
 
 @pytest.fixture

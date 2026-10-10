@@ -12,21 +12,24 @@ postgresql@16`` on macOS, ``apt-get install postgresql`` on Debian/Ubuntu).
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base_model import Base
 from app.models.movie_model import Movie
 from app.repository.movie_repository import MovieRepository
-from app.schemas.movie_schemas import MovieCreateRequest, MovieUpdateRequest
-from app.schemas.tmdb_schemas import TMDBMovieDetails
+from app.schemas.movie_import_schemas import MovieCreateDTO
+from app.schemas.movie_provider_schemas import MovieSourceReferenceDTO
+from app.schemas.movie_schemas import MovieUpdateRequest
 
 
 def _async_url(pg, dbname: str) -> str:
@@ -78,31 +81,21 @@ async def seed_session(session_factory):
         yield session
 
 
-def _tmdb_details(tmdb_id: int, *, release_date: str | None = "2024-01-01") -> TMDBMovieDetails:
-    return TMDBMovieDetails(
-        id=tmdb_id,
-        title=f"Movie {tmdb_id}",
-        original_title=f"Movie {tmdb_id} Original",
+OBSERVED_AT = datetime(2024, 1, 1, 10, tzinfo=UTC)
+
+
+def _import_data(external_id: int, *, release_date: date | None = date(2024, 1, 1)) -> MovieCreateDTO:
+    return MovieCreateDTO(
+        source=MovieSourceReferenceDTO(source="tmdb", external_id=str(external_id)),
+        title=f"Movie {external_id}",
         release_date=release_date,
-        overview=f"Overview {tmdb_id}",
-        poster_path=f"/{tmdb_id}.jpg",
-        backdrop_path=None,
+        overview=f"Overview {external_id}",
+        poster_path=f"/{external_id}.jpg",
         vote_average=7.5,
-        vote_count=100,
         runtime=120,
-        budget=10,
-        revenue=100,
-        status="Released",
-        tagline=None,
-        homepage=None,
-        imdb_id=None,
         original_language="en",
-        popularity=10.0,
-        adult=False,
-        genres=[],
-        production_companies=[],
-        production_countries=[],
-        spoken_languages=[],
+        observed_at=OBSERVED_AT,
+        source_payload={"opaque": "snapshot", "id": "not a canonical UUID"},
     )
 
 
@@ -111,20 +104,6 @@ async def _add(seed_session: AsyncSession, *movies: Movie) -> None:
     await seed_session.commit()
     for movie in movies:
         await seed_session.refresh(movie)
-
-
-@pytest.mark.asyncio
-async def test_create_movie_persists_row(repository: MovieRepository, seed_session: AsyncSession):
-    movie = await repository.create_movie(MovieCreateRequest(title="Inception", tmdb_id=111))
-
-    assert movie.id is not None
-    assert movie.title == "Inception"
-    assert movie.tmdb_id == 111
-    assert movie.deleted is False
-
-    persisted = await seed_session.get(Movie, movie.id)
-    assert persisted is not None
-    assert persisted.title == "Inception"
 
 
 @pytest.mark.asyncio
@@ -187,40 +166,48 @@ async def test_find_movie_by_tmdb_id_skips_soft_deleted(repository: MovieReposit
 
 
 @pytest.mark.asyncio
-async def test_create_from_tmdb_data_persists_payload_and_sync_timestamp(
+async def test_create_movie_persists_metadata_payload_and_sync_timestamp(
     repository: MovieRepository, seed_session: AsyncSession
 ):
-    movie = await repository.create_from_tmdb_data(_tmdb_details(555))
+    data = _import_data(555)
+    movie = await repository.create_movie(data)
 
+    assert movie.id is not None
+    assert movie.deleted is False
     assert movie.tmdb_id == 555
-    assert movie.release_date == datetime(2024, 1, 1)
-    assert movie.tmdb_payload is not None
-    assert movie.tmdb_payload["id"] == 555
-    assert movie.tmdb_last_synced_at is not None
 
     persisted = await seed_session.get(Movie, movie.id)
     assert persisted is not None
-    assert persisted.tmdb_payload is not None
+    assert persisted.title == data.title
+    assert persisted.release_date == datetime(2024, 1, 1)
+    assert persisted.overview == data.overview
+    assert persisted.poster_path == data.poster_path
+    assert persisted.vote_average == data.vote_average
+    assert persisted.runtime == data.runtime
+    assert persisted.original_language == data.original_language
+    assert persisted.tmdb_payload == data.source_payload
+    assert persisted.tmdb_last_synced_at == OBSERVED_AT
 
 
 @pytest.mark.asyncio
-async def test_create_from_tmdb_data_returns_existing_on_duplicate_tmdb_id(
+async def test_create_movie_returns_existing_on_duplicate_tmdb_id(
     repository: MovieRepository, seed_session: AsyncSession
 ):
     existing = Movie(tmdb_id=666, title="First")
     await _add(seed_session, existing)
 
-    duplicate = await repository.create_from_tmdb_data(_tmdb_details(666))
+    duplicate = await repository.create_movie(_import_data(666))
 
     assert duplicate.id == existing.id
     assert duplicate.tmdb_id == 666
+    assert duplicate.title == "First"
 
 
 @pytest.mark.asyncio
-async def test_create_from_tmdb_data_with_invalid_release_date_returns_none(
+async def test_create_movie_with_unknown_release_date_returns_none(
     repository: MovieRepository,
 ):
-    movie = await repository.create_from_tmdb_data(_tmdb_details(777, release_date="not-a-date"))
+    movie = await repository.create_movie(_import_data(777, release_date=None))
 
     assert movie.release_date is None
 
@@ -251,3 +238,29 @@ async def test_find_movies_by_ids_accepts_iterable(repository: MovieRepository, 
     found = await repository.find_movies_by_ids([first.id, second.id])
 
     assert {movie.id for movie in found} == {first.id, second.id}
+
+
+async def test_concurrent_imports_converge_on_one_uuid(repository):
+    first, second = await asyncio.gather(
+        repository.create_movie(_import_data(901)),
+        repository.create_movie(_import_data(901)),
+    )
+    assert first.id == second.id
+    assert first.tmdb_last_synced_at == second.tmdb_last_synced_at == OBSERVED_AT
+
+
+async def test_import_does_not_resurrect_a_soft_deleted_identity(repository, seed_session):
+    existing = Movie(tmdb_id=902, title="Gone", deleted=True, deleted_at=datetime.now(UTC))
+    await _add(seed_session, existing)
+    with pytest.raises(IntegrityError):
+        await repository.create_movie(_import_data(902))
+    await seed_session.refresh(existing)
+    assert existing.deleted is True
+    assert existing.title == "Gone"
+
+
+async def test_legacy_storage_rejects_an_unsupported_source(repository):
+    data = _import_data(903)
+    data.source.source = "unsupported"
+    with pytest.raises(ValueError, match="current storage schema"):
+        await repository.create_movie(data)

@@ -17,11 +17,12 @@ from app.config.cors import get_cors_config
 from app.config.public_routes import CSRF_EXEMPT_PATHS
 from app.config.rate_limiter import limiter
 from app.config.redis import get_redis_config
-from app.db.postgres import close_postgres_engine, init_postgres_engine
+from app.dependencies.service_dependency import clear_movie_related_service_dependencies
+from app.infrastructure.postgres import close_postgres_engine, init_postgres_engine
+from app.infrastructure.redis import RedisClient
 from app.middleware.csrf_middleware import CSRFMiddleware
 from app.middleware.rate_limit_session_middleware import RateLimitSessionMiddleware
-from app.services.cache_service import CacheService
-from app.services.tmdb_service import TMDBService
+from app.providers.tmdb import TMDBMovieProvider
 from app.utils.exceptions_utils import AppException
 from app.utils.rate_limit_utils import rate_limit_exceeded_handler
 from app.utils.validation_error_utils import sanitize_validation_errors
@@ -30,15 +31,16 @@ from app.utils.validation_error_utils import sanitize_validation_errors
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_postgres_engine()
-    CacheService.initialize(get_redis_config())
-    cache = CacheService.get_instance()
+    RedisClient.initialize(get_redis_config())
+    cache = RedisClient.get_instance()
     if not await cache.health_check():
         raise RuntimeError("Redis is not reachable — cannot start the application")
     try:
         yield
     finally:
-        await CacheService.aclose_all()
-        await TMDBService.aclose_all()
+        await RedisClient.aclose_all()
+        await TMDBMovieProvider.aclose_all()
+        clear_movie_related_service_dependencies()
         await close_postgres_engine()
 
 
