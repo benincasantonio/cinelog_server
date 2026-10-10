@@ -18,6 +18,8 @@ import asyncio  # noqa: E402
 import shutil  # noqa: E402
 import socket  # noqa: E402
 import subprocess  # noqa: E402
+from collections.abc import AsyncIterator  # noqa: E402
+from contextlib import asynccontextmanager  # noqa: E402
 from unittest.mock import patch  # noqa: E402
 
 import httpx  # noqa: E402
@@ -27,6 +29,7 @@ import redis.asyncio as aioredis  # noqa: E402
 import uvicorn  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 from sqlalchemy import text  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncEngine  # noqa: E402
 
 from app.infrastructure.postgres import close_postgres_engine, init_postgres_engine  # noqa: E402
 from app.utils.auth_utils import normalize_email_identifier  # noqa: E402
@@ -268,3 +271,30 @@ async def register_and_login(client, user_data: dict):
     )
     assert login_resp.status_code == 200
     return login_resp.json()
+
+
+@asynccontextmanager
+async def logged_in_client(
+    async_client: RegistrationAwareAsyncClient, user_data: dict
+) -> AsyncIterator[tuple[RegistrationAwareAsyncClient, str]]:
+    """Helper: Register and log in a user on a separate client with its own cookie jar.
+
+    Yields the client and its CSRF token, so several users can act concurrently.
+    """
+    async with httpx.AsyncClient(
+        base_url=async_client.base_url,
+        verify=False,  # noqa: S501 - temporary self-signed localhost certificate
+        trust_env=False,
+    ) as client:
+        user_client = RegistrationAwareAsyncClient(client, async_client._registration_codes)
+        login = await register_and_login(user_client, user_data)
+        yield user_client, login["csrfToken"]
+
+
+async def count_movie_rows(engine: AsyncEngine, tmdb_id: int) -> int:
+    """Count every movies row for a TMDB id, soft-deleted included, without relying on its unique index."""
+    async with engine.connect() as connection:
+        result = await connection.execute(
+            text("SELECT count(*) FROM movies WHERE tmdb_id = :tmdb_id"), {"tmdb_id": tmdb_id}
+        )
+        return result.scalar_one()

@@ -34,8 +34,8 @@ class LogRepositoryProtocol(Protocol[IdType, LogType]):
         date_watched_to: date | None = None,
         sort_by: str = "dateWatched",
         sort_order: str = "desc",
-    ) -> Sequence[tuple[LogType, Movie | None, int | None]]:
-        """Find user logs with their active movie and rating."""
+    ) -> Sequence[tuple[LogType, Movie, int | None]]:
+        """Find user logs with their movie, including soft-deleted movies, and active rating."""
 
     async def find_logs_by_movie_id(
         self,

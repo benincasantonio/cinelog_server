@@ -10,16 +10,12 @@ class MovieRatingRepositoryProtocol(Protocol[IdType, MovieRatingType]):
     async def find_movie_rating_by_user_and_movie(self, user_id: IdType, movie_id: IdType) -> MovieRatingType | None:
         """Find a movie rating by user ID and movie ID."""
 
-    async def find_movie_rating_by_user_and_tmdb(self, user_id: IdType, tmdb_id: int) -> MovieRatingType | None:
-        """Find a movie rating by user ID and TMDB ID."""
-
     async def create_update_movie_rating(
         self,
         user_id: IdType,
         movie_id: IdType,
         rating: int,
         comment: str | None,
-        tmdb_id: int,
     ) -> MovieRatingType:
         """Create or update a movie rating for a specific user and movie."""
 
