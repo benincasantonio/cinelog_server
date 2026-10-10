@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -7,6 +7,7 @@ import pytest
 from app.schemas.auth_schemas import RegisterRequest
 from app.services.auth_rate_limit_service import AuthRateLimitService
 from app.services.auth_service import AuthService
+from app.services.password_service import PasswordService
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
@@ -267,6 +268,84 @@ class TestAuthService:
             user = await auth_service.login(email_input, password)
             assert user == mock_user
             mock_user_repo.find_user_by_email.assert_awaited_with(email_stored)
+
+    @staticmethod
+    def _register_request(password: str) -> RegisterRequest:
+        return RegisterRequest(
+            first_name="John",
+            last_name="Doe",
+            email="john@example.com",
+            password=password,
+            handle="johndoe",
+            date_of_birth=date(1990, 1, 1),
+            locale="en-US",
+            profile_visibility="public",
+            bio=None,
+            verification_code="ABC123",
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("password", "trimmed"),
+        [(" password123 ", "password123"), ("       a", "a")],
+        ids=["surrounding-spaces", "whitespace-padded"],
+    )
+    async def test_register_hashes_password_exactly_as_typed(self, auth_service, mock_user_repo, password, trimmed):
+        mock_user_repo.find_user_by_email.return_value = None
+        mock_user_repo.find_user_by_handle.return_value = None
+        mock_user_repo.create_user.return_value = SimpleNamespace(
+            id="507f1f77bcf86cd799439011",
+            email="john@example.com",
+            first_name="John",
+            last_name="Doe",
+            handle="johndoe",
+            bio=None,
+            locale="en-US",
+            profile_visibility="public",
+        )
+
+        await auth_service.register(self._register_request(password))
+
+        password_hash = mock_user_repo.create_user.call_args[1]["request"].password_hash
+        assert PasswordService.verify_password(password, password_hash)
+        assert not PasswordService.verify_password(trimmed, password_hash)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("password", "trimmed"),
+        [(" password123 ", "password123"), ("       a", "a")],
+        ids=["surrounding-spaces", "whitespace-padded"],
+    )
+    async def test_reset_password_hashes_password_exactly_as_typed(
+        self, auth_service, mock_user_repo, password, trimmed
+    ):
+        mock_user = SimpleNamespace(
+            email="john@example.com",
+            reset_password_code="ABC123",
+            reset_password_expires=datetime.now(UTC) + timedelta(minutes=5),
+        )
+        mock_user_repo.find_user_by_email.return_value = mock_user
+
+        assert await auth_service.reset_password("john@example.com", "ABC123", password) is True
+
+        password_hash = mock_user_repo.update_password.call_args[0][1]
+        assert PasswordService.verify_password(password, password_hash)
+        assert not PasswordService.verify_password(trimmed, password_hash)
+
+    @pytest.mark.asyncio
+    async def test_login_requires_exact_password_including_spaces(self, auth_service, mock_user_repo):
+        mock_user = SimpleNamespace(
+            email="john@example.com",
+            password_hash=PasswordService.get_password_hash(" password123 "),
+        )
+        mock_user_repo.find_user_by_email.return_value = mock_user
+
+        assert await auth_service.login("john@example.com", " password123 ") == mock_user
+
+        for wrong_password in ["password123", " password123", "password123 ", "  password123  "]:
+            with pytest.raises(AppException) as exc:
+                await auth_service.login("john@example.com", wrong_password)
+            assert exc.value.error == ErrorCodes.INVALID_CREDENTIALS
 
 
 class TestAuthRateLimitService:
