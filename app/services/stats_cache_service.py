@@ -2,8 +2,8 @@ import logging
 import os
 from uuid import UUID
 
+from app.infrastructure.redis import RedisClient
 from app.schemas.stats_schemas import StatsResponse
-from app.services.cache_service import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -12,8 +12,8 @@ STATS_CACHE_TTL = int(os.getenv("STATS_CACHE_TTL", "259200"))
 
 class StatsCacheService:
     @property
-    def _cache(self) -> CacheService:
-        return CacheService.get_instance()
+    def _cache(self) -> RedisClient:
+        return RedisClient.get_instance()
 
     @staticmethod
     def build_key(

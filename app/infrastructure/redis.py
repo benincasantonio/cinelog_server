@@ -15,8 +15,8 @@ CacheValue = dict[str, Any] | list[Any]
 HashValue = str | int
 
 
-class CacheService:
-    _singleton: "CacheService | None" = None
+class RedisClient:
+    _singleton: "RedisClient | None" = None
     _singleton_lock = Lock()
 
     def __init__(self, url: str, default_ttl: int):
@@ -24,7 +24,7 @@ class CacheService:
         self._client: aioredis.Redis = aioredis.from_url(url, decode_responses=True)
 
     @classmethod
-    def initialize(cls, config: RedisConfig) -> "CacheService":
+    def initialize(cls, config: RedisConfig) -> "RedisClient":
         with cls._singleton_lock:
             cls._singleton = cls(
                 url=config["url"],
@@ -33,10 +33,10 @@ class CacheService:
             return cls._singleton
 
     @classmethod
-    def get_instance(cls) -> "CacheService":
+    def get_instance(cls) -> "RedisClient":
         with cls._singleton_lock:
             if cls._singleton is None:
-                raise RuntimeError("CacheService not initialized. Call initialize() first.")
+                raise RuntimeError("RedisClient not initialized. Call initialize() first.")
             return cls._singleton
 
     async def get(self, key: str) -> CacheValue | None:
@@ -55,6 +55,9 @@ class CacheService:
         result = int(await self._client.delete(key))
         return result > 0
 
+    async def hget(self, key: str, field: str) -> str | None:
+        return await cast("Awaitable[str | None]", self._client.hget(key, field))
+
     async def hgetall(self, key: str) -> dict[str, str]:
         data = await cast("Awaitable[dict[Any, Any]]", self._client.hgetall(key))
         return dict(data)
@@ -68,17 +71,6 @@ class CacheService:
 
     async def hincrby(self, key: str, field: str, amount: int = 1) -> int:
         return int(await cast("Awaitable[int]", self._client.hincrby(key, field, amount)))
-
-    @staticmethod
-    def generation_key(context: str, scope_id: str) -> str:
-        return f"cinelog:cache-generation:{context}:{scope_id}"
-
-    async def get_generation(self, context: str, scope_id: str) -> int:
-        value = await cast("Awaitable[str | None]", self._client.hget(self.generation_key(context, scope_id), "value"))
-        return int(value) if value is not None else 0
-
-    async def bump_generation(self, context: str, scope_id: str) -> int:
-        return await self.hincrby(self.generation_key(context, scope_id), "value")
 
     async def delete_many(self, keys: list[str]) -> int:
         if not keys:
@@ -105,9 +97,9 @@ class CacheService:
 
     async def aclose(self) -> None:
         await self._client.aclose()
-        with CacheService._singleton_lock:
-            if CacheService._singleton is self:
-                CacheService._singleton = None
+        with RedisClient._singleton_lock:
+            if RedisClient._singleton is self:
+                RedisClient._singleton = None
 
     @classmethod
     async def aclose_all(cls) -> None:

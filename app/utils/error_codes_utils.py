@@ -82,6 +82,27 @@ class ErrorCodes:
 
     # Movie Errors
 
+    PROVIDER_MOVIE_NOT_FOUND = ErrorSchema(
+        error_code_name="PROVIDER_MOVIE_NOT_FOUND",
+        error_code=404,
+        error_message="Movie not found in provider",
+        error_description="The external movie source does not contain the requested movie.",
+    )
+
+    MOVIE_PROVIDER_UNAVAILABLE = ErrorSchema(
+        error_code_name="MOVIE_PROVIDER_UNAVAILABLE",
+        error_code=503,
+        error_message="Movie provider unavailable",
+        error_description="The external movie source is temporarily unavailable.",
+    )
+
+    MOVIE_PROVIDER_INVALID_RESPONSE = ErrorSchema(
+        error_code_name="MOVIE_PROVIDER_INVALID_RESPONSE",
+        error_code=502,
+        error_message="Invalid movie provider response",
+        error_description="The external movie source returned an unusable response.",
+    )
+
     MOVIE_NOT_FOUND = ErrorSchema(
         error_code_name="MOVIE_NOT_FOUND",
         error_code=404,

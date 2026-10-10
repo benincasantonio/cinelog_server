@@ -6,6 +6,8 @@ This document describes the reusable validation types system in Cinelog, located
 
 The `app/types/` package provides reusable Pydantic `Annotated` types that bundle validation logic with field constraints, as well as closed enum types shared across application layers. This eliminates duplicate validation and enum declarations and ensures consistent contracts across the codebase.
 
+Provider-specific parsing and constraints live inside the relevant integration, not in `app/types/`. For example, `app/providers/tmdb/validation.py` defines `TMDBReleaseDate` and `TMDBVoteAverage` for TMDB date values and its 0–10 score scale. Only the private TMDB DTOs use them; generic services and Cinelog DTOs work with the mapped values.
+
 ## File Structure
 
 ```
@@ -89,6 +91,8 @@ watched_where: OptionalWatchedWhereStr = Field(None, ...)
 
 ## Adding a New Validator
 
+First distinguish a Cinelog domain rule from an upstream-format rule. Keep upstream-format rules in the provider package and import them directly into its private DTO schemas; do not re-export them from `app.types`. For Cinelog domain validation:
+
 1. Identify the domain (user, log, movie, etc.)
 2. Create or open the corresponding `<domain>_validation.py` file
 3. Add the validation function and Annotated type alias
@@ -104,5 +108,6 @@ If the validator applies to multiple domains, place it in `common_validation.py`
 
 ## See Also
 
+- [TMDB Movie Provider](tmdb-service.md) — Private integration validation
 - [Architecture Reference](../../ARCHITECTURE.md)
 - [AGENTS.md](../../AGENTS.md) — Types and Validators convention rules

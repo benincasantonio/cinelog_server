@@ -4,18 +4,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 
-from app.services.cache_service import CacheService
+from app.infrastructure.redis import RedisClient
 
 
 class TestCacheServiceEnabled:
-    """Tests for CacheService with mocked Redis client."""
+    """Tests for RedisClient with mocked Redis client."""
 
     @pytest_asyncio.fixture
     async def service(self):
-        with patch("app.services.cache_service.aioredis.from_url") as mock_from_url:
+        with patch("app.infrastructure.redis.aioredis.from_url") as mock_from_url:
             mock_client = AsyncMock()
             mock_from_url.return_value = mock_client
-            svc = CacheService(url="redis://localhost:6379/0", default_ttl=300)
+            svc = RedisClient(url="redis://localhost:6379/0", default_ttl=300)
             svc._mock_client = mock_client  # type: ignore[attr-defined]
             yield svc
 
@@ -58,6 +58,13 @@ class TestCacheServiceEnabled:
         service._mock_client.delete = AsyncMock(return_value=0)
         result = await service.delete("cinelog:movie:999")
         assert result is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", [None, "stored value"])
+    async def test_hget_returns_field_or_none(self, service, value):
+        service._mock_client.hget.return_value = value
+        assert await service.hget("key", "field") == value
+        service._mock_client.hget.assert_awaited_once_with("key", "field")
 
     @pytest.mark.asyncio
     async def test_hgetall_returns_hash_data(self, service):
@@ -108,20 +115,6 @@ class TestCacheServiceEnabled:
         result = await service.hincrby("auth:register-verification:key", "attempts")
         assert result == 1
         service._mock_client.hincrby.assert_awaited_once_with("auth:register-verification:key", "attempts", 1)
-
-    @pytest.mark.asyncio
-    async def test_generation_is_scoped_by_context_and_user(self, service):
-        key = service.generation_key("log-list", "user-1")
-        assert key != service.generation_key("stats", "user-1")
-        assert key != service.generation_key("log-list", "user-2")
-
-        service._mock_client.hget = AsyncMock(side_effect=[None, "2"])
-        service._mock_client.hincrby = AsyncMock(return_value=3)
-        assert await service.get_generation("log-list", "user-1") == 0
-        assert await service.get_generation("log-list", "user-1") == 2
-        assert await service.bump_generation("log-list", "user-1") == 3
-        service._mock_client.hget.assert_awaited_with(key, "value")
-        service._mock_client.hincrby.assert_awaited_once_with(key, "value", 1)
 
     @pytest.mark.asyncio
     async def test_delete_many(self, service):
@@ -175,10 +168,10 @@ class TestCacheServiceErrors:
 
     @pytest_asyncio.fixture
     async def service(self):
-        with patch("app.services.cache_service.aioredis.from_url") as mock_from_url:
+        with patch("app.infrastructure.redis.aioredis.from_url") as mock_from_url:
             mock_client = AsyncMock()
             mock_from_url.return_value = mock_client
-            svc = CacheService(url="redis://localhost:6379/0", default_ttl=300)
+            svc = RedisClient(url="redis://localhost:6379/0", default_ttl=300)
             svc._mock_client = mock_client  # type: ignore[attr-defined]
             yield svc
 
@@ -199,6 +192,12 @@ class TestCacheServiceErrors:
         service._mock_client.delete = AsyncMock(side_effect=ConnectionError("refused"))
         with pytest.raises(ConnectionError):
             await service.delete("key")
+
+    @pytest.mark.asyncio
+    async def test_hget_raises_on_connection_error(self, service):
+        service._mock_client.hget.side_effect = ConnectionError("refused")
+        with pytest.raises(ConnectionError):
+            await service.hget("key", "field")
 
     @pytest.mark.asyncio
     async def test_hgetall_raises_on_connection_error(self, service):
@@ -228,33 +227,33 @@ class TestCacheServiceSingleton:
     """Tests for singleton lifecycle."""
 
     def setup_method(self):
-        CacheService._singleton = None
+        RedisClient._singleton = None
 
     def teardown_method(self):
-        CacheService._singleton = None
+        RedisClient._singleton = None
 
     def test_initialize_creates_singleton(self):
-        with patch("app.services.cache_service.aioredis.from_url"):
+        with patch("app.infrastructure.redis.aioredis.from_url"):
             config = {
                 "url": "redis://localhost:6379/0",
                 "default_ttl": 300,
             }
-            instance = CacheService.initialize(config)
-            assert CacheService.get_instance() is instance
+            instance = RedisClient.initialize(config)
+            assert RedisClient.get_instance() is instance
 
     def test_get_instance_raises_without_initialize(self):
         with pytest.raises(RuntimeError, match="not initialized"):
-            CacheService.get_instance()
+            RedisClient.get_instance()
 
     @pytest.mark.asyncio
     async def test_aclose_all_clears_singleton(self):
-        with patch("app.services.cache_service.aioredis.from_url") as mock_from_url:
+        with patch("app.infrastructure.redis.aioredis.from_url") as mock_from_url:
             mock_from_url.return_value = AsyncMock()
             config = {
                 "url": "redis://localhost:6379/0",
                 "default_ttl": 300,
             }
-            CacheService.initialize(config)
-            await CacheService.aclose_all()
+            RedisClient.initialize(config)
+            await RedisClient.aclose_all()
             with pytest.raises(RuntimeError):
-                CacheService.get_instance()
+                RedisClient.get_instance()

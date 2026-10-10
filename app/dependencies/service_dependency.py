@@ -8,6 +8,7 @@ Tests can swap a whole service through
 
 from functools import lru_cache
 
+from app.dependencies import provider_dependency
 from app.dependencies.repository_dependency import (
     get_follow_repository,
     get_log_repository,
@@ -57,7 +58,14 @@ def get_follow_service() -> FollowService:
 
 @lru_cache
 def get_movie_service() -> MovieService:
-    return MovieService(get_movie_repository())
+    return MovieService(get_movie_repository(), provider_dependency.get_movie_provider())
+
+
+def clear_movie_related_service_dependencies() -> None:
+    """Release movie, log and rating services holding the closed movie provider."""
+    get_log_service.cache_clear()
+    get_movie_rating_service.cache_clear()
+    get_movie_service.cache_clear()
 
 
 @lru_cache

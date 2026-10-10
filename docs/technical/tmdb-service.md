@@ -1,238 +1,117 @@
-# TMDB Service — Technical Details
+# TMDB Movie Provider — Technical Details
 
-**Last Updated:** 2026-03-21
+## Boundary and package layout
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Singleton Lifecycle](#singleton-lifecycle)
-- [HTTP Client](#http-client)
-- [Caching Layer](#caching-layer)
-  - [Cache Keys](#cache-keys)
-  - [TTL Configuration](#ttl-configuration)
-  - [Error Behavior](#error-behavior)
-- [Request & Error Handling](#request--error-handling)
-- [MovieService Integration](#movieservice-integration)
-- [Environment Variables](#environment-variables)
-- [Key Files](#key-files)
-- [Decision Records (Why Not)](#decision-records-why-not)
-- [Troubleshooting & Common Gotchas](#troubleshooting--common-gotchas)
-- [Related Documents](#related-documents)
-
----
-
-## Overview
-
-`TMDBService` is a singleton async HTTP client that proxies requests to [The Movie Database API v3](https://developer.themoviedb.org/docs). It handles movie search and full movie detail retrieval, with a dedicated `TMDBCacheService` wrapping the shared Redis `CacheService` to reduce external API calls. The service is closed during application shutdown via `aclose_all()`.
-
----
-
-## Architecture
+Controllers delegate to `MovieService`. The service receives a `MovieProviderProtocol` through its constructor and works with Cinelog-owned metadata, never upstream DTOs.
 
 ```mermaid
-sequenceDiagram
-    participant Controller as movie_controller
-    participant TMDB as TMDBService
-    participant Cache as TMDBCacheService
-    participant Redis as CacheService (Redis)
-    participant API as TMDB API
-
-    Controller->>TMDB: search_movie(query, locale) / get_movie_details(tmdb_id, locale)
-    TMDB->>Cache: get_search(query, locale) / get_details(tmdb_id, locale)
-    Cache->>Redis: get(key)
-    alt Cache hit
-        Redis-->>Cache: cached data
-        Cache-->>TMDB: TMDBMovieSearchResult / TMDBMovieDetails
-    else Cache miss
-        Redis-->>Cache: None
-        Cache-->>TMDB: None
-        TMDB->>API: GET /search/movie or GET /movie/{id} with language
-        API-->>TMDB: JSON response
-        TMDB->>Cache: set_search / set_details
-        Cache->>Redis: set(key, data, ttl)
-    end
-    TMDB-->>Controller: TMDBMovieSearchResult / TMDBMovieDetails
+flowchart LR
+    Controller --> MovieService
+    MovieService --> Repository
+    MovieService --> TMDBMovieProvider
+    TMDBMovieProvider --> TMDBCache
+    TMDBCache --> RedisClient
+    TMDBMovieProvider --> TMDBClient
+    TMDBClient --> TMDB[TMDB API]
 ```
 
-```mermaid
-graph TD
-    subgraph Services
-        MS[MovieService]
-        TMDB[TMDBService<br/>singleton]
-        TCS[TMDBCacheService]
-        CS[CacheService<br/>singleton / Redis]
-    end
-    subgraph Schemas
-        SR[TMDBMovieSearchResult]
-        SD[TMDBMovieDetails]
-    end
-    subgraph External
-        API[TMDB API v3]
-    end
+The `app/providers/tmdb/` package exports only `TMDBMovieProvider`:
 
-    MS -->|find_or_create_movie| TMDB
-    TMDB -->|delegates caching| TCS
-    TCS -->|delegates storage| CS
-    TMDB -->|HTTP| API
-    TMDB -->|returns| SR
-    TMDB -->|returns| SD
-```
+| Module | Responsibility |
+|---|---|
+| `provider.py` | Cache/client orchestration, identity checks, mapping into Cinelog metadata |
+| `client.py` | Bearer authentication, absolute base URL, finite timeout, JSON/DTO validation and HTTP error translation |
+| `schemas.py` | Private TMDB wire DTOs and cache envelopes |
+| `validation.py` | Private TMDB date parsing and numeric score normalization/constraints |
+| `cache.py` | Source-specific keys, TTLs, generation scopes and snapshot serialization |
 
----
+Shared access lives in `app/infrastructure/postgres.py` and `app/infrastructure/redis.py` (`RedisClient`). Domain caches remain beside their application services. The retired database package and service-level TMDB/Redis modules have no compatibility aliases.
 
-## Singleton Lifecycle
+## Cinelog contracts
 
-`TMDBService` implements a thread-safe lazy singleton using a class-level `Lock()`.
+`app/providers/movie_provider_protocol.py` defines the provider-neutral search and detail contract. Queries and result DTOs live in `app/schemas/movie_provider_schemas.py`:
 
-```python
-# First call — creates the instance
-service = TMDBService.get_instance()
+- `MovieSearchQuery`: query and supported locale.
+- `MovieDetailsQuery`: external ID string, supported locale, internal `force_refresh=False`.
+- `MovieSearchResultDTO`: pagination, search items and acquisition time. Search items cannot establish complete detail synchronization.
+- `MovieMetadataDTO`: external source reference, optional canonical identity, common metadata, localized text, source-qualified external rating, observation time and an opaque source snapshot.
 
-# Subsequent calls — returns the same instance
-service = TMDBService.get_instance()
-```
+The result models and their nested components use the `DTO` suffix; input queries retain `MovieSearchQuery` and `MovieDetailsQuery`. These internal types use Pydantic `BaseModel`, independently of the public HTTP schemas and their camelCase aliases.
 
-**Key lifecycle methods:**
+`app/schemas/movie_import_schemas.py` defines `MovieCreateDTO`, the separate input contract for `MovieRepository.create_movie()`. It deliberately has no canonical ID field and rejects extra fields. Its `from_metadata()` factory selects the importable fields from `MovieMetadataDTO`. The import module depends on the neutral provider DTOs; provider queries/results do not depend on the import contract.
 
-| Method | Description |
-|--------|-------------|
-| `get_instance()` | Class method. Acquires `_singleton_lock`, creates instance if `_singleton is None`, returns it. |
-| `aclose()` | Closes the `httpx.AsyncClient` if this instance owns it, sets `_closed = True`, clears `_singleton`. |
-| `aclose_all()` | Class method called during app shutdown in `app/__init__.py`. Safely closes the singleton under lock. |
+The TMDB adapter always leaves canonical identity unset. Original title/language and common values remain distinct from requested-locale title, overview, tagline and genre labels. The locale denotes the requested source language; TMDB can supply fallback text, so it is not proof that every field is translated. Future translation policy belongs to #214.
 
-The `_closed` flag gates all method calls via `_ensure_open()`. Calling any async method on a closed service raises `RuntimeError("TMDBService client is closed")`.
+Dates are date-only values internally. `TMDBReleaseDate` in `app/providers/tmdb/validation.py` handles the source's date format: empty, absent or null release dates become `None`; malformed nonempty dates are errors. Existing optional images, runtime, tagline, homepage and IMDb ID accept absence/null. Neutral Cinelog DTOs receive `date | None` and do not depend on these upstream parsing rules.
 
-The controller at `app/controllers/movie_controller.py` calls `TMDBService.get_instance()` at module load time, so the singleton is initialized on first import of the router.
+Search titles are the only exception to the required-field policy: an absent, null, empty or whitespace-only title causes the provider to omit that item during mapping. All other item fields are validated first, including those of untitled items; a missing required field or malformed value still fails the request with `MOVIE_PROVIDER_INVALID_RESPONSE` (502). A title of the wrong type also fails validation. Retained titles and result order are unchanged. The provider preserves TMDB's `page`, `total_results` and `total_pages`, so a returned page can contain fewer items, including zero. The cache keeps the source DTOs, and the same filter runs on fresh responses and cache hits. Details require a nonblank title and never use this omission policy.
 
----
+Search and detail vote averages accept numbers and numeric strings such as `"8.4"`, normalized to floats through `TMDBVoteAverage` in `app/providers/tmdb/validation.py`. Scores must remain finite and within TMDB's 0–10 scale; booleans, missing/null values, nonnumeric strings and out-of-range values produce 502. These source-specific types remain private to the integration and are not exported from `app.types`. No default score or clamping is applied. Other required fields and strict types remain unchanged, and identity mismatches are rejected.
 
-## HTTP Client
+`MovieService` explicitly maps neutral results into `movie_api_schemas.py`, preserving every released JSON field, numeric ID and camelCase alias. Unknown release dates remain empty strings on the numeric HTTP API. Expanded image/rating/UUID response contracts are outside #226.
 
-`TMDBService` uses a single shared `httpx.AsyncClient` for all requests.
+## HTTP and application errors
 
-- **Base URL:** `https://api.themoviedb.org/3/`
-- **Auth:** `Authorization: Bearer <TMDB_API_KEY>` header, assembled by `_headers()`
-- **Timeout:** `httpx.Timeout(TMDB_TIMEOUT)` applied uniformly to all requests
-- **Ownership:** The client is owned by the service (`_owns_client = True`) unless injected via the constructor (used in tests)
-- **Language:** Resolved full locale tag passed as the `language` query parameter
+`TMDBClient` calls `https://api.themoviedb.org/3`, using `Authorization: Bearer <TMDB_API_KEY>` and the full locale as `language`. `TMDB_TIMEOUT` defaults to 10 seconds and must be positive. A timeout is supplied even for an injected HTTP transport. There are no automatic retries.
 
----
+| Condition | Application code | HTTP |
+|---|---|---|
+| Detail lookup returns upstream 404 | `PROVIDER_MOVIE_NOT_FOUND` | 404 |
+| Transport failure, timeout, upstream 429 or 5xx | `MOVIE_PROVIDER_UNAVAILABLE` | 503 |
+| Other unsuccessful status, malformed JSON/DTO or inconsistent identity | `MOVIE_PROVIDER_INVALID_RESPONSE` | 502 |
 
-## Caching Layer
+A search endpoint returning 404 is an invalid response, not an empty result. A successful empty search remains 200. Errors use the existing `AppException` JSON envelope without returning source response bodies, credentials or raw transport errors. `MOVIE_NOT_FOUND` remains the separate canonical-catalog error.
 
-`TMDBCacheService` is a thin wrapper around the shared `CacheService` (Redis) that owns all TMDB-specific key construction, serialization, and TTL values.
+## Cache and observation time
 
-### Cache Keys
+`TMDBCache` stores validated source DTOs with `observed_at` in an envelope. The provider constructs and validates the mapped fields before reading the UTC clock once to assemble a fresh result; the same timestamp is stored in the snapshot. Only successful results are cached. Cache hits reuse the original timestamp without reading the clock and do not slide the TTL.
 
-| Operation | Key Format | Example |
-|-----------|-----------|---------|
-| Search | `cinelog:tmdb:search:{locale}:{normalized_query}` | `cinelog:tmdb:search:fr-FR:inception` |
-| Details | `cinelog:tmdb:details:{locale}:{tmdb_id}` | `cinelog:tmdb:details:it-IT:27205` |
+| Operation | Key | Default TTL |
+|---|---|---|
+| Search | `cinelog:tmdb:search:v2:{locale}:{normalized_query}` | 600 seconds |
+| Details | `cinelog:tmdb:details:v2:{locale}:{external_id}:generation:{generation}` | 86400 seconds |
 
-The search query is normalized via `query.strip().lower()`. Locale remains in both key shapes so two users requesting the same movie in different languages cannot share a localized payload.
+Search normalization retains the existing trim/lowercase behavior. `TMDB_SEARCH_CACHE_TTL` and `TMDB_DETAILS_CACHE_TTL` retain their existing configuration roles. Old keys are not read or rewritten; they expire with their original TTL. Rollback remains isolated because old and new versions use different namespaces.
 
-### TTL Configuration
+Detail generation uses the shared functions in `app/infrastructure/cache_generation.py`, passing the cache's `RedisClient`, context `tmdb-details:v2` and scope `{external_id}:{locale}`. Counters are persistent and default to zero. A read captures the generation before retrieving the payload; a subsequent fill writes using exactly that captured generation. Invalidating during an in-flight request therefore cannot repopulate the current generation with that request's older result.
 
-| Variable | Default | Scope |
-|----------|---------|-------|
-| `TMDB_SEARCH_CACHE_TTL` | `600` (10 min) | Search results — short TTL because rankings shift |
-| `TMDB_DETAILS_CACHE_TTL` | `86400` (24 h) | Movie details — long TTL because metadata is stable |
+`MovieDetailsQuery(force_refresh=True)` increments only that film/locale generation and bypasses the cached payload. This is the internal capability for #227; no endpoint exposes it and no current flow automatically requests it. Other films, locales and search caches are untouched. Superseded values expire normally. Generations do not coalesce concurrent requests; the future refresh policy owns its synchronization guard.
 
-Both TTLs are read once at module import via `os.getenv` and cast to `int`.
+Example: a detail acquired at 10:00 and imported from Redis at 14:00 is persisted with `tmdb_last_synced_at=10:00`. Search observations and Redis reads never become successful detail synchronization markers.
 
-### Error Behavior
+Invalid cached JSON or a snapshot that no longer passes DTO/envelope validation is treated as a cache miss. The provider fetches fresh TMDB data and replaces the entry only after successful validation and mapping, using the newly acquired observation time. Detail recovery retains the generation captured before reading the invalid entry; it neither increments nor rereads it before writing. The invalid entry is not deleted separately, which avoids removing a concurrent successful fill. Upstream failures still produce the application errors listed above and do not write a replacement.
 
-Redis is required at application startup. `TMDBCacheService` resolves the shared `CacheService` singleton through its `_cache` property and does not catch Redis errors.
+Redis operation failures and generation-counter errors continue to propagate. Redis remains mandatory at application startup; recovery from unreadable snapshots does not change connection-failure handling or other cache policies.
 
-If Redis is unreachable during startup, the FastAPI lifespan raises and the API does not start. If Redis becomes unavailable at runtime, TMDB cache reads or writes can fail the request instead of bypassing cache. See [Redis Caching](redis-caching.md) for details on that layer.
+## Import and persistence compatibility
 
----
+`find_or_create_movie` checks the existing numeric lookup first. Existing movies return without provider calls. First import requests `en-US`, then uses `MovieCreateDTO.from_metadata()` to select the neutral import fields for the repository's single creation method, `create_movie(data: MovieCreateDTO)`. The conversion retains the observation timestamp and opaque source snapshot, and excludes the optional canonical identity.
 
-## Request & Error Handling
+The repository adapts that input to the existing `tmdb_id`, `tmdb_payload` and `tmdb_last_synced_at` columns until #248. It stores the source snapshot opaquely and commits the original observation timestamp with the metadata. A source payload or optional canonical identity cannot assign/overwrite the database-generated UUID. Duplicate concurrent imports converge through the existing unique constraint and conflict read. A soft-deleted conflicting row is not resurrected or duplicated.
 
-Both `search_movie` and `get_movie_details` call `response.raise_for_status()` immediately after the HTTP call. Any non-2xx response from the TMDB API (including 404 for an unknown `tmdb_id`) raises an `httpx.HTTPStatusError`, which propagates up the call stack and results in a `500 Internal Server Error` for the API consumer.
+No database schema migration, metadata refresh on log/rating writes, additional provider or background task is introduced.
 
-No retry logic is currently implemented. Failed requests are not cached.
+## Composition and lifecycle
 
-`locale_dependency` selects a supported locale from `Accept-Language` before calling the service. Only requests without a supported header require a user-table lookup. See [Account Localization](localization.md).
+`provider_dependency.get_movie_provider()` is the production composition seam. The cached `get_movie_service()` uses it, and log/rating services share that movie service. There is no module-level provider instance in the movie controller.
 
----
+`TMDBMovieProvider.get_instance()` lazily owns one `TMDBClient`, which owns one `httpx.AsyncClient` unless explicitly injected. Provider shutdown closes only its owned client; the HTTP wrapper closes only its owned transport. Neither provider nor source cache closes the shared Redis connection.
 
-## MovieService Integration
+Application shutdown closes Redis, the provider and PostgreSQL and clears movie/log/rating service compositions. A later lifespan can obtain fresh components rather than retain a closed provider.
 
-`MovieService.find_or_create_movie(tmdb_id)` is the primary internal consumer of `TMDBService`. It implements a lazy-persistence pattern:
+## Testing
 
-```
-1. Query PostgreSQL for an existing movie row with the given tmdb_id
-2. If found → return it immediately (no TMDB call)
-3. If not found → call `TMDBService.get_movie_details(tmdb_id, locale="en-US")`
-4. Pass the TMDBMovieDetails to MovieRepository.create_from_tmdb_data()
-5. Return the newly created movie record
-```
+- Private integration tests under `tests/units/providers/tmdb/` use mocked HTTP responses and injected caches, including original timestamps, locales, untitled search filtering with unchanged pagination, score/date normalization, malformed values, identity mismatches, corrupt-cache recovery and generation races during both ordinary fills and recovery.
+- Service/repository/controller tests consume neutral or public types, not TMDB DTOs.
+- E2E fixtures replace the provider factory with `FakeMovieProvider`, clearing dependency caches before and after each test. HTTP and mapping are tested separately, and no live TMDB request is needed.
+- E2E retains real PostgreSQL/Redis, Uvicorn HTTPS and Secure-cookie coverage. Process/SMTP changes belong to #249.
 
-This means a movie is written to PostgreSQL exactly once — on first access — and always uses canonical `en-US` metadata rather than the current viewer's locale. All subsequent lookups for the same `tmdb_id` are served from the local database. Localized persistence is deferred to [issue #214](https://github.com/benincasantonio/cinelog_server/issues/214).
+Run `make test-unit`, `make lint`, `make format-check`, `make typecheck` and `make test-e2e`.
 
----
+## See Also
 
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TMDB_API_KEY` | — | **Required.** Bearer token for TMDB API v3. |
-| `TMDB_TIMEOUT` | `10` | Request timeout in seconds for `httpx.AsyncClient`. |
-| `TMDB_SEARCH_CACHE_TTL` | `600` | Redis TTL in seconds for search result cache entries. |
-| `TMDB_DETAILS_CACHE_TTL` | `86400` | Redis TTL in seconds for movie detail cache entries. |
-
-All four variables are read at module import time. Changing them requires an application restart.
-
----
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `app/services/tmdb_service.py` | `TMDBService` singleton — HTTP client, search, details methods, lifecycle |
-| `app/services/tmdb_cache_service.py` | `TMDBCacheService` — key construction, TTL management, serialization |
-| `app/schemas/tmdb_schemas.py` | `TMDBMovieSearchResult`, `TMDBMovieSearchResultItem`, `TMDBMovieDetails`, and supporting schemas |
-| `app/controllers/movie_controller.py` | FastAPI router — `GET /v1/movies/search` and `GET /v1/movies/{tmdb_id}` |
-| `app/services/movie_service.py` | `MovieService.find_or_create_movie()` — lazy persist integration point |
-
----
-
-## Decision Records (Why Not)
-
-**Why not initialize the singleton during app startup (like `CacheService`)?**
-`CacheService` requires a Redis configuration object and startup health check, so it is initialized during FastAPI lifespan startup. `TMDBService` reads its config directly from environment variables and creates its `httpx.AsyncClient` without any external dependency, so lazy initialization on first `get_instance()` call is sufficient and keeps the startup sequence simpler.
-
-**Why a separate `TMDBCacheService` instead of calling `CacheService` directly from `TMDBService`?**
-Separating cache concerns into `TMDBCacheService` keeps key construction, TTL constants, and serialization/deserialization logic out of `TMDBService`. This makes both classes easier to test in isolation — `TMDBService` tests can inject a mock cache, and cache behavior can be tested independently.
-
-**Why normalize the search query for the cache key?**
-TMDB's search is case-insensitive. Normalizing to lowercase and stripping whitespace ensures that `"Inception"`, `"inception"`, and `" inception "` all hit the same cache entry, preventing redundant API calls for equivalent queries.
-
-**Why is `raise_for_status()` used instead of checking the status code manually?**
-It produces a structured `httpx.HTTPStatusError` with the full request and response context attached, which makes debugging easier. The trade-off is that TMDB 4xx errors (e.g. 404 for an unknown movie) surface as 5xx to the API consumer — acceptable for now since the consumer is expected to use valid IDs obtained from the search endpoint.
-
----
-
-## Troubleshooting & Common Gotchas
-
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| `RuntimeError: TMDBService client is closed` | `aclose_all()` was called (app shutdown) before the request completed, or the service was closed in a test without being re-initialized | In tests, inject a fresh `TMDBService` instance directly; do not rely on the singleton across test boundaries |
-| All TMDB requests return `401 Unauthorized` from upstream | `TMDB_API_KEY` is missing or incorrect | Verify `TMDB_API_KEY` is set in your `.env` and the value matches a valid v4 read-access token from your TMDB account |
-| Search results are stale | Redis TTL for search is still active | Wait for the 10-minute TTL to expire, or flush `cinelog:tmdb:search:{locale}:{normalized_query}` |
-| Movie details are stale | Redis TTL for details is still active | Flush `cinelog:tmdb:details:{locale}:{tmdb_id}` |
-| Cache is never populated | Redis is unreachable or cache writes are failing | Confirm Redis is running (`redis-cli ping`) and check API logs for cache errors |
-| `tmdb_id` 404 causes 500 for the client | `raise_for_status()` propagates TMDB 404 as an unhandled exception | Ensure the `tmdb_id` was obtained from a valid search result; direct ID entry is not validated before the TMDB call |
-
----
-
-## Related Documents
-
-- [Technical: Account Localization](localization.md)
-- [Functional: TMDB Movie Service](../functional/tmdb-service.md)
-- [Technical: Redis Caching](redis-caching.md)
-- [Technical: Stats Caching](stats-caching.md)
-- [Architecture Reference](../../ARCHITECTURE.md#tmdb-integration)
+- [Functional: Movie Search and Details](../functional/tmdb-service.md)
+- [Redis Caching](redis-caching.md)
+- [Service Dependencies](service-dependencies.md)
+- [Account Localization](localization.md)
+- [Architecture](../../ARCHITECTURE.md#tmdb-integration)

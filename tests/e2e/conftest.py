@@ -28,9 +28,9 @@ import uvicorn  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
-from app.db.postgres import close_postgres_engine, init_postgres_engine  # noqa: E402
-from app.schemas.tmdb_schemas import TMDBMovieDetails, TMDBMovieSearchResult  # noqa: E402
+from app.infrastructure.postgres import close_postgres_engine, init_postgres_engine  # noqa: E402
 from app.utils.auth_utils import normalize_email_identifier  # noqa: E402
+from tests.fakes.movie_provider import FakeMovieProvider  # noqa: E402
 
 # Load .env file for remaining local settings (e.g. JWT_SECRET_KEY).
 # The values set above take precedence because load_dotenv does not overwrite
@@ -237,45 +237,14 @@ async def clean_db(postgres_engine):
 
 
 @pytest.fixture(autouse=True)
-def mock_tmdb_requests():
-    async def fake_get_movie_details(self, tmdb_id: int, locale: str = "en-US") -> TMDBMovieDetails:
-        return TMDBMovieDetails(
-            id=tmdb_id,
-            title=f"Movie {tmdb_id}",
-            original_title=f"Movie {tmdb_id}",
-            overview="Mocked movie details",
-            release_date="2024-01-01",
-            poster_path="/poster.jpg",
-            backdrop_path="/backdrop.jpg",
-            vote_average=7.5,
-            vote_count=1000,
-            runtime=120,
-            budget=50000000,
-            revenue=100000000,
-            status="Released",
-            tagline="Mocked tagline",
-            homepage=None,
-            imdb_id=None,
-            original_language="en",
-            popularity=50.5,
-            adult=False,
-            genres=[],
-            production_companies=[],
-            production_countries=[],
-            spoken_languages=[],
-        )
+def fake_movie_provider(monkeypatch):
+    from app.dependencies import provider_dependency
 
-    async def fake_search_movie(self, query: str, locale: str = "en-US") -> TMDBMovieSearchResult:
-        return TMDBMovieSearchResult(page=1, total_results=0, total_pages=0, results=[])
-
-    with (
-        patch(
-            "app.services.tmdb_service.TMDBService.get_movie_details",
-            fake_get_movie_details,
-        ),
-        patch("app.services.tmdb_service.TMDBService.search_movie", fake_search_movie),
-    ):
-        yield
+    fake = FakeMovieProvider()
+    _clear_dependency_caches()
+    monkeypatch.setattr(provider_dependency, "get_movie_provider", lambda: fake)
+    yield fake
+    _clear_dependency_caches()
 
 
 async def register(client, user_data: dict):

@@ -2,7 +2,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.db import postgres
+from app.infrastructure import postgres
 
 
 @pytest_asyncio.fixture(autouse=True)

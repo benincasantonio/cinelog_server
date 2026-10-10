@@ -1,10 +1,12 @@
+"""Released numeric movie API contract, owned by Cinelog."""
+
 from pydantic import Field
 
 from app.schemas.base_schemas import BaseSchema
 
 
-class TMDBMovieSearchResultItem(BaseSchema):
-    """Single movie item in TMDB search results"""
+class MovieSearchResultItem(BaseSchema):
+    """Single movie item in movie search results"""
 
     id: int = Field(..., description="Unique identifier for the movie")
     title: str = Field(..., description="Title of the movie")
@@ -42,8 +44,8 @@ class TMDBMovieSearchResultItem(BaseSchema):
     )
 
 
-class TMDBMovieSearchResult(BaseSchema):
-    """Results for movie search from TMDB"""
+class MovieSearchResult(BaseSchema):
+    """Results for movie search from the external movie catalog"""
 
     page: int = Field(..., description="Current page of results")
     total_results: int = Field(
@@ -56,18 +58,18 @@ class TMDBMovieSearchResult(BaseSchema):
         validation_alias="total_pages",
         description="Total number of pages available",
     )
-    results: list[TMDBMovieSearchResultItem] = Field(..., description="List of movie search result items")
+    results: list[MovieSearchResultItem] = Field(..., description="List of movie search result items")
 
 
-class TMDBGenre(BaseSchema):
-    """Genre information from TMDB"""
+class MovieGenre(BaseSchema):
+    """Genre information from the external movie catalog"""
 
     id: int = Field(..., description="Unique identifier for the genre")
     name: str = Field(..., description="Name of the genre")
 
 
-class TMDBProductionCompany(BaseSchema):
-    """Production company information from TMDB"""
+class MovieProductionCompany(BaseSchema):
+    """Production company information from the external movie catalog"""
 
     id: int = Field(..., description="Unique identifier for the production company")
     name: str = Field(..., description="Name of the production company")
@@ -79,23 +81,23 @@ class TMDBProductionCompany(BaseSchema):
     )
 
 
-class TMDBProductionCountry(BaseSchema):
-    """Production country information from TMDB"""
+class MovieProductionCountry(BaseSchema):
+    """Production country information from the external movie catalog"""
 
     iso_3166_1: str = Field(..., validation_alias="iso_3166_1", description="ISO 3166-1 country code")
     name: str = Field(..., description="Country name")
 
 
-class TMDBSpokenLanguage(BaseSchema):
-    """Spoken language information from TMDB"""
+class MovieSpokenLanguage(BaseSchema):
+    """Spoken language information from the external movie catalog"""
 
     iso_639_1: str = Field(..., validation_alias="iso_639_1", description="ISO 639-1 language code")
     name: str = Field(..., description="Language name")
     english_name: str = Field(..., validation_alias="english_name", description="English name of the language")
 
 
-class TMDBMovieDetails(BaseSchema):
-    """Full movie details from TMDB"""
+class MovieDetails(BaseSchema):
+    """Full movie details from the external movie catalog"""
 
     id: int = Field(..., description="Unique identifier for the movie")
     title: str = Field(..., description="Title of the movie")
@@ -136,17 +138,17 @@ class TMDBMovieDetails(BaseSchema):
     )
     popularity: float = Field(..., description="Popularity score")
     adult: bool = Field(..., description="Whether the movie is adult content")
-    genres: list[TMDBGenre] = Field(..., description="List of genres")
-    production_companies: list[TMDBProductionCompany] = Field(
+    genres: list[MovieGenre] = Field(..., description="List of genres")
+    production_companies: list[MovieProductionCompany] = Field(
         ...,
         validation_alias="production_companies",
         description="List of production companies",
     )
-    production_countries: list[TMDBProductionCountry] = Field(
+    production_countries: list[MovieProductionCountry] = Field(
         ...,
         validation_alias="production_countries",
         description="List of production countries",
     )
-    spoken_languages: list[TMDBSpokenLanguage] = Field(
+    spoken_languages: list[MovieSpokenLanguage] = Field(
         ..., validation_alias="spoken_languages", description="List of spoken languages"
     )

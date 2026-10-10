@@ -1,6 +1,6 @@
-# TMDB Movie Service
+# Movie Search and Details
 
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-10-09
 
 ## Table of Contents
 
@@ -14,13 +14,14 @@
   - [Search Result Item](#search-result-item)
   - [Full Movie Details](#full-movie-details)
 - [Edge Cases & Error Handling](#edge-cases--error-handling)
-- [Related Documents](#related-documents)
+- [Provider Boundary and Compatibility](#provider-boundary-and-compatibility)
+- [See Also](#see-also)
 
 ---
 
 ## Overview
 
-The TMDB Movie Service exposes two endpoints that allow authenticated users to search for movies and retrieve detailed information about a specific film. Live data is sourced from [The Movie Database (TMDB)](https://www.themoviedb.org/), localized for the authenticated viewer, and cached in Redis.
+Cinelog exposes two endpoints that allow authenticated users to search for movies and retrieve detailed information about a specific film. Live data is sourced from [The Movie Database (TMDB)](https://www.themoviedb.org/), localized for the authenticated viewer, and cached in Redis.
 
 ## Authentication
 
@@ -204,6 +205,18 @@ Includes all fields from the search result item, plus:
 
 ---
 
+## Provider Boundary and Compatibility
+
+Movie endpoints now delegate through Cinelog's movie service to an internal TMDB provider. Numeric movie IDs, request parameters, authentication, locale resolution and all existing response fields remain compatible. Unknown release dates are represented by the existing empty string convention.
+
+Search results omit movies whose title is absent, null, empty or whitespace-only. Remaining movies retain their order and title text. Pagination totals still describe TMDB's upstream results, so the returned page can contain fewer movies, including an empty list. Other missing required fields or malformed values still fail the request, even on a movie without a title. Movie details require a nonblank title.
+
+Numeric rating strings are converted to numbers (for example, `"8.4"` becomes `8.4`). Ratings outside 0–10 or values that cannot represent a finite numeric rating are rejected. Unknown dates remain empty strings in the public JSON; a present but malformed date produces an error.
+
+The provider caches search results for 10 minutes and details for 24 hours by default, separately by language. Cache reads preserve the original acquisition time. Importing a movie for a log or rating uses English metadata (`en-US`); an already saved movie is reused without a metadata refresh. These internal changes require no frontend deployment or database migration.
+
+Provider errors use the existing application JSON fields: `error_code_name`, `error_code`, `error_message` and `error_description`. `PROVIDER_MOVIE_NOT_FOUND` identifies an absent external movie; `MOVIE_NOT_FOUND` refers to a missing local catalog record. No source credentials or internal payload are added to responses.
+
 ## Edge Cases & Error Handling
 
 | Scenario | System Behavior | User-Facing Outcome |
@@ -211,14 +224,18 @@ Includes all fields from the search result item, plus:
 | Missing `query` parameter | FastAPI validation rejects the request | `422 Unprocessable Entity` |
 | `tmdb_id` is not an integer | FastAPI validation rejects the request | `422 Unprocessable Entity` |
 | TMDB returns no results | Empty `results` array is returned | `200 OK` with `"results": []` |
-| TMDB API returns a non-2xx status | `raise_for_status()` raises an error, propagated as a 5xx | `500 Internal Server Error` |
+| Search results contain otherwise valid movies without titles | Omit those movies and preserve upstream pagination totals | `200 OK` with the remaining results, possibly empty |
+| Movie details have no usable title, or a required field is missing or malformed | `MOVIE_PROVIDER_INVALID_RESPONSE` | `502 Bad Gateway` |
+| TMDB times out, is unreachable, returns 429 or 5xx | `MOVIE_PROVIDER_UNAVAILABLE` | `503 Service Unavailable` |
+| TMDB returns malformed data or another unexpected status | `MOVIE_PROVIDER_INVALID_RESPONSE` | `502 Bad Gateway` |
+| A cached search/detail snapshot is unreadable or incompatible with its schema | Fetch fresh data from TMDB and cache it after validation | Normal response if the fetch succeeds; otherwise the corresponding provider error |
 | Redis is unavailable at startup | API startup fails because Redis is required | Service is unavailable until Redis is healthy |
 | Redis becomes unavailable at runtime | Cache operation errors can fail TMDB requests | `500 Internal Server Error` |
-| `tmdb_id` not found on TMDB | TMDB returns 404, propagated as 5xx | `500 Internal Server Error` |
+| `tmdb_id` not found on TMDB | `PROVIDER_MOVIE_NOT_FOUND` | `404 Not Found` |
 
 ---
 
-## Related Documents
+## See Also
 
 - [Account Localization](localization.md)
 - [Technical: TMDB Service — Implementation Details](../technical/tmdb-service.md)

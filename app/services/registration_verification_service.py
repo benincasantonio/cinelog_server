@@ -8,7 +8,7 @@ from app.config.registration_verification_config import (
     REGISTRATION_VERIFICATION_MAX_ATTEMPTS,
     REGISTRATION_VERIFICATION_TTL_SECONDS,
 )
-from app.services.cache_service import CacheService
+from app.infrastructure.redis import RedisClient
 from app.utils.auth_utils import normalize_email_identifier, normalize_verification_code
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
@@ -16,8 +16,8 @@ from app.utils.exceptions_utils import AppException
 
 class RegistrationVerificationService:
     @property
-    def _cache(self) -> CacheService:
-        return CacheService.get_instance()
+    def _cache(self) -> RedisClient:
+        return RedisClient.get_instance()
 
     @staticmethod
     def _hash_value(value: str) -> str:

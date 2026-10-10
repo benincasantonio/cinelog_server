@@ -4,7 +4,7 @@ This document covers the stats caching strategy implemented via `StatsCacheServi
 
 ## Overview
 
-User stats aggregate logs, movies, and movie ratings. `StatsCacheService` wraps the low-level `CacheService` singleton to provide a domain-specific caching layer for the final `StatsResponse`, with automatic invalidation when underlying data changes.
+User stats aggregate logs, movies, and movie ratings. `StatsCacheService` wraps the low-level `RedisClient` singleton to provide a domain-specific caching layer for the final `StatsResponse`, with automatic invalidation when underlying data changes.
 
 Caching remains at the service layer. `StatsRepository` is SQL-only and does not depend on Redis.
 
@@ -53,7 +53,7 @@ When data that affects stats is modified, all cached stats for that user are inv
 
 ## Error Behavior
 
-Redis is required at application startup. `StatsCacheService` uses the shared `CacheService` singleton directly:
+Redis is required at application startup. `StatsCacheService` uses the shared `RedisClient` singleton directly:
 
 - If Redis is unreachable during startup, the application fails fast.
 - If Redis becomes unavailable at runtime, Redis errors propagate from `StatsCacheService`.

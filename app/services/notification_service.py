@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.config.notification_config import notification_list_cursor_scope
 from app.dependencies.repository_dependency import get_notification_repository
+from app.infrastructure.redis import RedisClient
 from app.models.notification_model import Notification
 from app.repository.notification_repository_protocol import (
     NotificationCreateResult,
@@ -18,7 +19,6 @@ from app.schemas.notification_schemas import (
     NotificationListRequest,
     NotificationListResponse,
 )
-from app.services.cache_service import CacheService
 from app.types import NotificationType, TimestampUUIDCursor
 from app.utils.cursor_pagination_utils import (
     decode_timestamp_uuid_cursor,
@@ -38,8 +38,8 @@ class NotificationService:
         self.repository = repository or get_notification_repository()
 
     @property
-    def _cache(self) -> CacheService:
-        return CacheService.get_instance()
+    def _cache(self) -> RedisClient:
+        return RedisClient.get_instance()
 
     @staticmethod
     def _to_response(notification: Notification) -> NotificationBaseResponse:

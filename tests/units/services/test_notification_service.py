@@ -54,7 +54,7 @@ def fake_cache():
 @pytest.fixture
 def service(repository, fake_cache):
     with patch(
-        "app.services.notification_service.CacheService.get_instance",
+        "app.services.notification_service.RedisClient.get_instance",
         return_value=fake_cache,
     ):
         yield NotificationService(repository=repository)

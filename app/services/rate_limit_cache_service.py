@@ -1,6 +1,6 @@
 import logging
 
-from app.services.cache_service import CacheService
+from app.infrastructure.redis import RedisClient
 from app.utils.auth_utils import RATE_LIMIT_SESSION_TTL_SECONDS
 
 logger = logging.getLogger(__name__)
@@ -11,8 +11,8 @@ RATE_LIMIT_SESSION_CACHE_VALUE: dict[str, bool] = {"active": True}
 
 class RateLimitCacheService:
     @property
-    def _cache(self) -> CacheService:
-        return CacheService.get_instance()
+    def _cache(self) -> RedisClient:
+        return RedisClient.get_instance()
 
     @staticmethod
     def build_session_key(session_id: str) -> str:

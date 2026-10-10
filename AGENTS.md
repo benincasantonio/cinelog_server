@@ -169,7 +169,7 @@ All work must be tied to a GitHub issue. Follow this workflow:
 
 ## Types and Validators
 
-Reusable validation logic lives in `app/types/`, organized by business domain. Each file contains both the validation functions and the resulting Annotated type aliases.
+Reusable Cinelog domain validation lives in `app/types/`, organized by business domain. Each file contains both the validation functions and the resulting Annotated type aliases. Provider-specific parsing and validation belong inside that provider's package (for example, `app/providers/tmdb/validation.py`) and must not be re-exported from `app.types`.
 
 **File structure:**
 
@@ -182,8 +182,8 @@ Reusable validation logic lives in `app/types/`, organized by business domain. E
 **Rules:**
 
 - Never define inline `@field_validator` methods in schemas when a reusable Annotated type already exists in `app/types/`.
-- When adding a new validator, place it in the appropriate domain file. If it spans multiple domains, put it in `common_validation.py`.
-- Schemas must import types from `app.types` (the package), not from individual sub-modules directly.
+- When adding a new Cinelog domain validator, place it in the appropriate domain file. If it spans multiple domains, put it in `common_validation.py`. Rules specific to an upstream format or rating scale stay in the provider package.
+- Schemas must import Cinelog validation types from `app.types` (the package), not from individual sub-modules directly. Provider DTOs import their private source-specific validation types from their own package.
 - Each domain file must include module-level documentation listing the exported types and their purpose.
 - Never create `Optional{TypeName}` aliases in `app/types/`. For optional validated fields, write `TypeName | None` inline in the schema instead (e.g. `ProfileVisibilityStr | None`, `WatchedWhereStr | None`).
 
@@ -201,8 +201,10 @@ For the full architecture reference, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 6. **Dependencies** (`app/dependencies/`) → FastAPI dependency injection (e.g., JWT auth)
 7. **Middleware** (`app/middleware/`) → Request processing middleware (e.g., CSRF protection)
 8. **Config** (`app/config/`) → Application configuration (e.g., CORS)
-9. **Types** (`app/types/`) → Reusable Annotated validation types, organized by domain
-10. **Utils** (`app/utils/`) → Shared utilities
+9. **Infrastructure** (`app/infrastructure/`) → Shared PostgreSQL connection/session management, Redis client and cache-generation helpers
+10. **Providers** (`app/providers/`) → Movie provider contracts, external integrations and their private HTTP/schema/cache code
+11. **Types** (`app/types/`) → Reusable Annotated validation types, organized by domain
+12. **Utils** (`app/utils/`) → Shared utilities
 
 ## Documentation
 

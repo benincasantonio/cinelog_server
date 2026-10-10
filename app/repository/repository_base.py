@@ -5,7 +5,7 @@ from contextlib import AbstractAsyncContextManager
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.postgres import get_async_session
+from app.infrastructure.postgres import get_async_session
 
 
 class RepositoryBase:

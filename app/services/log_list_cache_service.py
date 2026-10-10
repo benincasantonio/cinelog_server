@@ -3,8 +3,9 @@
 import logging
 from uuid import UUID
 
+from app.infrastructure.cache_generation import bump_generation, get_generation
+from app.infrastructure.redis import RedisClient
 from app.schemas.log_schemas import LogListRequest, LogListResponse
-from app.services.cache_service import CacheService
 
 logger = logging.getLogger(__name__)
 LOG_LIST_CONTEXT = "log-list"
@@ -23,8 +24,8 @@ class LogListCacheService:
 
     async def get(self, user_id: UUID, request: LogListRequest) -> tuple[LogListResponse | None, int | None]:
         try:
-            cache = CacheService.get_instance()
-            generation = await cache.get_generation(LOG_LIST_CONTEXT, str(user_id))
+            cache = RedisClient.get_instance()
+            generation = await get_generation(cache, LOG_LIST_CONTEXT, str(user_id))
             data = await cache.get(self.build_key(user_id, request, generation))
             return (LogListResponse.model_validate(data) if isinstance(data, dict) else None, generation)
         except Exception:
@@ -37,7 +38,7 @@ class LogListCacheService:
         if generation is None:
             return
         try:
-            await CacheService.get_instance().set(
+            await RedisClient.get_instance().set(
                 self.build_key(user_id, request, generation), response.model_dump(mode="json")
             )
         except Exception:
@@ -45,6 +46,6 @@ class LogListCacheService:
 
     async def invalidate_user(self, user_id: UUID) -> None:
         try:
-            await CacheService.get_instance().bump_generation(LOG_LIST_CONTEXT, str(user_id))
+            await bump_generation(RedisClient.get_instance(), LOG_LIST_CONTEXT, str(user_id))
         except Exception:
             logger.exception("Log list cache invalidation failed for user_id=%s", user_id)
