@@ -10,6 +10,11 @@ As of February 2026, Cinelog Server uses a self-hosted authentication solution (
 
 ## Password Limits
 
+Passwords are used exactly as typed. Cinelog never trims leading or trailing
+whitespace or otherwise changes a password, so spaces are part of the password at
+registration, reset, login, and password change. Clients must send the password
+unmodified.
+
 New passwords require **8–72 characters and at most 72 UTF-8 bytes**. This applies to
 registration (`password`), password reset (`newPassword`), and
 `PUT /v1/users/settings/password` (`newPassword`). Oversized passwords return HTTP
