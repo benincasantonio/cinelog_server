@@ -40,55 +40,32 @@ class MovieRatingService:
             movie_id=movie.id,
             rating=rating,
             comment=comment,
-            tmdb_id=tmdb_id,
         )
 
         await self.log_list_cache_service.invalidate_user(user_id)
         await self.stats_cache_service.invalidate_user_stats(user_id)
 
-        return self._get_movie_rating_response(movie_rating)
-
-    async def get_movie_rating(self, user_id: UUID, movie_id: UUID) -> MovieRatingResponse | None:
-        """
-        Get a movie rating for a specific user and movie.
-        """
-
-        movie_rating = await self.movie_rating_repository.find_movie_rating_by_user_and_movie(
-            user_id, movie_id=movie_id
-        )
-
-        if not movie_rating:
-            return None
-
-        if movie_rating.rating is None:
-            raise AppException(ErrorCodes.MOVIE_RATING_VALUE_REQUIRED)
-
-        return MovieRatingResponse(
-            id=str(movie_rating.id),
-            user_id=str(movie_rating.user_id),
-            movie_id=str(movie_rating.movie_id),
-            tmdb_id=movie_rating.tmdb_id,
-            rating=movie_rating.rating,
-            comment=movie_rating.review,
-            created_at=movie_rating.created_at,
-            updated_at=movie_rating.updated_at,
-        )
+        return self._get_movie_rating_response(movie_rating, tmdb_id=movie.tmdb_id)
 
     async def get_movie_ratings_by_tmdb_id(self, tmdb_id: int, user_id: UUID) -> MovieRatingResponse | None:
         """
         Get the caller's rating for a specific TMDB ID. Returns None if no rating exists.
         """
 
-        movie_rating = await self.movie_rating_repository.find_movie_rating_by_user_and_tmdb(
-            user_id=user_id, tmdb_id=tmdb_id
+        movie = await self.movie_service.get_movie_by_tmdb_id(tmdb_id)
+        if movie is None:
+            return None
+
+        movie_rating = await self.movie_rating_repository.find_movie_rating_by_user_and_movie(
+            user_id=user_id, movie_id=movie.id
         )
 
         if not movie_rating:
             return None
 
-        return self._get_movie_rating_response(movie_rating)
+        return self._get_movie_rating_response(movie_rating, tmdb_id=movie.tmdb_id)
 
-    def _get_movie_rating_response(self, movie_rating) -> MovieRatingResponse:
+    def _get_movie_rating_response(self, movie_rating, tmdb_id: int) -> MovieRatingResponse:
         if movie_rating.rating is None:
             raise AppException(ErrorCodes.MOVIE_RATING_VALUE_REQUIRED)
 
@@ -96,7 +73,7 @@ class MovieRatingService:
             id=str(movie_rating.id),
             user_id=str(movie_rating.user_id),
             movie_id=str(movie_rating.movie_id),
-            tmdb_id=movie_rating.tmdb_id,
+            tmdb_id=tmdb_id,
             rating=movie_rating.rating,
             comment=movie_rating.review,
             created_at=movie_rating.created_at,

@@ -13,10 +13,6 @@ class LogCreateRequest(BaseSchema):
     tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
     viewing_notes: str | None = Field(None, description="Optional notes about this viewing")
-    poster_path: str | None = Field(
-        None,
-        description="Path to the movie poster image (auto-fetched from TMDB if not provided)",
-    )
     watched_where: WatchedWhereStr = Field(
         "other",
         description="Where the movie was watched (e.g., Cinema, Home Video, Streaming etc.)",

@@ -17,6 +17,33 @@ from app.schemas.movie_schemas import MovieResponse
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
+# Released response fields read by cinelog_web. A rename or removal must fail here.
+LOG_RESPONSE_FIELDS = {
+    "id",
+    "movieId",
+    "movie",
+    "tmdbId",
+    "dateWatched",
+    "viewingNotes",
+    "posterPath",
+    "watchedWhere",
+    "movieRating",
+}
+LOG_LIST_FIELDS = {"logs", "totalWatches", "uniqueTitles", "totalRewatches"}
+MOVIE_RESPONSE_FIELDS = {
+    "id",
+    "title",
+    "tmdbId",
+    "posterPath",
+    "releaseDate",
+    "overview",
+    "voteAverage",
+    "runtime",
+    "originalLanguage",
+    "createdAt",
+    "updatedAt",
+}
+
 
 @pytest.fixture
 def client():
@@ -373,3 +400,65 @@ class TestGetLogsByHandle:
         app.dependency_overrides = {}
 
         assert response.status_code == 404
+
+
+class TestLogResponseFields:
+    """The serialized log responses keep every released field name."""
+
+    @patch.object(get_log_service(), "create_log", new_callable=AsyncMock)
+    def test_create_log_response_fields(
+        self, mock_create_log, client, sample_log_create_request, sample_log_response, override_auth
+    ):
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_create_log.return_value = sample_log_response
+
+        response = client.post(
+            "/v1/logs/",
+            json=sample_log_create_request,
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 201
+        data = response.json()
+        assert set(data) == LOG_RESPONSE_FIELDS
+        assert set(data["movie"]) == MOVIE_RESPONSE_FIELDS
+        # A posterPath sent by older clients is ignored, not forwarded to the service.
+        assert "poster_path" not in mock_create_log.call_args.kwargs["request"].model_dump()
+
+    @patch.object(get_log_service(), "update_log", new_callable=AsyncMock)
+    def test_update_log_response_fields(self, mock_update_log, client, sample_log_response, override_auth):
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_update_log.return_value = sample_log_response
+
+        response = client.put(
+            "/v1/logs/0f0e8400-e29b-41d4-a716-446655440011",
+            json={"viewingNotes": "Updated notes"},
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 200
+        data = response.json()
+        assert set(data) == LOG_RESPONSE_FIELDS
+        assert set(data["movie"]) == MOVIE_RESPONSE_FIELDS
+
+    @patch.object(get_log_service(), "get_user_logs_by_handle", new_callable=AsyncMock)
+    def test_log_list_response_fields(self, mock_get_logs_by_handle, client, sample_log_list_response, override_auth):
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_get_logs_by_handle.return_value = sample_log_list_response
+
+        response = client.get("/v1/logs/johndoe", cookies={"__Host-access_token": "token"})
+
+        app.dependency_overrides = {}
+
+        assert response.status_code == 200
+        data = response.json()
+        assert set(data) == LOG_LIST_FIELDS
+        [item] = data["logs"]
+        assert set(item) == LOG_RESPONSE_FIELDS
+        assert set(item["movie"]) == MOVIE_RESPONSE_FIELDS

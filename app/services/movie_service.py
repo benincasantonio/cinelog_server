@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from app.providers.movie_provider_protocol import MovieProviderProtocol
-from app.repository.movie_repository_protocol import MovieRepositoryProtocol
+from app.repository.movie_repository_protocol import MovieIdentityUnavailableError, MovieRepositoryProtocol
 from app.schemas.movie_api_schemas import (
     MovieDetails,
     MovieGenre,
@@ -14,6 +14,8 @@ from app.schemas.movie_api_schemas import (
 from app.schemas.movie_import_schemas import MovieCreateDTO
 from app.schemas.movie_provider_schemas import MovieDetailsQuery, MovieSearchQuery
 from app.types import DEFAULT_LOCALE
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 
 
 class MovieService:
@@ -96,4 +98,7 @@ class MovieService:
         metadata = await self.provider.get_movie_details(
             MovieDetailsQuery(external_id=str(tmdb_id), locale=DEFAULT_LOCALE)
         )
-        return await self.movie_repository.create_movie(MovieCreateDTO.from_metadata(metadata))
+        try:
+            return await self.movie_repository.create_movie(MovieCreateDTO.from_metadata(metadata))
+        except MovieIdentityUnavailableError as error:
+            raise AppException(ErrorCodes.MOVIE_UNAVAILABLE) from error

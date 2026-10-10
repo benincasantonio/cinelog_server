@@ -8,11 +8,18 @@ IdType = TypeVar("IdType", contravariant=True)
 MovieType = TypeVar("MovieType", covariant=True)
 
 
+class MovieIdentityUnavailableError(Exception):
+    """Raised when a source identity belongs to a soft-deleted movie and cannot be imported again."""
+
+
 class MovieRepositoryProtocol(Protocol[IdType, MovieType]):
     """Protocol for movie repository implementations."""
 
     async def create_movie(self, data: MovieCreateDTO) -> MovieType:
-        """Persist a Cinelog import or return the existing active movie for its source identity."""
+        """Persist a Cinelog import or return the existing active movie for its source identity.
+
+        Raises ``MovieIdentityUnavailableError`` when the identity belongs to a soft-deleted movie.
+        """
 
     async def update_movie(self, movie_id: IdType, request: MovieUpdateRequest) -> None:
         """Update an existing movie in the database."""

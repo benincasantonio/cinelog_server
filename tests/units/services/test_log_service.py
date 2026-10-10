@@ -80,10 +80,8 @@ class TestLogService:
         mock_log = Mock()
         mock_log.id = "log123"
         mock_log.movie_id = "movie123"
-        mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = "Great movie!"
-        mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "cinema"
 
         mock_log_repository.create_log.return_value = mock_log
@@ -134,10 +132,8 @@ class TestLogService:
         mock_log = Mock()
         mock_log.id = "log123"
         mock_log.movie_id = "movie123"
-        mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = None
-        mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "cinema"
         mock_log_repository.create_log.return_value = mock_log
 
@@ -149,8 +145,10 @@ class TestLogService:
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
-    async def test_create_log_auto_populate_poster(self, log_service, mock_log_repository, mock_movie_service):
-        """Test that posterPath is auto-populated from movie if not provided."""
+    async def test_create_log_derives_identity_and_poster_from_movie(
+        self, log_service, mock_log_repository, mock_movie_service
+    ):
+        """tmdbId and posterPath come from the movie; the log stores neither."""
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
@@ -169,24 +167,27 @@ class TestLogService:
         mock_log = Mock()
         mock_log.id = "log123"
         mock_log.movie_id = "movie123"
-        mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = None
-        mock_log.poster_path = "/movie_poster.jpg"
         mock_log.watched_where = "streaming"
 
         mock_log_repository.create_log.return_value = mock_log
 
-        request = LogCreateRequest(
-            tmdb_id=550,
-            date_watched=date(2024, 1, 15),
-            watched_where="streaming",
-            # posterPath not provided
+        request = LogCreateRequest.model_validate(
+            {
+                "tmdbId": 550,
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "streaming",
+                "posterPath": "/client_poster.jpg",
+            }
         )
         result = await log_service.create_log("user123", request)
 
-        # Verify posterPath was populated from movie
+        assert result.tmdb_id == 550
         assert result.poster_path == "/movie_poster.jpg"
+        persisted_request = mock_log_repository.create_log.await_args.kwargs["create_log_request"]
+        assert "poster_path" not in persisted_request.model_dump()
+        assert persisted_request.movie_id == mock_movie.id
 
     @pytest.mark.asyncio
     async def test_update_log_success(self, log_service, mock_log_repository, mock_movie_service):
@@ -194,10 +195,8 @@ class TestLogService:
         mock_log = Mock()
         mock_log.id = "log123"
         mock_log.movie_id = "movie123"
-        mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = "Updated notes"
-        mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "streaming"
 
         mock_log_repository.update_log.return_value = mock_log
@@ -239,10 +238,8 @@ class TestLogService:
         mock_log = Mock()
         mock_log.id = "log123"
         mock_log.movie_id = "movie123"
-        mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = "Updated notes"
-        mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "streaming"
         mock_log_repository.update_log.return_value = mock_log
 
@@ -339,14 +336,13 @@ class TestLogService:
         mock_movie.original_language = "en"
         mock_movie.created_at = None
         mock_movie.updated_at = None
+        mock_movie.deleted = False
 
         mock_log = Mock()
         mock_log.id = uuid4()
         mock_log.movie_id = uuid4()
-        mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = "Great!"
-        mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "cinema"
 
         # Ensure the movie.id matches log.movie_id
@@ -359,6 +355,8 @@ class TestLogService:
 
         assert len(result.logs) == 1
         assert result.logs[0].movie_rating == 8
+        assert result.logs[0].tmdb_id == 550
+        assert result.logs[0].poster_path == "/poster.jpg"
         mock_log_list_cache_service.set.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -384,24 +382,30 @@ class TestLogService:
     async def test_get_user_logs_counts(
         self, log_service, mock_log_repository, movie_indexes, expected_counts, include_movie_details
     ):
-        """Count movie IDs in the returned logs, including same-day repeats and missing details."""
+        """Count movie IDs in the returned logs, including same-day repeats and soft-deleted movies."""
         user_id = uuid4()
-        movies = [Movie(id=uuid4(), title="Same title", tmdb_id=550 + index) for index in range(2)]
+        movies = [
+            Movie(
+                id=uuid4(),
+                title="Same title",
+                tmdb_id=550 + index,
+                poster_path=f"/poster-{index}.jpg",
+                deleted=not include_movie_details,
+            )
+            for index in range(2)
+        ]
         logs = [
             Mock(
                 id=uuid4(),
                 movie_id=movies[index].id,
-                tmdb_id=movies[index].tmdb_id,
                 date_watched=date(2024, 1, 15),
                 viewing_notes=None,
-                poster_path=None,
                 watched_where="cinema",
             )
             for index in movie_indexes
         ]
         mock_log_repository.find_logs_by_user_id.return_value = [
-            (log, movies[index] if include_movie_details else None, None)
-            for log, index in zip(logs, movie_indexes, strict=True)
+            (log, movies[index], None) for log, index in zip(logs, movie_indexes, strict=True)
         ]
         request = LogListRequest(
             watched_where="cinema", date_watched_from=date(2024, 1, 1), date_watched_to=date(2024, 1, 31)
@@ -412,6 +416,10 @@ class TestLogService:
         assert (result.total_watches, result.unique_titles, result.total_rewatches) == expected_counts
         assert [item.id for item in result.logs] == [log.id for log in logs]
         assert all((item.movie is not None) == include_movie_details for item in result.logs)
+        # Identity and poster stay derivable from the movie even when it is soft-deleted.
+        assert [(item.tmdb_id, item.poster_path) for item in result.logs] == [
+            (movies[index].tmdb_id, movies[index].poster_path) for index in movie_indexes
+        ]
         mock_log_repository.find_logs_by_user_id.assert_awaited_once_with(
             user_id=user_id,
             watched_where="cinema",
@@ -443,13 +451,12 @@ class TestGetUserLogsByHandle:
         mock_log = Mock()
         mock_log.id = uuid4()
         mock_log.movie_id = uuid4()
-        mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = "Great!"
-        mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "cinema"
 
-        log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[(mock_log, None, None)])
+        movie = Movie(id=mock_log.movie_id, title="Test Movie", tmdb_id=550, poster_path="/poster.jpg", deleted=False)
+        log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[(mock_log, movie, None)])
 
         request = LogListRequest()
         result = await log_service.get_user_logs_by_handle(handle="johndoe", requester_id="other_user", request=request)
@@ -478,14 +485,13 @@ class TestGetUserLogsByHandle:
         mock_movie.original_language = "en"
         mock_movie.created_at = None
         mock_movie.updated_at = None
+        mock_movie.deleted = False
 
         mock_log = Mock()
         mock_log.id = log_id
         mock_log.movie_id = movie_id
-        mock_log.tmdb_id = 550
         mock_log.date_watched = date(2024, 1, 15)
         mock_log.viewing_notes = "Great!"
-        mock_log.poster_path = "/poster.jpg"
         mock_log.watched_where = "cinema"
 
         log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[(mock_log, mock_movie, 8)])

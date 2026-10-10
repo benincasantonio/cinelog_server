@@ -10,6 +10,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.models.movie_model import Movie
+from app.repository.movie_repository_protocol import MovieIdentityUnavailableError
 from app.repository.repository_base import RepositoryBase
 from app.schemas.movie_import_schemas import MovieCreateDTO
 from app.schemas.movie_schemas import MovieUpdateRequest
@@ -88,16 +89,15 @@ class MovieRepository(RepositoryBase):
                 await session.commit()
                 await session.refresh(movie)
                 return movie
-            except IntegrityError:
+            except IntegrityError as error:
                 await session.rollback()
-                statement = select(Movie).where(
-                    Movie.tmdb_id == external_id,
-                    Movie.active(),
-                )
+                statement = select(Movie).where(Movie.tmdb_id == external_id)
                 result = await session.execute(statement)
                 existing_movie = result.scalar_one_or_none()
                 if existing_movie is None:
                     raise
+                if existing_movie.deleted:
+                    raise MovieIdentityUnavailableError(f"tmdb:{external_id}") from error
                 return existing_movie
 
     async def find_movies_by_ids(self, movie_ids: Iterable[UUID]) -> list[Movie]:

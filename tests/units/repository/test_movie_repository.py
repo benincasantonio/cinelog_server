@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.models.base_model import Base
 from app.models.movie_model import Movie
 from app.repository.movie_repository import MovieRepository
+from app.repository.movie_repository_protocol import MovieIdentityUnavailableError
 from app.schemas.movie_import_schemas import MovieCreateDTO
 from app.schemas.movie_provider_schemas import MovieSourceReferenceDTO
 from app.schemas.movie_schemas import MovieUpdateRequest
@@ -252,11 +253,20 @@ async def test_concurrent_imports_converge_on_one_uuid(repository):
 async def test_import_does_not_resurrect_a_soft_deleted_identity(repository, seed_session):
     existing = Movie(tmdb_id=902, title="Gone", deleted=True, deleted_at=datetime.now(UTC))
     await _add(seed_session, existing)
-    with pytest.raises(IntegrityError):
+    with pytest.raises(MovieIdentityUnavailableError, match="tmdb:902") as error:
         await repository.create_movie(_import_data(902))
+    assert isinstance(error.value.__cause__, IntegrityError)
     await seed_session.refresh(existing)
     assert existing.deleted is True
     assert existing.title == "Gone"
+
+
+async def test_import_reraises_integrity_errors_unrelated_to_the_source_identity(repository):
+    data = _import_data(904)
+    data.title = None  # type: ignore[assignment]
+
+    with pytest.raises(IntegrityError):
+        await repository.create_movie(data)
 
 
 async def test_legacy_storage_rejects_an_unsupported_source(repository):

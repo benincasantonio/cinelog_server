@@ -66,9 +66,6 @@ class LogService:
 
         request.movie_id = movie.id
 
-        if not request.poster_path and movie.poster_path:
-            request.poster_path = movie.poster_path
-
         log = await self.log_repository.create_log(user_id=user_id, create_log_request=request)
 
         await self.log_list_cache_service.invalidate_user(user_id)
@@ -78,10 +75,10 @@ class LogService:
             id=str(log.id),
             movie_id=str(log.movie_id),
             movie=self._map_movie_to_response(movie),
-            tmdb_id=log.tmdb_id,
+            tmdb_id=movie.tmdb_id,
             date_watched=log.date_watched,
             viewing_notes=log.viewing_notes,
-            poster_path=log.poster_path,
+            poster_path=movie.poster_path,
             watched_where=log.watched_where,
             movie_rating=request.rating,
         )
@@ -109,10 +106,10 @@ class LogService:
             id=str(log.id),
             movie_id=str(log.movie_id),
             movie=self._map_movie_to_response(movie),
-            tmdb_id=log.tmdb_id,
+            tmdb_id=movie.tmdb_id,
             date_watched=log.date_watched,
             viewing_notes=log.viewing_notes,
-            poster_path=log.poster_path,
+            poster_path=movie.poster_path,
             watched_where=log.watched_where,
             movie_rating=request.rating,
         )
@@ -149,12 +146,12 @@ class LogService:
                 LogListItem(
                     id=log.id,
                     movie_id=log.movie_id,
-                    movie=self._map_movie_to_response(movie) if movie else None,
+                    movie=None if movie.deleted else self._map_movie_to_response(movie),
                     movie_rating=rating,
-                    tmdb_id=log.tmdb_id,
+                    tmdb_id=movie.tmdb_id,
                     date_watched=log.date_watched,
                     viewing_notes=log.viewing_notes,
-                    poster_path=log.poster_path,
+                    poster_path=movie.poster_path,
                     watched_where=log.watched_where,
                 )
             )
