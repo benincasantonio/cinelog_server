@@ -8,6 +8,21 @@ This document covers the implementation internals of the Cinelog authentication 
 - **JWT Storage**: `HttpOnly`, `Secure`, `SameSite=Strict` cookies
 - **CSRF**: Double Submit Cookie Pattern via `__Host-csrf_token`
 
+## Password Normalization
+
+Passwords are hashed and verified exactly as typed. Registration, password reset,
+login, and password change never trim whitespace or otherwise modify the password
+before calling `PasswordService`. Leading, trailing, and inner spaces are part of
+the secret, following NIST SP 800-63B, which says to accept all printable
+characters, including spaces. Length validation (`NewPasswordStr`) therefore counts
+the same string that is hashed, so whitespace padding such as `"       a"` is
+stored as typed and cannot authenticate as `"a"`.
+
+Accounts registered or reset while registration and reset still trimmed passwords
+have a hash of the trimmed value. Login never trimmed, so those users could only
+sign in without the surrounding spaces, and that keeps working. No data migration
+is needed.
+
 ## Password Length Validation
 
 `NewPasswordStr` in `app/types/user_validation.py`, exported through `app.types`,
@@ -17,9 +32,7 @@ uses a fixed error message without credential values. OpenAPI publishes the
 character bounds and describes the additional byte limit. The existing validation
 error handler sanitizes HTTP 422 responses before they reach clients.
 
-Validation measures the submitted string before service-level normalization.
-Registration and reset retain their existing `.strip()` calls; login and password
-change continue to preserve whitespace. Normalization is not changed by this fix.
+Validation measures the submitted string exactly as submitted.
 
 Bcrypt 5.0.0 raises `ValueError` for inputs over 72 bytes.
 `PasswordService.verify_password` returns `False` for such inputs before calling

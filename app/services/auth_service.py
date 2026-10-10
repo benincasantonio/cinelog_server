@@ -61,7 +61,7 @@ class AuthService:
             raise AppException(ErrorCodes.HANDLE_ALREADY_TAKEN)
 
         # Hash password
-        hashed_password = PasswordService.get_password_hash(request.password.strip())
+        hashed_password = PasswordService.get_password_hash(request.password)
 
         # Create user
         try:
@@ -159,7 +159,7 @@ class AuthService:
         if user.reset_password_expires.replace(tzinfo=UTC) < datetime.now(UTC):
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)  # Expired
 
-        hashed_password = PasswordService.get_password_hash(new_password.strip())
+        hashed_password = PasswordService.get_password_hash(new_password)
         await self.user_repository.update_password(user, hashed_password)
         await self.user_repository.clear_reset_password_code(user)
 
