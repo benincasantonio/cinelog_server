@@ -3,8 +3,11 @@ from uuid import uuid4
 
 import pytest
 
+from app.repository.movie_repository_protocol import MovieIdentityUnavailableError
 from app.schemas.movie_provider_schemas import MovieDetailsQuery
 from app.services.movie_service import MovieService
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 from tests.fakes.movie_provider import movie_metadata
 
 
@@ -93,6 +96,20 @@ class TestMovieService:
         assert data.observed_at == metadata.observed_at
         assert data.source_payload == metadata.source_payload
         assert "canonical_movie_id" not in type(data).model_fields
+
+    @pytest.mark.asyncio
+    async def test_find_or_create_movie_maps_soft_deleted_identity_to_app_error(
+        self, movie_service, mock_movie_repository, mock_provider
+    ):
+        """A soft-deleted source identity surfaces as MOVIE_UNAVAILABLE, not an unhandled error."""
+        mock_movie_repository.find_movie_by_tmdb_id.return_value = None
+        mock_provider.get_movie_details.return_value = movie_metadata()
+        mock_movie_repository.create_movie.side_effect = MovieIdentityUnavailableError("tmdb:550")
+
+        with pytest.raises(AppException) as exc_info:
+            await movie_service.find_or_create_movie(550)
+
+        assert exc_info.value.error == ErrorCodes.MOVIE_UNAVAILABLE
 
 
 async def test_detail_wire_contract_uses_neutral_metadata():

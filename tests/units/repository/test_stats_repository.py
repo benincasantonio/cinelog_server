@@ -96,7 +96,6 @@ def _log(
     return Log(
         user_id=user.id,
         movie_id=movie.id,
-        tmdb_id=movie.tmdb_id,
         date_watched=watched_at,
         watched_where=watched_where,
         **kwargs,
@@ -131,9 +130,9 @@ async def test_get_user_stats_aggregates_runtime_per_watch_and_ratings_per_title
         _log(user, movie_a, datetime(2024, 2, 1, tzinfo=UTC), "streaming"),
         _log(user, movie_b, datetime(2024, 3, 1, tzinfo=UTC), "homeVideo"),
         _log(other_user, movie_a, datetime(2024, 4, 1, tzinfo=UTC), "tv"),
-        MovieRating(user_id=user.id, movie_id=movie_a.id, tmdb_id=movie_a.tmdb_id, rating=8),
-        MovieRating(user_id=user.id, movie_id=movie_b.id, tmdb_id=movie_b.tmdb_id, rating=6),
-        MovieRating(user_id=other_user.id, movie_id=movie_a.id, tmdb_id=movie_a.tmdb_id, rating=10),
+        MovieRating(user_id=user.id, movie_id=movie_a.id, rating=8),
+        MovieRating(user_id=user.id, movie_id=movie_b.id, rating=6),
+        MovieRating(user_id=other_user.id, movie_id=movie_a.id, rating=10),
     )
 
     stats = await repository.get_user_stats(user.id)
@@ -205,7 +204,6 @@ async def test_get_user_stats_excludes_soft_deleted_rows_and_handles_missing_run
         MovieRating(
             user_id=user.id,
             movie_id=active_movie.id,
-            tmdb_id=active_movie.tmdb_id,
             rating=9,
             deleted=True,
             deleted_at=datetime.now(UTC),

@@ -10,7 +10,7 @@ The shared `execute_movie_rating_upsert()` repository primitive does not commit.
 
 ## Rating behavior
 
-- A non-null score upserts the row identified by `(user_id, tmdb_id)` and revives a soft-deleted row.
+- A non-null score upserts the row identified by `(user_id, movie_id)`, shared with the rating endpoint, and revives a soft-deleted row.
 - Log requests never accept rating comments or reviews.
 - Updating an active row through a log preserves its existing text.
 - Reviving a deleted row through a log clears its old text so deleted user content is not restored.

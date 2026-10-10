@@ -117,6 +117,13 @@ class ErrorCodes:
         error_description="The movie already exists in the database.",
     )
 
+    MOVIE_UNAVAILABLE = ErrorSchema(
+        error_code_name="MOVIE_UNAVAILABLE",
+        error_code=409,
+        error_message="Movie unavailable",
+        error_description="The movie has been removed from the catalog and cannot be logged or rated.",
+    )
+
     # Movie Rating Errors
     MOVIE_RATING_VALUE_REQUIRED = ErrorSchema(
         error_code_name="MOVIE_RATING_VALUE_REQUIRED",

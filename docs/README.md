@@ -34,6 +34,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Account Localization](technical/localization.md) | Locale persistence, header negotiation, fallback, and TMDB cache isolation |
 | [Atomic Log and Rating Writes](technical/log-rating-writes.md) | Combined transaction, rating text preservation, and cache invalidation |
 | [Log List Query](technical/log-list-query.md) | PostgreSQL joins, response mapping, and response caching |
+| [Movie Identity](technical/movie-identity.md) | `movies` as the single owner of TMDB identity and poster, migration audit, soft-deleted identities |
 | [Notification Architecture](technical/notifications.md) | Typed persistence, service response mapping, deduplication, and extension contract |
 | [Postgres Migration](technical/postgres-migration.md) | PostgreSQL setup and the completed MongoDB → PostgreSQL migration |
 | [Profile Visibility](technical/profile-visibility.md) | Visibility field, service logic, migration, and followers-only authorization stub |

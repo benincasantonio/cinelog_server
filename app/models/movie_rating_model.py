@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Text, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,12 +31,10 @@ class MovieRating(BaseEntity):
         ForeignKey("movies.id"),
         nullable=False,
     )
-    tmdb_id: Mapped[int] = mapped_column(Integer, nullable=False)
     rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
     review: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         CheckConstraint("rating BETWEEN 1 AND 10", name="ck_movie_ratings_rating_range"),
-        UniqueConstraint("user_id", "tmdb_id", name="uq_movie_ratings_user_tmdb"),
-        Index("ix_movie_ratings_user_movie", "user_id", "movie_id"),
+        UniqueConstraint("user_id", "movie_id", name="uq_movie_ratings_user_movie"),
     )
