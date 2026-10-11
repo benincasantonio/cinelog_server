@@ -27,7 +27,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Authentication](technical/authentication.md) | Auth implementation internals, middleware, cookie config |
 | [Code Quality CI](technical/code-quality-ci.md) | GitHub Actions quality gates for lint, format, type checking, and security |
 | [CORS Configuration](technical/cors-configuration.md) | CORS environment variables and behavior |
-| [Dependency Automation](technical/dependency-automation.md) | uv Dependabot updates, lockfile checks, and security updates |
+| [Dependency Automation](technical/dependency-automation.md) | Dependabot updates, locked dependency audits, and advisory exceptions |
 | [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
 | [Following](technical/following.md) | Follow persistence, eligibility rules, aggregation, and idempotency |
@@ -69,7 +69,8 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | `make format` | Format code with Ruff and apply auto-fixes |
 | `make format-check` | Check Ruff formatting without modifying files |
 | `make typecheck` | Run mypy type checking for `app/` |
-| `make security` | Run Bandit security scan and pip-audit dependency scan |
+| `make security` | Run Bandit security scan against `app/` |
+| `make dependency-audit` | Audit locked runtime and development dependencies with pip-audit |
 | `make run` | Run API locally via `python main.py` |
 | `make docker-up` | Start local Docker stack (`docker-compose.local.yml`) |
 | `make docker-down` | Stop local Docker stack (`docker-compose.local.yml`) |

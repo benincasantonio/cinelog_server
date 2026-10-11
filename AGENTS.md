@@ -113,9 +113,14 @@ Both commands set `core.hooksPath` to `.githooks/`. The pre-commit hook runs `ru
 
 ```bash
 make security
+make dependency-audit
 ```
 
-Runs both **Bandit** (static analysis for common security issues) and **pip-audit** (dependency vulnerability scanning) against the codebase. These checks also run automatically in CI via the security workflow.
+`make security` runs **Bandit** against `app/`. `make dependency-audit` runs **pip-audit** against the locked runtime and development dependencies, without updating the lockfile. Vulnerabilities and dependency collection errors fail the audit.
+
+Both checks run in the Security Scanning CI job on pull requests targeting `main`, pushes to `main`, manual runs, and every Monday at 06:23 UTC. The audit does not update dependencies or create issues; Dependabot remains responsible for automated update PRs.
+
+Prefer upgrading vulnerable dependencies. Specific advisory exceptions use `PIP_AUDIT_IGNORE_VULNS` in the Makefile (empty by default); every persistent exception must have a comment explaining its rationale, advisory URL, and removal condition. See [Dependency Automation](docs/technical/dependency-automation.md#dependency-auditing) for the workflow and examples.
 
 ## Development Flow
 

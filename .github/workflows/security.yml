@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+  schedule:
+    - cron: '23 6 * * 1'
 
 jobs:
   security:
@@ -27,6 +29,9 @@ jobs:
       - name: Install Dependencies
         run: |
           uv sync --frozen --group dev
+
+      - name: Run Dependency Audit
+        run: make dependency-audit
 
       - name: Run Bandit Security Scan
         run: |

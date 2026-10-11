@@ -50,12 +50,20 @@ The lint configuration intentionally ignores a small set of rules that conflict 
 Other quality gates are handled by separate workflows:
 
 - Type checking: `.github/workflows/typecheck.yml`, which runs `make typecheck`
-- Security scanning: `.github/workflows/security.yml`, which runs Bandit against `app/`
+- Security scanning: `.github/workflows/security.yml`, whose `security` job runs `make dependency-audit` against locked runtime and development dependencies, then Bandit against `app/`
 - Lockfile consistency: `.github/workflows/uv_lockfile.yml`, which runs `uv lock --check`
 - E2E tests: `.github/workflows/e2e_tests.yml`, which runs the Uvicorn-backed suite against PostgreSQL and Redis
 - Dependabot formatting: `.github/workflows/dependabot_format.yml`, which runs `make format` on `dependabot[bot]` pull requests and amends the existing commit. See [Dependency Automation](dependency-automation.md).
 
 After the new lockfile job has run on a pull request, add it and the seven existing PR checks to the main branch ruleset as required checks.
+
+## Security Workflow
+
+Security Scanning runs on pull requests targeting `main`, pushes to `main`, manual runs, and every Monday at 06:23 UTC on the default branch. After `uv sync --frozen --group dev`, it runs `make dependency-audit`; any audit error fails the existing `security` job. Bandit runs next if the audit succeeds.
+
+The audit checks the installed runtime and development dependencies from `uv.lock`, including transitive dependencies. It does not rewrite the lockfile, apply fixes, or open issues or pull requests. A newly published advisory can fail an otherwise unrelated PR until the dependency is updated or a specific exception is documented. The weekly run detects advisories even when no PR is open.
+
+Dependabot remains responsible for automated update PRs. See [Dependency Automation](dependency-automation.md#dependency-auditing) for remediation and narrowly scoped advisory exceptions.
 
 ## Local Usage
 
@@ -66,6 +74,7 @@ make lint
 make format-check
 make typecheck
 make security
+make dependency-audit
 uv lock --check
 ```
 
