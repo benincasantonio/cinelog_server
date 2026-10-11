@@ -1,5 +1,8 @@
 .PHONY: install dev hooks test-unit test-e2e lint format format-check typecheck security dependency-audit run docker-up docker-down docker-build-prod docker-prod-up docker-prod-down db-schema-migrate db-schema-migrate-dry-run db-schema-rollback
 
+# Each persistent exception needs a rationale, advisory URL, and removal condition.
+PIP_AUDIT_IGNORE_VULNS ?=
+
 install:
 	uv sync
 
@@ -65,7 +68,7 @@ security:
 	uv run bandit -r app/ -c pyproject.toml
 
 dependency-audit:
-	uv run pip-audit
+	uv run --frozen --group dev pip-audit --strict $(foreach id,$(PIP_AUDIT_IGNORE_VULNS),--ignore-vuln $(id))
 
 run:
 	uv run python main.py
