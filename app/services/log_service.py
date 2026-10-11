@@ -21,6 +21,7 @@ from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
+from app.utils.movie_compatibility_utils import get_legacy_tmdb_id
 
 
 class LogService:
@@ -44,7 +45,7 @@ class LogService:
         return MovieResponse(
             id=movie.id,
             title=movie.title,
-            tmdb_id=movie.tmdb_id,
+            tmdb_id=get_legacy_tmdb_id(movie),
             poster_path=movie.poster_path,
             release_date=movie.release_date,
             overview=movie.overview,
@@ -75,7 +76,7 @@ class LogService:
             id=str(log.id),
             movie_id=str(log.movie_id),
             movie=self._map_movie_to_response(movie),
-            tmdb_id=movie.tmdb_id,
+            tmdb_id=get_legacy_tmdb_id(movie),
             date_watched=log.date_watched,
             viewing_notes=log.viewing_notes,
             poster_path=movie.poster_path,
@@ -106,7 +107,7 @@ class LogService:
             id=str(log.id),
             movie_id=str(log.movie_id),
             movie=self._map_movie_to_response(movie),
-            tmdb_id=movie.tmdb_id,
+            tmdb_id=get_legacy_tmdb_id(movie),
             date_watched=log.date_watched,
             viewing_notes=log.viewing_notes,
             poster_path=movie.poster_path,
@@ -148,7 +149,7 @@ class LogService:
                     movie_id=log.movie_id,
                     movie=None if movie.deleted else self._map_movie_to_response(movie),
                     movie_rating=rating,
-                    tmdb_id=movie.tmdb_id,
+                    tmdb_id=get_legacy_tmdb_id(movie),
                     date_watched=log.date_watched,
                     viewing_notes=log.viewing_notes,
                     poster_path=movie.poster_path,

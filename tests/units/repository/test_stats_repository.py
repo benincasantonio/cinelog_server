@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.models.base_model import Base
 from app.models.log_model import Log
 from app.models.movie_model import Movie
+from app.models.movie_provider_mapping_model import MovieProviderMapping
 from app.models.movie_rating_model import MovieRating
 from app.models.user_model import User
 from app.repository.stats_repository import StatsRepository
@@ -120,8 +121,8 @@ async def test_get_user_stats_aggregates_runtime_per_watch_and_ratings_per_title
 ):
     user = _user("owner")
     other_user = _user("other")
-    movie_a = Movie(tmdb_id=101, title="Movie A", runtime=120)
-    movie_b = Movie(tmdb_id=102, title="Movie B", runtime=90)
+    movie_a = Movie(providers=[MovieProviderMapping(provider="tmdb", external_id="101")], title="Movie A", runtime=120)
+    movie_b = Movie(providers=[MovieProviderMapping(provider="tmdb", external_id="102")], title="Movie B", runtime=90)
     await _add(seed_session, user, other_user, movie_a, movie_b)
 
     await _add(
@@ -150,7 +151,7 @@ async def test_get_user_stats_applies_inclusive_date_range(
     seed_session: AsyncSession,
 ):
     user = _user("dates")
-    movie = Movie(tmdb_id=201, title="Date Movie", runtime=100)
+    movie = Movie(providers=[MovieProviderMapping(provider="tmdb", external_id="201")], title="Date Movie", runtime=100)
     await _add(seed_session, user, movie)
     await _add(
         seed_session,
@@ -178,15 +179,19 @@ async def test_get_user_stats_excludes_soft_deleted_rows_and_handles_missing_run
     seed_session: AsyncSession,
 ):
     user = _user("deleted")
-    active_movie = Movie(tmdb_id=301, title="Active", runtime=100)
+    active_movie = Movie(
+        providers=[MovieProviderMapping(provider="tmdb", external_id="301")], title="Active", runtime=100
+    )
     deleted_movie = Movie(
-        tmdb_id=302,
+        providers=[MovieProviderMapping(provider="tmdb", external_id="302")],
         title="Deleted",
         runtime=200,
         deleted=True,
         deleted_at=datetime.now(UTC),
     )
-    null_runtime_movie = Movie(tmdb_id=303, title="Unknown Runtime", runtime=None)
+    null_runtime_movie = Movie(
+        providers=[MovieProviderMapping(provider="tmdb", external_id="303")], title="Unknown Runtime", runtime=None
+    )
     await _add(seed_session, user, active_movie, deleted_movie, null_runtime_movie)
     await _add(
         seed_session,

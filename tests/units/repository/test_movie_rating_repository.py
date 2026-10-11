@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.models.base_model import Base
 from app.models.movie_model import Movie
+from app.models.movie_provider_mapping_model import MovieProviderMapping
 from app.models.movie_rating_model import MovieRating
 from app.models.user_model import User
 from app.repository.movie_rating_repository import MovieRatingRepository, execute_movie_rating_upsert
@@ -83,8 +84,8 @@ async def _seed_fk_entities(seed_session: AsyncSession) -> tuple[User, Movie, Mo
         last_name="User",
         date_of_birth=date(1990, 1, 1),
     )
-    movie_a = Movie(tmdb_id=550, title="Fight Club")
-    movie_b = Movie(tmdb_id=551, title="Movie B")
+    movie_a = Movie(providers=[MovieProviderMapping(provider="tmdb", external_id="550")], title="Fight Club")
+    movie_b = Movie(providers=[MovieProviderMapping(provider="tmdb", external_id="551")], title="Movie B")
     await _add(seed_session, user, movie_a, movie_b)
     return user, movie_a, movie_b
 

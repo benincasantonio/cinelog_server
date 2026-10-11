@@ -77,7 +77,7 @@ Detail generation uses the shared functions in `app/infrastructure/cache_generat
 
 `MovieDetailsQuery(force_refresh=True)` increments only that film/locale generation and bypasses the cached payload. This is the internal capability for #227; no endpoint exposes it and no current flow automatically requests it. Other films, locales and search caches are untouched. Superseded values expire normally. Generations do not coalesce concurrent requests; the future refresh policy owns its synchronization guard.
 
-Example: a detail acquired at 10:00 and imported from Redis at 14:00 is persisted with `tmdb_last_synced_at=10:00`. Search observations and Redis reads never become successful detail synchronization markers.
+Example: a detail acquired at 10:00 and imported from Redis at 14:00 is persisted with `movie_providers.last_synced_at=10:00`. Search observations and Redis reads never become successful detail synchronization markers.
 
 Invalid cached JSON or a snapshot that no longer passes DTO/envelope validation is treated as a cache miss. The provider fetches fresh TMDB data and replaces the entry only after successful validation and mapping, using the newly acquired observation time. Detail recovery retains the generation captured before reading the invalid entry; it neither increments nor rereads it before writing. The invalid entry is not deleted separately, which avoids removing a concurrent successful fill. Upstream failures still produce the application errors listed above and do not write a replacement.
 
@@ -87,9 +87,11 @@ Redis operation failures and generation-counter errors continue to propagate. Re
 
 `find_or_create_movie` checks the existing numeric lookup first. Existing movies return without provider calls. First import requests `en-US`, then uses `MovieCreateDTO.from_metadata()` to select the neutral import fields for the repository's single creation method, `create_movie(data: MovieCreateDTO)`. The conversion retains the observation timestamp and opaque source snapshot, and excludes the optional canonical identity.
 
-The repository adapts that input to the existing `tmdb_id`, `tmdb_payload` and `tmdb_last_synced_at` columns until #248. It stores the source snapshot opaquely and commits the original observation timestamp with the metadata. A source payload or optional canonical identity cannot assign/overwrite the database-generated UUID. Duplicate concurrent imports converge through the existing unique constraint and conflict read. A soft-deleted conflicting row is not resurrected or duplicated.
+The repository persists canonical fields on `movies` and the external reference, opaque snapshot and original observation timestamp on `movie_providers`. The `(provider, external_id)` primary key is the conflict target; `UNIQUE(movie_id, provider)` permits one mapping per source per film. The new film and mapping commit atomically. A competing import rolls back its candidate film and returns the winning UUID, without overwriting the saved observation. A source payload or optional canonical identity cannot assign the database-generated UUID.
 
-No database schema migration, metadata refresh on log/rating writes, additional provider or background task is introduced.
+A soft-deleted identity remains reserved and produces `409 MOVIE_UNAVAILABLE`. Import checks it before contacting the provider, and the repository checks it again after a concurrent conflict. List responses obtain numeric identity through explicitly loaded mappings, including those of soft-deleted movies.
+
+Revision 010 transfers and removes the three original TMDB columns. API contracts, provider cache/locale behavior and initial import language are unchanged; no metadata refresh on log/rating writes, additional provider or background task is introduced. See [Movie Provider Mappings](movie-provider-mappings.md) for constraints, rollback guards and the required coordinated deployment.
 
 ## Composition and lifecycle
 
@@ -111,6 +113,7 @@ Run `make test-unit`, `make lint`, `make format-check`, `make typecheck` and `ma
 ## See Also
 
 - [Functional: Movie Search and Details](../functional/tmdb-service.md)
+- [Movie Provider Mappings](movie-provider-mappings.md)
 - [Redis Caching](redis-caching.md)
 - [Service Dependencies](service-dependencies.md)
 - [Account Localization](localization.md)

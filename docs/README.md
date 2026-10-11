@@ -43,6 +43,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Service Dependencies](technical/service-dependencies.md) | Service providers, FastAPI `Depends` wiring, test overrides |
 | [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
 | [Statistics Query](technical/stats-query.md) | PostgreSQL cross-table stats aggregation and semantics |
+| [Movie Provider Mappings](technical/movie-provider-mappings.md) | Source identity, atomic imports, schema migration and coordinated rollback |
 | [TMDB Movie Provider](technical/tmdb-service.md) | Integration package, separate provider/import DTOs, observation timestamps and generation cache |
 | [Validation Error Sanitization](technical/validation-error-sanitization.md) | Why 422 responses never echo submitted request values |
 

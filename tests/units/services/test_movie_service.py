@@ -3,8 +3,9 @@ from uuid import uuid4
 
 import pytest
 
+from app.models.movie_provider_mapping_model import MovieProviderMapping
 from app.repository.movie_repository_protocol import MovieIdentityUnavailableError
-from app.schemas.movie_provider_schemas import MovieDetailsQuery
+from app.schemas.movie_provider_schemas import MovieDetailsQuery, MovieSourceReferenceDTO
 from app.services.movie_service import MovieService
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
@@ -29,7 +30,7 @@ class TestMovieService:
     @pytest.mark.asyncio
     async def test_get_movie_by_id(self, movie_service, mock_movie_repository):
         """Test getting a movie by ID."""
-        mock_movie = Mock()
+        mock_movie = Mock(deleted=False)
         movie_id = uuid4()
         mock_movie.id = movie_id
         mock_movie.title = "Test Movie"
@@ -52,22 +53,24 @@ class TestMovieService:
     @pytest.mark.asyncio
     async def test_get_movie_by_tmdb_id(self, movie_service, mock_movie_repository):
         """Test getting a movie by TMDB ID."""
-        mock_movie = Mock()
+        mock_movie = Mock(deleted=False)
         mock_movie.id = uuid4()
-        mock_movie.tmdb_id = 550
-        mock_movie_repository.find_movie_by_tmdb_id.return_value = mock_movie
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
+        mock_movie_repository.find_movie_by_provider.return_value = mock_movie
 
         result = await movie_service.get_movie_by_tmdb_id(550)
 
         assert result == mock_movie
-        mock_movie_repository.find_movie_by_tmdb_id.assert_awaited_once_with(550)
+        mock_movie_repository.find_movie_by_provider.assert_awaited_once_with(
+            MovieSourceReferenceDTO(source="tmdb", external_id="550")
+        )
 
     @pytest.mark.asyncio
     async def test_find_or_create_movie_exists(self, movie_service, mock_movie_repository, mock_provider):
         """Test find_or_create when movie already exists."""
-        mock_movie = Mock()
+        mock_movie = Mock(deleted=False)
         mock_movie.id = uuid4()
-        mock_movie_repository.find_movie_by_tmdb_id.return_value = mock_movie
+        mock_movie_repository.find_movie_by_provider.return_value = mock_movie
 
         result = await movie_service.find_or_create_movie(550)
 
@@ -78,7 +81,7 @@ class TestMovieService:
     @pytest.mark.asyncio
     async def test_find_or_create_movie_creates_new(self, movie_service, mock_movie_repository, mock_provider):
         """Test find_or_create when movie doesn't exist."""
-        mock_movie_repository.find_movie_by_tmdb_id.return_value = None
+        mock_movie_repository.find_movie_by_provider.return_value = None
 
         metadata = movie_metadata()
         mock_provider.get_movie_details.return_value = metadata
@@ -102,7 +105,7 @@ class TestMovieService:
         self, movie_service, mock_movie_repository, mock_provider
     ):
         """A soft-deleted source identity surfaces as MOVIE_UNAVAILABLE, not an unhandled error."""
-        mock_movie_repository.find_movie_by_tmdb_id.return_value = None
+        mock_movie_repository.find_movie_by_provider.return_value = None
         mock_provider.get_movie_details.return_value = movie_metadata()
         mock_movie_repository.create_movie.side_effect = MovieIdentityUnavailableError("tmdb:550")
 
@@ -191,9 +194,22 @@ async def test_provider_canonical_id_cannot_be_imported():
     data = movie_metadata()
     data.canonical_movie_id = uuid4()
     repository, provider = AsyncMock(), AsyncMock()
-    repository.find_movie_by_tmdb_id.return_value = None
+    repository.find_movie_by_provider.return_value = None
     provider.get_movie_details.return_value = data
     await MovieService(repository, provider).find_or_create_movie(550)
     imported = repository.create_movie.await_args.args[0]
     assert "canonical_movie_id" not in imported.model_dump()
     assert "id" not in imported.model_dump()
+
+
+async def test_deleted_identity_is_rejected_before_contacting_provider():
+    repository, provider = AsyncMock(), AsyncMock()
+    repository.find_movie_by_provider.return_value = Mock(deleted=True)
+    with pytest.raises(AppException) as error:
+        await MovieService(repository, provider).find_or_create_movie(550)
+    assert error.value.error == ErrorCodes.MOVIE_UNAVAILABLE
+    repository.find_movie_by_provider.assert_awaited_once_with(
+        MovieSourceReferenceDTO(source="tmdb", external_id="550"), include_deleted=True
+    )
+    provider.get_movie_details.assert_not_awaited()
+    repository.create_movie.assert_not_awaited()

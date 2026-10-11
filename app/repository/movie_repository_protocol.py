@@ -2,6 +2,7 @@ from collections.abc import Iterable, Sequence
 from typing import Protocol, TypeVar
 
 from app.schemas.movie_import_schemas import MovieCreateDTO
+from app.schemas.movie_provider_schemas import MovieSourceReferenceDTO
 from app.schemas.movie_schemas import MovieUpdateRequest
 
 IdType = TypeVar("IdType", contravariant=True)
@@ -27,8 +28,10 @@ class MovieRepositoryProtocol(Protocol[IdType, MovieType]):
     async def find_movie_by_id(self, movie_id: IdType) -> MovieType | None:
         """Find a movie by its unique identifier."""
 
-    async def find_movie_by_tmdb_id(self, tmdb_id: int) -> MovieType | None:
-        """Find a movie by its TMDB ID."""
+    async def find_movie_by_provider(
+        self, source: MovieSourceReferenceDTO, *, include_deleted: bool = False
+    ) -> MovieType | None:
+        """Resolve an opaque source identity; deleted identities can be inspected before import."""
 
     async def find_movies_by_ids(self, movie_ids: Iterable[IdType]) -> Sequence[MovieType]:
         """Find multiple movies by a set of unique identifiers."""

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.models.base_model import Base
 from app.models.log_model import Log
 from app.models.movie_model import Movie
+from app.models.movie_provider_mapping_model import MovieProviderMapping
 from app.models.movie_rating_model import MovieRating
 from app.models.user_model import User
 from app.repository.log_repository import LogRepository
@@ -86,8 +87,8 @@ async def _seed_fk_entities(seed_session: AsyncSession) -> tuple[User, Movie, Mo
         last_name="User",
         date_of_birth=date(1990, 1, 1),
     )
-    movie_a = Movie(tmdb_id=550, title="Fight Club")
-    movie_b = Movie(tmdb_id=551, title="Alien")
+    movie_a = Movie(providers=[MovieProviderMapping(provider="tmdb", external_id="550")], title="Fight Club")
+    movie_b = Movie(providers=[MovieProviderMapping(provider="tmdb", external_id="551")], title="Alien")
     await _add(seed_session, user, movie_a, movie_b)
     return user, movie_a, movie_b
 
@@ -117,7 +118,7 @@ async def test_create_log_persists_row(repository: LogRepository, seed_session: 
 
     log = await repository.create_log(
         user.id,
-        _create_request(movie.id, tmdb_id=movie.tmdb_id),
+        _create_request(movie.id, tmdb_id=550),
     )
 
     assert log.id is not None
@@ -135,7 +136,7 @@ async def test_create_log_atomically_creates_rating(repository: LogRepository, s
 
     log = await repository.create_log(
         user.id,
-        _create_request(movie.id, tmdb_id=movie.tmdb_id, rating=9),
+        _create_request(movie.id, tmdb_id=550, rating=9),
     )
 
     rating = await seed_session.scalar(
@@ -151,7 +152,7 @@ async def test_create_log_atomically_creates_rating(repository: LogRepository, s
 @pytest.mark.asyncio
 async def test_create_log_rolls_back_when_rating_fails(repository: LogRepository, seed_session: AsyncSession):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    request = _create_request(movie.id, tmdb_id=movie.tmdb_id)
+    request = _create_request(movie.id, tmdb_id=550)
     request.rating = 11
 
     with pytest.raises(IntegrityError):

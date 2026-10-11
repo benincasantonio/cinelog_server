@@ -117,8 +117,11 @@ No request body.
 }
 ```
 
+The #248 persistence migration preserves existing `movieId` UUIDs and numeric `tmdbId` fields. TMDB identity now comes from a separate provider mapping; clients continue sending the same requests. Saved entries for a removed film still include `tmdbId` and `posterPath`, while the nested `movie` is `null`.
+
 ## See Also
 
+- [Movie Provider Mappings and Deployment](../technical/movie-provider-mappings.md)
 - [Authentication](authentication.md) — cookie and CSRF setup
 - [Rate Limiting](rate-limiting.md) — per-endpoint limits and 429 behavior
 - [User Statistics API](stats-api.md) — viewing statistics and year filters

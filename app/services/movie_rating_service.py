@@ -7,6 +7,7 @@ from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
+from app.utils.movie_compatibility_utils import get_legacy_tmdb_id
 
 
 class MovieRatingService:
@@ -45,7 +46,7 @@ class MovieRatingService:
         await self.log_list_cache_service.invalidate_user(user_id)
         await self.stats_cache_service.invalidate_user_stats(user_id)
 
-        return self._get_movie_rating_response(movie_rating, tmdb_id=movie.tmdb_id)
+        return self._get_movie_rating_response(movie_rating, tmdb_id=get_legacy_tmdb_id(movie))
 
     async def get_movie_ratings_by_tmdb_id(self, tmdb_id: int, user_id: UUID) -> MovieRatingResponse | None:
         """
@@ -63,7 +64,7 @@ class MovieRatingService:
         if not movie_rating:
             return None
 
-        return self._get_movie_rating_response(movie_rating, tmdb_id=movie.tmdb_id)
+        return self._get_movie_rating_response(movie_rating, tmdb_id=get_legacy_tmdb_id(movie))
 
     def _get_movie_rating_response(self, movie_rating, tmdb_id: int) -> MovieRatingResponse:
         if movie_rating.rating is None:

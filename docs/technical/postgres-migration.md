@@ -1,5 +1,7 @@
 # PostgreSQL Migration
 
+**Provider separation (issue #248):** revision 010 moves TMDB identity, source payload and synchronization time to `movie_providers`, preserving all existing UUIDs. See [Movie Provider Mappings](movie-provider-mappings.md) for the current schema, coordinated deployment and rollback. Historical schemas below describe the original MongoDB migration.
+
 ## Status: Migration Complete ✅
 
 The MongoDB → PostgreSQL migration is finished. All four repositories (movies, users, movie ratings, logs) run on PostgreSQL in production, the data migration scripts have been executed and verified, and MongoDB has been removed from the codebase entirely.
