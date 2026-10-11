@@ -11,6 +11,7 @@ from alembic import command
 from tests.alembic_test_harness import AlembicTestHarness
 
 PREVIOUS_REVISION = "008_add_locale_to_users"
+REVISION = "009_drop_denormalized_columns"
 
 
 def _insert_user(harness: AlembicTestHarness, *, suffix: str) -> UUID:
@@ -101,7 +102,7 @@ def test_migration_drops_copies_and_keys_ratings_on_movie(alembic_test_harness: 
     log_id = _insert_legacy_log(alembic_test_harness, user_id=user_id, movie_id=movie_id, tmdb_id=550)
     rating_id = _insert_legacy_rating(alembic_test_harness, user_id=user_id, movie_id=movie_id, tmdb_id=550)
 
-    alembic_test_harness.upgrade()
+    alembic_test_harness.upgrade(REVISION)
 
     assert {"tmdb_id", "poster_path"}.isdisjoint(_columns(alembic_test_harness, "logs"))
     assert "tmdb_id" not in _columns(alembic_test_harness, "movie_ratings")
@@ -141,7 +142,7 @@ def test_migration_audit_rejects_copies_that_disagree_with_their_movie(
         offending_id = _insert_legacy_rating(alembic_test_harness, user_id=user_id, movie_id=movie_id, tmdb_id=999)
 
     with pytest.raises(RuntimeError) as error:
-        alembic_test_harness.upgrade()
+        alembic_test_harness.upgrade(REVISION)
 
     message = str(error.value)
     assert "Pre-flight audit failed" in message
@@ -159,7 +160,7 @@ def test_migration_audit_rejects_duplicate_ratings_for_one_movie(alembic_test_ha
     _insert_legacy_rating(alembic_test_harness, user_id=user_id, movie_id=movie_id, tmdb_id=551)
 
     with pytest.raises(RuntimeError) as error:
-        alembic_test_harness.upgrade()
+        alembic_test_harness.upgrade(REVISION)
 
     message = str(error.value)
     assert "more than one movie_ratings row per (user_id, movie_id)" in message
@@ -179,7 +180,7 @@ def test_migration_downgrade_backfills_copies_from_movies(alembic_test_harness: 
         poster_path="/client-supplied.jpg",
     )
     _insert_legacy_rating(alembic_test_harness, user_id=user_id, movie_id=movie_id, tmdb_id=550)
-    alembic_test_harness.upgrade()
+    alembic_test_harness.upgrade(REVISION)
 
     alembic_test_harness.downgrade(PREVIOUS_REVISION)
 
@@ -211,7 +212,7 @@ def _offline_audit_sql(harness: AlembicTestHarness) -> str:
     buffer = StringIO()
     offline_config = Config(harness.config.config_file_name, output_buffer=buffer)
     offline_config.set_main_option("script_location", harness.config.get_main_option("script_location"))
-    command.upgrade(offline_config, f"{PREVIOUS_REVISION}:head", sql=True)
+    command.upgrade(offline_config, f"{PREVIOUS_REVISION}:{REVISION}", sql=True)
     script = buffer.getvalue()
     start = script.index("DO $$")
     end = script.index("END $$", start) + len("END $$")

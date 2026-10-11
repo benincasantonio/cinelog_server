@@ -13,6 +13,9 @@ from app.types.log_validation import (  # noqa: F401
 from app.types.log_validation import (
     validate_watched_where as validate_watched_where,
 )
+from app.types.movie_types import (
+    MovieProviderName as MovieProviderName,
+)
 from app.types.notification_types import (
     NotificationAction as NotificationAction,
 )

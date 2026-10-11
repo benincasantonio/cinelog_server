@@ -29,6 +29,7 @@ from app.schemas.movie_provider_schemas import (
     MovieSearchResultDTO,
     MovieSourceReferenceDTO,
 )
+from app.types import MovieProviderName
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
@@ -106,7 +107,7 @@ class TMDBMovieProvider:
             total_pages=data.total_pages,
             results=[
                 MovieSearchItemDTO(
-                    source=MovieSourceReferenceDTO(source="tmdb", external_id=str(item.id)),
+                    source=MovieSourceReferenceDTO(source=MovieProviderName.TMDB, external_id=str(item.id)),
                     common=MovieCommonMetadataDTO(
                         original_title=item.original_title,
                         original_language=item.original_language,
@@ -116,7 +117,9 @@ class TMDBMovieProvider:
                         genre_ids=item.genre_ids,
                     ),
                     localized=MovieLocalizedTextDTO(locale=locale, title=item.title, overview=item.overview),
-                    external_rating=ExternalMovieRatingDTO(source="tmdb", value=item.vote_average, scale=10),
+                    external_rating=ExternalMovieRatingDTO(
+                        source=MovieProviderName.TMDB, value=item.vote_average, scale=10
+                    ),
                 )
                 for item in data.results
                 if item.title is not None and item.title.strip()
@@ -128,10 +131,10 @@ class TMDBMovieProvider:
     @staticmethod
     def _map_details(data: TMDBMovieDetails, locale: str, observed_at: datetime | None = None) -> MovieMetadataDTO:
         return MovieMetadataDTO(
-            source=MovieSourceReferenceDTO(source="tmdb", external_id=str(data.id)),
+            source=MovieSourceReferenceDTO(source=MovieProviderName.TMDB, external_id=str(data.id)),
             source_payload=data.model_dump(mode="json"),
             external_rating=ExternalMovieDetailsRatingDTO(
-                source="tmdb", value=data.vote_average, scale=10, vote_count=data.vote_count
+                source=MovieProviderName.TMDB, value=data.vote_average, scale=10, vote_count=data.vote_count
             ),
             localized=MovieLocalizedDetailsDTO(
                 locale=locale,

@@ -9,7 +9,7 @@ from app.schemas.movie_provider_schemas import MovieMetadataDTO, MovieSourceRefe
 
 
 class MovieCreateDTO(BaseModel):
-    """Data for the existing storage contract; contains no writable canonical ID."""
+    """Canonical fields and an opaque provider observation; contains no writable canonical ID."""
 
     model_config = ConfigDict(extra="forbid")
 

@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from app.models.movie_model import Movie
+from app.models.movie_provider_mapping_model import MovieProviderMapping
 from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogListResponse, LogUpdateRequest
 from app.services.log_service import LogService
 from app.utils.error_codes_utils import ErrorCodes
@@ -65,7 +66,7 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.tmdb_id = 550
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = date(2020, 1, 1)
         mock_movie.overview = "A description"
@@ -118,7 +119,7 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.tmdb_id = 550
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -152,7 +153,7 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.tmdb_id = 550
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/movie_poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -204,7 +205,7 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.tmdb_id = 550
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -246,7 +247,7 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.tmdb_id = 550
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -327,7 +328,7 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.tmdb_id = 550
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -388,7 +389,7 @@ class TestLogService:
             Movie(
                 id=uuid4(),
                 title="Same title",
-                tmdb_id=550 + index,
+                providers=[MovieProviderMapping(provider="tmdb", external_id=str(550 + index))],
                 poster_path=f"/poster-{index}.jpg",
                 deleted=not include_movie_details,
             )
@@ -418,7 +419,7 @@ class TestLogService:
         assert all((item.movie is not None) == include_movie_details for item in result.logs)
         # Identity and poster stay derivable from the movie even when it is soft-deleted.
         assert [(item.tmdb_id, item.poster_path) for item in result.logs] == [
-            (movies[index].tmdb_id, movies[index].poster_path) for index in movie_indexes
+            (int(movies[index].providers[0].external_id), movies[index].poster_path) for index in movie_indexes
         ]
         mock_log_repository.find_logs_by_user_id.assert_awaited_once_with(
             user_id=user_id,
@@ -455,7 +456,13 @@ class TestGetUserLogsByHandle:
         mock_log.viewing_notes = "Great!"
         mock_log.watched_where = "cinema"
 
-        movie = Movie(id=mock_log.movie_id, title="Test Movie", tmdb_id=550, poster_path="/poster.jpg", deleted=False)
+        movie = Movie(
+            id=mock_log.movie_id,
+            title="Test Movie",
+            providers=[MovieProviderMapping(provider="tmdb", external_id="550")],
+            poster_path="/poster.jpg",
+            deleted=False,
+        )
         log_service.log_repository.find_logs_by_user_id = AsyncMock(return_value=[(mock_log, movie, None)])
 
         request = LogListRequest()
@@ -476,7 +483,7 @@ class TestGetUserLogsByHandle:
         mock_movie = Mock()
         mock_movie.id = movie_id
         mock_movie.title = "Test Movie"
-        mock_movie.tmdb_id = 550
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None

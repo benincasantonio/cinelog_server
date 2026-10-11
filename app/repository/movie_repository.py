@@ -6,14 +6,31 @@ from collections.abc import Iterable
 from datetime import UTC, datetime, time
 from uuid import UUID
 
-from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import Select, select, update
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import selectinload
 
 from app.models.movie_model import Movie
+from app.models.movie_provider_mapping_model import MovieProviderMapping
 from app.repository.movie_repository_protocol import MovieIdentityUnavailableError
 from app.repository.repository_base import RepositoryBase
 from app.schemas.movie_import_schemas import MovieCreateDTO
+from app.schemas.movie_provider_schemas import MovieSourceReferenceDTO
 from app.schemas.movie_schemas import MovieUpdateRequest
+from app.types import MovieProviderName
+
+
+def _movie_by_provider_query(source: MovieSourceReferenceDTO) -> Select[tuple[Movie]]:
+    """Select a source identity, including deleted films, with loaded mappings."""
+    return (
+        select(Movie)
+        .join(MovieProviderMapping, MovieProviderMapping.movie_id == Movie.id)
+        .options(selectinload(Movie.providers))
+        .where(
+            MovieProviderMapping.provider == source.source,
+            MovieProviderMapping.external_id == source.external_id,
+        )
+    )
 
 
 class MovieRepository(RepositoryBase):
@@ -41,37 +58,40 @@ class MovieRepository(RepositoryBase):
         """Find an active movie by UUID."""
 
         async with self._session_provider() as session:
-            statement = select(Movie).where(
-                Movie.id == movie_id,
-                Movie.active(),
+            statement = (
+                select(Movie)
+                .options(selectinload(Movie.providers))
+                .where(
+                    Movie.id == movie_id,
+                    Movie.active(),
+                )
             )
             result = await session.execute(statement)
             return result.scalar_one_or_none()
 
-    async def find_movie_by_tmdb_id(self, tmdb_id: int) -> Movie | None:
-        """Find an active movie by TMDB ID."""
-
+    async def find_movie_by_provider(
+        self, source: MovieSourceReferenceDTO, *, include_deleted: bool = False
+    ) -> Movie | None:
+        """Resolve an opaque source identity, optionally including reserved deleted films."""
         async with self._session_provider() as session:
-            statement = select(Movie).where(
-                Movie.tmdb_id == tmdb_id,
-                Movie.active(),
-            )
+            statement = _movie_by_provider_query(source)
+            if not include_deleted:
+                statement = statement.where(Movie.active())
             result = await session.execute(statement)
             return result.scalar_one_or_none()
 
     async def create_movie(self, data: MovieCreateDTO) -> Movie:
-        """Persist a Cinelog import or return the active movie with the same source identity.
+        """Atomically import a movie and mapping, or return the existing source identity.
 
-        Source data uses the existing TMDB columns until #248.
+        A losing concurrent import rolls back its entire transaction, including the
+        candidate movie. Only the external-identity conflict is handled; unrelated
+        constraints and persistence failures propagate without committing anything.
         """
-
-        if data.source.source != "tmdb":
-            raise ValueError("The current storage schema supports only the tmdb source")
-        external_id = int(data.source.external_id)
+        if data.source.source not in MovieProviderName:
+            raise ValueError(f"Movie source {data.source.source!r} is not currently enabled")
 
         async with self._session_provider() as session:
             movie = Movie(
-                tmdb_id=external_id,
                 title=data.title,
                 release_date=datetime.combine(data.release_date, time.min) if data.release_date else None,
                 overview=data.overview,
@@ -79,26 +99,32 @@ class MovieRepository(RepositoryBase):
                 vote_average=data.vote_average,
                 runtime=data.runtime,
                 original_language=data.original_language,
-                tmdb_payload=data.source_payload,
-                tmdb_last_synced_at=data.observed_at,
             )
-
             session.add(movie)
-
-            try:
-                await session.commit()
-                await session.refresh(movie)
-                return movie
-            except IntegrityError as error:
+            await session.flush()
+            result = await session.execute(
+                insert(MovieProviderMapping)
+                .values(
+                    movie_id=movie.id,
+                    provider=data.source.source,
+                    external_id=data.source.external_id,
+                    payload=data.source_payload,
+                    last_synced_at=data.observed_at,
+                )
+                .on_conflict_do_nothing(constraint="pk_movie_providers")
+                .returning(MovieProviderMapping.movie_id)
+            )
+            if result.scalar_one_or_none() is None:
                 await session.rollback()
-                statement = select(Movie).where(Movie.tmdb_id == external_id)
-                result = await session.execute(statement)
-                existing_movie = result.scalar_one_or_none()
-                if existing_movie is None:
-                    raise
-                if existing_movie.deleted:
-                    raise MovieIdentityUnavailableError(f"tmdb:{external_id}") from error
-                return existing_movie
+                statement = _movie_by_provider_query(data.source)
+                existing = (await session.execute(statement)).scalar_one()
+                if existing.deleted:
+                    raise MovieIdentityUnavailableError(f"{data.source.source}:{data.source.external_id}")
+                return existing
+
+            await session.commit()
+            await session.refresh(movie, attribute_names=["providers"])
+            return movie
 
     async def find_movies_by_ids(self, movie_ids: Iterable[UUID]) -> list[Movie]:
         """Find active movies by UUID set."""
@@ -108,9 +134,13 @@ class MovieRepository(RepositoryBase):
             return []
 
         async with self._session_provider() as session:
-            statement = select(Movie).where(
-                Movie.id.in_(movie_ids),
-                Movie.active(),
+            statement = (
+                select(Movie)
+                .options(selectinload(Movie.providers))
+                .where(
+                    Movie.id.in_(movie_ids),
+                    Movie.active(),
+                )
             )
             result = await session.execute(statement)
             return list(result.scalars().all())

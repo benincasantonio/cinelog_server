@@ -8,6 +8,7 @@ count `movies` rows for a TMDB id, because no endpoint can show a duplicate movi
 import asyncio
 
 import pytest
+from sqlalchemy import text
 
 from tests.e2e.conftest import count_movie_rows, logged_in_client
 
@@ -68,6 +69,8 @@ class TestConcurrentFirstImport:
         assert first_response.json()["movieId"] == second_response.json()["movieId"]
         assert _detail_imports(fake_movie_provider) == 2
         assert await count_movie_rows(postgres_engine, TMDB_ID) == 1
+        async with postgres_engine.connect() as connection:
+            assert (await connection.execute(text("SELECT count(*) FROM movies"))).scalar_one() == 1
 
 
 class TestRewatchesInTheLogList:

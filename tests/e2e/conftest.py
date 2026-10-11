@@ -40,7 +40,7 @@ from tests.fakes.movie_provider import FakeMovieProvider  # noqa: E402
 # existing environment variables by default.
 load_dotenv()
 
-POSTGRES_TABLES = ("user_follows", "notifications", "logs", "movie_ratings", "movies", "users")
+POSTGRES_TABLES = ("user_follows", "notifications", "logs", "movie_ratings", "movie_providers", "movies", "users")
 
 
 class RegistrationAwareAsyncClient:
@@ -295,6 +295,7 @@ async def count_movie_rows(engine: AsyncEngine, tmdb_id: int) -> int:
     """Count every movies row for a TMDB id, soft-deleted included, without relying on its unique index."""
     async with engine.connect() as connection:
         result = await connection.execute(
-            text("SELECT count(*) FROM movies WHERE tmdb_id = :tmdb_id"), {"tmdb_id": tmdb_id}
+            text("SELECT count(*) FROM movie_providers WHERE provider = 'tmdb' AND external_id = :external_id"),
+            {"external_id": str(tmdb_id)},
         )
         return result.scalar_one()

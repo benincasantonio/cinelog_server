@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, and_, select
+from sqlalchemy.orm import selectinload
 
 from app.models.log_model import Log
 from app.models.movie_model import Movie
@@ -109,13 +110,14 @@ class LogRepository(RepositoryBase):
     ) -> list[tuple[Log, Movie, int | None]]:
         """Find active logs with their movie and the user's active rating.
 
-        The movie is joined regardless of soft deletion: it owns the TMDB identity and
-        poster every log response derives from. Callers decide whether to expose it.
+        The movie is joined regardless of soft deletion: its provider mappings and
+        poster are needed by every legacy log response. Callers decide whether to expose it.
         """
 
         async with self._session_provider() as session:
             statement = (
                 select(Log, Movie, MovieRating.rating)
+                .options(selectinload(Movie.providers))
                 .join(Movie, Movie.id == Log.movie_id)
                 .outerjoin(
                     MovieRating,

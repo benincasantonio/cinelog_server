@@ -1,6 +1,6 @@
 # Movie Search and Details
 
-**Last Updated:** 2026-10-09
+**Last Updated:** 2026-10-11
 
 ## Table of Contents
 
@@ -213,7 +213,7 @@ Search results omit movies whose title is absent, null, empty or whitespace-only
 
 Numeric rating strings are converted to numbers (for example, `"8.4"` becomes `8.4`). Ratings outside 0–10 or values that cannot represent a finite numeric rating are rejected. Unknown dates remain empty strings in the public JSON; a present but malformed date produces an error.
 
-The provider caches search results for 10 minutes and details for 24 hours by default, separately by language. Cache reads preserve the original acquisition time. Importing a movie for a log or rating uses English metadata (`en-US`); an already saved movie is reused without a metadata refresh. These internal changes require no frontend deployment or database migration.
+The provider caches search results for 10 minutes and details for 24 hours by default, separately by language. Cache reads preserve the original acquisition time. Importing a movie for a log or rating uses English metadata (`en-US`); an already saved movie is reused without a metadata refresh. Provider persistence now uses a separate mapping table. Existing Cinelog UUIDs, diary entries and ratings are preserved; the public numeric requests and responses remain unchanged. This backend migration requires no frontend deployment. An ID reserved by a soft-deleted local film cannot be imported again: new log/rating writes return `409 MOVIE_UNAVAILABLE`. Saved diary entries retain their numeric identity and poster, with `movie: null` for the removed film.
 
 Provider errors use the existing application JSON fields: `error_code_name`, `error_code`, `error_message` and `error_description`. `PROVIDER_MOVIE_NOT_FOUND` identifies an absent external movie; `MOVIE_NOT_FOUND` refers to a missing local catalog record. No source credentials or internal payload are added to responses.
 
@@ -238,5 +238,6 @@ Provider errors use the existing application JSON fields: `error_code_name`, `er
 ## See Also
 
 - [Account Localization](localization.md)
+- [Technical: Movie Provider Mappings and Deployment](../technical/movie-provider-mappings.md)
 - [Technical: TMDB Service — Implementation Details](../technical/tmdb-service.md)
 - [Functional: Authentication](authentication.md)

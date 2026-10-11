@@ -1,9 +1,10 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy import text
 
 from app.repository.movie_repository import MovieRepository
-from app.schemas.movie_provider_schemas import MovieDetailsQuery, MovieSearchQuery
+from app.schemas.movie_provider_schemas import MovieDetailsQuery, MovieSearchQuery, MovieSourceReferenceDTO
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 from tests.e2e.conftest import register_and_login
@@ -21,7 +22,7 @@ USER = {
 }
 
 
-async def test_movie_search_detail_import_and_repeat_writes(async_client, fake_movie_provider):
+async def test_movie_search_detail_import_and_repeat_writes(async_client, fake_movie_provider, postgres_engine):
     login = await register_and_login(async_client, USER)
     search = await async_client.get(
         "/v1/movies/search", params={"query": "Movie"}, headers={"Accept-Language": "fr-FR"}
@@ -75,6 +76,9 @@ async def test_movie_search_detail_import_and_repeat_writes(async_client, fake_m
         "spokenLanguages": [],
     }
     assert fake_movie_provider.detail_requests == [MovieDetailsQuery(external_id="550", locale="it-IT")]
+    async with postgres_engine.connect() as connection:
+        assert (await connection.execute(text("SELECT count(*) FROM movies"))).scalar_one() == 0
+        assert (await connection.execute(text("SELECT count(*) FROM movie_providers"))).scalar_one() == 0
     fake_movie_provider.detail_requests.clear()
     headers = {"X-CSRF-Token": login["csrfToken"]}
     ids = []
@@ -86,10 +90,10 @@ async def test_movie_search_detail_import_and_repeat_writes(async_client, fake_m
         ids.append(logged.json()["movieId"])
     assert ids[0] == ids[1]
     assert fake_movie_provider.detail_requests == [MovieDetailsQuery(external_id="550", locale="en-US")]
-    stored = await MovieRepository().find_movie_by_tmdb_id(550)
+    stored = await MovieRepository().find_movie_by_provider(MovieSourceReferenceDTO(source="tmdb", external_id="550"))
     assert str(stored.id) == ids[0]
-    assert stored.tmdb_last_synced_at == OBSERVED_AT
-    assert stored.tmdb_payload == {"fixture": "opaque snapshot"}
+    assert stored.providers[0].last_synced_at == OBSERVED_AT
+    assert stored.providers[0].payload == {"fixture": "opaque snapshot"}
 
 
 async def test_second_user_log_reuses_movie_imported_by_first_user(async_client, fake_movie_provider):
@@ -114,7 +118,7 @@ async def test_second_user_log_reuses_movie_imported_by_first_user(async_client,
     assert log_ids[0] != log_ids[1]
     # Only the first user's log imports the movie; the second reuses the stored row.
     assert fake_movie_provider.detail_requests == [MovieDetailsQuery(external_id="550", locale="en-US")]
-    stored = await MovieRepository().find_movie_by_tmdb_id(550)
+    stored = await MovieRepository().find_movie_by_provider(MovieSourceReferenceDTO(source="tmdb", external_id="550"))
     assert str(stored.id) == movie_ids[0]
 
     for user, log_id in zip(users, log_ids, strict=True):
@@ -142,3 +146,54 @@ async def test_provider_errors_have_application_shape(async_client, fake_movie_p
         "error_message": error.error_message,
         "error_description": error.error_description,
     }
+
+
+async def test_failed_provider_import_leaves_no_catalog_rows(async_client, fake_movie_provider, postgres_engine):
+    login = await register_and_login(async_client, USER)
+    fake_movie_provider.get_movie_details = AsyncMock(side_effect=AppException(ErrorCodes.MOVIE_PROVIDER_UNAVAILABLE))
+    response = await async_client.post(
+        "/v1/logs/",
+        headers={"X-CSRF-Token": login["csrfToken"]},
+        json={"tmdbId": 550, "dateWatched": "2024-01-01", "watchedWhere": "cinema"},
+    )
+    assert response.status_code == 503
+    async with postgres_engine.connect() as connection:
+        assert (await connection.execute(text("SELECT count(*) FROM movies"))).scalar_one() == 0
+        assert (await connection.execute(text("SELECT count(*) FROM movie_providers"))).scalar_one() == 0
+
+
+async def test_deleted_movie_keeps_history_identity_and_rejects_new_writes(
+    async_client, fake_movie_provider, postgres_engine
+):
+    login = await register_and_login(async_client, USER)
+    headers = {"X-CSRF-Token": login["csrfToken"]}
+    response = await async_client.post(
+        "/v1/logs/",
+        headers=headers,
+        json={"tmdbId": 550, "dateWatched": "2024-01-01", "watchedWhere": "cinema"},
+    )
+    assert response.status_code == 201
+    movie_id = response.json()["movieId"]
+    async with postgres_engine.begin() as connection:
+        await connection.execute(
+            text("UPDATE movies SET deleted = true, deleted_at = now() WHERE id = :id"), {"id": movie_id}
+        )
+    fake_movie_provider.detail_requests.clear()
+    history = await async_client.get(f"/v1/logs/{USER['handle']}")
+    assert history.status_code == 200
+    item = history.json()["logs"][0]
+    assert item["movieId"] == movie_id
+    assert item["tmdbId"] == 550
+    assert item["movie"] is None
+    assert item["posterPath"] == "/poster.jpg"
+    for url, body in [
+        ("/v1/logs/", {"tmdbId": 550, "dateWatched": "2024-02-01", "watchedWhere": "cinema"}),
+        ("/v1/movie-ratings/", {"tmdbId": 550, "rating": 8}),
+    ]:
+        rejected = await async_client.post(url, headers=headers, json=body)
+        assert rejected.status_code == 409
+        assert rejected.json()["error_code_name"] == "MOVIE_UNAVAILABLE"
+    assert fake_movie_provider.detail_requests == []
+    async with postgres_engine.connect() as connection:
+        assert (await connection.execute(text("SELECT count(*) FROM movies"))).scalar_one() == 1
+        assert (await connection.execute(text("SELECT count(*) FROM movie_providers"))).scalar_one() == 1

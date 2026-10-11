@@ -12,8 +12,8 @@ from app.schemas.movie_api_schemas import (
     MovieSpokenLanguage,
 )
 from app.schemas.movie_import_schemas import MovieCreateDTO
-from app.schemas.movie_provider_schemas import MovieDetailsQuery, MovieSearchQuery
-from app.types import DEFAULT_LOCALE
+from app.schemas.movie_provider_schemas import MovieDetailsQuery, MovieSearchQuery, MovieSourceReferenceDTO
+from app.types import DEFAULT_LOCALE, MovieProviderName
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
@@ -85,14 +85,20 @@ class MovieService:
 
     async def get_movie_by_tmdb_id(self, tmdb_id: int):
         """Find a movie by its TMDB ID."""
-        return await self.movie_repository.find_movie_by_tmdb_id(tmdb_id)
+        return await self.movie_repository.find_movie_by_provider(
+            MovieSourceReferenceDTO(source=MovieProviderName.TMDB, external_id=str(tmdb_id))
+        )
 
     async def find_or_create_movie(self, tmdb_id: int):
         """Find a movie by TMDB ID, or create it if it doesn't exist."""
 
-        movie = await self.movie_repository.find_movie_by_tmdb_id(tmdb_id)
+        movie = await self.movie_repository.find_movie_by_provider(
+            MovieSourceReferenceDTO(source=MovieProviderName.TMDB, external_id=str(tmdb_id)), include_deleted=True
+        )
 
         if movie:
+            if movie.deleted:
+                raise AppException(ErrorCodes.MOVIE_UNAVAILABLE)
             return movie
 
         metadata = await self.provider.get_movie_details(

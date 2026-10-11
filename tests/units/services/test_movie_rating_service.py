@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.models.movie_provider_mapping_model import MovieProviderMapping
 from app.services.movie_rating_service import MovieRatingService
 
 
@@ -65,7 +66,7 @@ class TestMovieRatingService:
         # Setup mocks
         mock_movie = Mock()
         mock_movie.id = uuid4()
-        mock_movie.tmdb_id = 550
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie_service.find_or_create_movie.return_value = mock_movie
 
         mock_rating = Mock()
@@ -111,7 +112,7 @@ class TestMovieRatingService:
         user_id = uuid4()
         mock_movie = Mock()
         mock_movie.id = uuid4()
-        mock_movie.tmdb_id = 550
+        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie_service.find_or_create_movie.return_value = mock_movie
 
         mock_rating = Mock()
@@ -146,7 +147,7 @@ class TestMovieRatingService:
     ):
         """Owner reads own rating by tmdb_id, resolved through the movie."""
         user_id = uuid4()
-        movie = Mock(id=uuid4(), tmdb_id=550)
+        movie = Mock(id=uuid4(), providers=[MovieProviderMapping(provider="tmdb", external_id="550")])
         mock_movie_service.get_movie_by_tmdb_id.return_value = movie
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.return_value = _mock_rating(user_id)
 
@@ -177,7 +178,9 @@ class TestMovieRatingService:
         self, movie_rating_service, mock_movie_rating_repository, mock_movie_service
     ):
         """Returns None when no rating exists for the caller."""
-        mock_movie_service.get_movie_by_tmdb_id.return_value = Mock(id=uuid4(), tmdb_id=550)
+        mock_movie_service.get_movie_by_tmdb_id.return_value = Mock(
+            id=uuid4(), providers=[MovieProviderMapping(provider="tmdb", external_id="550")]
+        )
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.return_value = None
 
         result = await movie_rating_service.get_movie_ratings_by_tmdb_id(user_id=uuid4(), tmdb_id=550)
