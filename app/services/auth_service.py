@@ -105,15 +105,8 @@ class AuthService:
         if not user:
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
 
-        # Check migration status
+        # Users without a password hash (e.g. obliviated accounts) cannot log in.
         if not user.password_hash:
-            # User exists but has no password hash -> Legacy Firebase user
-            # In a real app we might return a specific error code to trigger a frontend flow
-            # For now, let's treat it as invalid credentials or a specific migration error if defined
-            # The plan says: "Account migration required. Please reset your password."
-            # We can use INVALID_CREDENTIALS with a custom message or a new error code.
-            # Let's use a generic generic credential error for security, or specific if UX demands it.
-            # Given the plan, let's Raise a clear error.
             raise AppException(ErrorCodes.INVALID_CREDENTIALS)
 
         if not PasswordService.verify_password(password, user.password_hash):
@@ -123,13 +116,12 @@ class AuthService:
 
     async def forgot_password(self, email: str):
         """
-        Generate reset code and send email (mocked).
+        Generate a reset code and email it to the user.
         """
         email_lowercase = normalize_email_identifier(email)
         user = await self.user_repository.find_user_by_email(email_lowercase)
         if not user:
             # Security: Don't reveal if user exists.
-            # But for migration UX, maybe we return success anyway.
             return
 
         # Generate 6-digit code

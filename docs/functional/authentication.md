@@ -1,6 +1,6 @@
 # Authentication
 
-As of February 2026, Cinelog Server uses a self-hosted authentication solution (migrated from Firebase Authentication).
+Cinelog Server uses self-hosted email/password authentication, with JWTs stored in secure cookies.
 
 ## Overview
 
