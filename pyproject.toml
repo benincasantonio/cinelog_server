@@ -5,9 +5,9 @@ description = "Cinelog FastAPI backend"
 requires-python = ">=3.12"
 dependencies = [
     "bcrypt==5.0.0",
-    "fastapi==0.142.2",
+    "fastapi==0.143.0",
     "httpx==0.28.1",
-    "pydantic[email]==2.13.5",
+    "pydantic[email]==2.14.1",
     "pyjwt==2.15.1",
     "python-dotenv==1.2.4",
     "python-multipart==0.0.32",
@@ -27,9 +27,9 @@ dev = [
     "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
-    "pytest-postgresql==9.1.0",
+    "pytest-postgresql==9.1.1",
     "psycopg[binary]==3.3.6",
-    "ruff==0.16.10",
+    "ruff==0.17.0",
     "pip-audit>=2.10.0",
 ]
 
