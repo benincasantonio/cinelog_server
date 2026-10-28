@@ -26,6 +26,8 @@ Dependabot proposes updates; pip-audit checks whether the installed versions hav
 
 Read the advisory and its fixed versions, then use `uv lock --upgrade-package PACKAGE==FIXED_VERSION` for a targeted transitive update. Change the manifest as well if a direct dependency constraint prevents the fix. Do not use `pip-audit --fix` to change the installed environment independently of the lockfile.
 
+A grouped Dependabot update can leave vulnerable transitive dependencies unchanged. In that case, update the affected packages in the PR's lockfile with targeted `--upgrade-package` arguments; do not add them as direct application dependencies or exclude their advisories just to pass CI.
+
 Run `uv lock --check` and `make dependency-audit` again with no exclusions, followed by the relevant application tests and quality checks. Runtime framework updates require the full unit and E2E suites. An audit service or network failure is a failed check, not evidence that the environment is safe.
 
 ### Advisory Exceptions
