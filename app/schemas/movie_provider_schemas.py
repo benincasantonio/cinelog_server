@@ -16,6 +16,7 @@ from app.types import DEFAULT_LOCALE, LocaleStr
 class MovieSearchQuery(BaseModel):
     query: str
     locale: LocaleStr = DEFAULT_LOCALE
+    page: int = Field(default=1, ge=1)
 
 
 class MovieDetailsQuery(BaseModel):

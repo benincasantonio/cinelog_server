@@ -19,13 +19,26 @@ async def test_search_roundtrip_retains_timestamp_and_normalizes_query(search_da
     cache = TMDBCache(redis)
     await cache.set_search("  FIGHT Club  ", "it-IT", snapshot)
     redis.set.assert_awaited_once_with(
-        "cinelog:tmdb:search:v2:it-IT:fight club", snapshot.model_dump(mode="json"), ttl=TMDB_SEARCH_CACHE_TTL
+        "cinelog:tmdb:search:v3:it-IT:1:fight club", snapshot.model_dump(mode="json"), ttl=TMDB_SEARCH_CACHE_TTL
     )
     redis.get.return_value = redis.set.await_args.args[1]
     assert await cache.get_search("Fight Club", "it-IT") == snapshot
     redis.get.return_value = None
     assert await cache.get_search("Fight Club", "fr-FR") is None
-    assert redis.get.await_args.args[0] == "cinelog:tmdb:search:v2:fr-FR:fight club"
+    assert redis.get.await_args.args[0] == "cinelog:tmdb:search:v3:fr-FR:1:fight club"
+
+
+async def test_search_pages_have_distinct_keys(search_data):
+    redis = AsyncMock(spec=RedisClient)
+    snapshot = TMDBSearchSnapshot(payload=search_data, observed_at=OBSERVED_AT)
+    cache = TMDBCache(redis)
+    await cache.set_search("film", "en-US", snapshot, page=2)
+    redis.set.assert_awaited_once_with(
+        "cinelog:tmdb:search:v3:en-US:2:film", snapshot.model_dump(mode="json"), ttl=TMDB_SEARCH_CACHE_TTL
+    )
+    redis.get.return_value = None
+    assert await cache.get_search("film", "en-US", page=3) is None
+    assert redis.get.await_args.args[0] == "cinelog:tmdb:search:v3:en-US:3:film"
 
 
 async def test_details_roundtrip_uses_captured_generation(details_data):

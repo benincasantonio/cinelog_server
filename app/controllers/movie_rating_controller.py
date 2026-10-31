@@ -30,24 +30,24 @@ async def create_movie_rating(
         user_id=user_id,
         comment=request_body.comment,
         rating=request_body.rating,
-        tmdb_id=request_body.tmdb_id,
+        movie_id=request_body.movie_id,
     )
 
 
-@router.get("/{tmdb_id}", response_model=None)
+@router.get("/{movie_id}", response_model=None)
 async def get_movie_rating(
-    tmdb_id: int,
+    movie_id: UUID,
     current_user_id: Annotated[UUID, Depends(auth_dependency)],
     movie_rating_service: Annotated[MovieRatingService, Depends(get_movie_rating_service)],
 ) -> MovieRatingResponse | Response:
     """
-    Get a movie rating entry by TMDB ID.
+    Get the caller's rating for a Cinelog movie UUID; 204 when the movie has no rating.
 
     Requires authentication via Cookie token.
     """
-    movie_rating = await movie_rating_service.get_movie_ratings_by_tmdb_id(
+    movie_rating = await movie_rating_service.get_movie_rating(
         user_id=current_user_id,
-        tmdb_id=tmdb_id,
+        movie_id=movie_id,
     )
 
     if not movie_rating:

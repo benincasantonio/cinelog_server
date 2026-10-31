@@ -7,10 +7,9 @@ count `movies` rows for a TMDB id, because no endpoint can show a duplicate movi
 
 import asyncio
 
-import pytest
 from sqlalchemy import text
 
-from tests.e2e.conftest import count_movie_rows, logged_in_client
+from tests.e2e.conftest import count_movie_rows, logged_in_client, movie_ref_for, resolve_movie
 
 TMDB_ID = 550
 
@@ -27,19 +26,25 @@ def _user_payload(name: str) -> dict:
     }
 
 
-async def _create_log(client, csrf_token: str, **fields):
+async def _resolve(client, csrf_token: str):
     return await client.post(
-        "/v1/logs/",
-        headers={"X-CSRF-Token": csrf_token},
-        json={"tmdbId": TMDB_ID, "dateWatched": "2024-01-15", "watchedWhere": "cinema", **fields},
+        "/v1/movies/resolve", headers={"X-CSRF-Token": csrf_token}, json={"movieRef": movie_ref_for(TMDB_ID)}
     )
 
 
-async def _rate(client, csrf_token: str, rating: int):
+async def _create_log(client, csrf_token: str, movie_id: str, **fields):
+    return await client.post(
+        "/v1/logs/",
+        headers={"X-CSRF-Token": csrf_token},
+        json={"movieId": movie_id, "dateWatched": "2024-01-15", "watchedWhere": "cinema", **fields},
+    )
+
+
+async def _rate(client, csrf_token: str, movie_id: str, rating: int):
     return await client.post(
         "/v1/movie-ratings/",
         headers={"X-CSRF-Token": csrf_token},
-        json={"tmdbId": TMDB_ID, "rating": rating},
+        json={"movieId": movie_id, "rating": rating},
     )
 
 
@@ -48,12 +53,9 @@ def _detail_imports(fake_movie_provider) -> int:
 
 
 class TestConcurrentFirstImport:
-    """Concurrent first writes for an unseen movie import it exactly once."""
+    """Concurrent first selections of an unseen movie import it exactly once."""
 
-    @pytest.mark.parametrize("second_write", ["log", "rating"])
-    async def test_concurrent_writes_converge_on_one_movie(
-        self, async_client, postgres_engine, fake_movie_provider, second_write
-    ):
+    async def test_concurrent_resolves_converge_on_one_movie(self, async_client, postgres_engine, fake_movie_provider):
         # Both requests miss the catalog and reach the provider before either stores the movie.
         fake_movie_provider.detail_barrier = asyncio.Barrier(2)
 
@@ -61,16 +63,35 @@ class TestConcurrentFirstImport:
             logged_in_client(async_client, _user_payload("concurrent_a")) as (client_a, csrf_a),
             logged_in_client(async_client, _user_payload("concurrent_b")) as (client_b, csrf_b),
         ):
-            second = _create_log(client_b, csrf_b) if second_write == "log" else _rate(client_b, csrf_b, 7)
-            first_response, second_response = await asyncio.gather(_create_log(client_a, csrf_a), second)
+            first, second = await asyncio.gather(_resolve(client_a, csrf_a), _resolve(client_b, csrf_b))
+            fake_movie_provider.detail_barrier = None
+            movie_id = first.json()["movieId"]
+            log = await _create_log(client_a, csrf_a, movie_id)
+            rating = await _rate(client_b, csrf_b, movie_id, 7)
 
-        assert first_response.status_code == 201
-        assert second_response.status_code == (201 if second_write == "log" else 200)
-        assert first_response.json()["movieId"] == second_response.json()["movieId"]
+        assert first.status_code == second.status_code == 200
+        assert first.json() == second.json()
         assert _detail_imports(fake_movie_provider) == 2
         assert await count_movie_rows(postgres_engine, TMDB_ID) == 1
         async with postgres_engine.connect() as connection:
             assert (await connection.execute(text("SELECT count(*) FROM movies"))).scalar_one() == 1
+        assert log.status_code == 201
+        assert rating.status_code == 200
+        assert log.json()["movieId"] == rating.json()["movieId"] == movie_id
+
+
+class TestRepeatedResolve:
+    async def test_repeated_resolve_returns_the_same_uuid_without_refreshing(
+        self, async_client, postgres_engine, fake_movie_provider
+    ):
+        async with logged_in_client(async_client, _user_payload("repeat")) as (client, csrf):
+            first = await _resolve(client, csrf)
+            second = await _resolve(client, csrf)
+
+        assert first.status_code == second.status_code == 200
+        assert first.json() == second.json()
+        assert _detail_imports(fake_movie_provider) == 1
+        assert await count_movie_rows(postgres_engine, TMDB_ID) == 1
 
 
 class TestRewatchesInTheLogList:
@@ -79,13 +100,14 @@ class TestRewatchesInTheLogList:
     ):
         user = _user_payload("rewatch")
         async with logged_in_client(async_client, user) as (client, csrf):
-            first = await _create_log(client, csrf)
-            second = await _create_log(client, csrf, dateWatched="2024-02-20")
-            await _rate(client, csrf, 9)
+            movie_id = await resolve_movie(client, csrf, TMDB_ID)
+            first = await _create_log(client, csrf, movie_id)
+            second = await _create_log(client, csrf, movie_id, dateWatched="2024-02-20")
+            await _rate(client, csrf, movie_id, 9)
             listing = await client.get(f"/v1/logs/{user['handle']}")
 
         assert first.status_code == second.status_code == 201
-        assert first.json()["movieId"] == second.json()["movieId"]
+        assert first.json()["movieId"] == second.json()["movieId"] == movie_id
         assert _detail_imports(fake_movie_provider) == 1
         assert await count_movie_rows(postgres_engine, TMDB_ID) == 1
 

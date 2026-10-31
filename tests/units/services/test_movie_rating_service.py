@@ -4,8 +4,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.models.movie_provider_mapping_model import MovieProviderMapping
 from app.services.movie_rating_service import MovieRatingService
+from app.utils.error_codes_utils import ErrorCodes
+from app.utils.exceptions_utils import AppException
 
 
 @pytest.fixture
@@ -66,8 +67,7 @@ class TestMovieRatingService:
         # Setup mocks
         mock_movie = Mock()
         mock_movie.id = uuid4()
-        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
-        mock_movie_service.find_or_create_movie.return_value = mock_movie
+        mock_movie_service.get_active_movie.return_value = mock_movie
 
         mock_rating = Mock()
         mock_rating.id = "rating123"
@@ -83,15 +83,15 @@ class TestMovieRatingService:
         # Execute
         user_id = uuid4()
         result = await movie_rating_service.create_update_movie_rating(
-            user_id, tmdb_id=550, rating=8, comment="Great movie!"
+            user_id, movie_id=mock_movie.id, rating=8, comment="Great movie!"
         )
 
         # Verify
         assert result.id == "rating123"
         assert result.rating == 8
         assert result.comment == "Great movie!"
-        assert result.tmdb_id == 550
-        mock_movie_service.find_or_create_movie.assert_awaited_once_with(tmdb_id=550)
+        assert "tmdb_id" not in result.model_dump()
+        mock_movie_service.get_active_movie.assert_awaited_once_with(mock_movie.id)
         mock_movie_rating_repository.create_update_movie_rating.assert_awaited_once_with(
             user_id=user_id,
             movie_id=mock_movie.id,
@@ -112,8 +112,7 @@ class TestMovieRatingService:
         user_id = uuid4()
         mock_movie = Mock()
         mock_movie.id = uuid4()
-        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
-        mock_movie_service.find_or_create_movie.return_value = mock_movie
+        mock_movie_service.get_active_movie.return_value = mock_movie
 
         mock_rating = Mock()
         mock_rating.id = "rating123"
@@ -125,7 +124,9 @@ class TestMovieRatingService:
         mock_rating.updated_at = datetime.now()
         mock_movie_rating_repository.create_update_movie_rating.return_value = mock_rating
 
-        await movie_rating_service.create_update_movie_rating(user_id=user_id, tmdb_id=550, rating=8, comment="Great!")
+        await movie_rating_service.create_update_movie_rating(
+            user_id=user_id, movie_id=mock_movie.id, rating=8, comment="Great!"
+        )
 
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
@@ -133,56 +134,67 @@ class TestMovieRatingService:
     async def test_failed_rating_write_does_not_invalidate_log_list(
         self, movie_rating_service, mock_movie_rating_repository, mock_movie_service, mock_log_list_cache_service
     ):
-        mock_movie_service.find_or_create_movie.return_value = Mock(id=uuid4())
+        mock_movie_service.get_active_movie.return_value = Mock(id=uuid4())
         mock_movie_rating_repository.create_update_movie_rating.side_effect = RuntimeError("database failure")
 
         with pytest.raises(RuntimeError):
-            await movie_rating_service.create_update_movie_rating(user_id=uuid4(), tmdb_id=550, rating=8)
+            await movie_rating_service.create_update_movie_rating(user_id=uuid4(), movie_id=uuid4(), rating=8)
 
         mock_log_list_cache_service.invalidate_user.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_get_movie_ratings_by_tmdb_id_returns_rating(
+    async def test_unknown_movie_rating_write_touches_nothing(
+        self, movie_rating_service, mock_movie_rating_repository, mock_movie_service, mock_log_list_cache_service
+    ):
+        mock_movie_service.get_active_movie.side_effect = AppException(ErrorCodes.MOVIE_NOT_FOUND)
+
+        with pytest.raises(AppException) as exc_info:
+            await movie_rating_service.create_update_movie_rating(user_id=uuid4(), movie_id=uuid4(), rating=8)
+
+        assert exc_info.value.error == ErrorCodes.MOVIE_NOT_FOUND
+        mock_movie_rating_repository.create_update_movie_rating.assert_not_awaited()
+        mock_log_list_cache_service.invalidate_user.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_get_movie_rating_returns_rating(
         self, movie_rating_service, mock_movie_rating_repository, mock_movie_service
     ):
-        """Owner reads own rating by tmdb_id, resolved through the movie."""
+        """Owner reads own rating by movie UUID."""
         user_id = uuid4()
-        movie = Mock(id=uuid4(), providers=[MovieProviderMapping(provider="tmdb", external_id="550")])
-        mock_movie_service.get_movie_by_tmdb_id.return_value = movie
+        movie = Mock(id=uuid4())
+        mock_movie_service.get_active_movie.return_value = movie
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.return_value = _mock_rating(user_id)
 
-        result = await movie_rating_service.get_movie_ratings_by_tmdb_id(user_id=user_id, tmdb_id=550)
+        result = await movie_rating_service.get_movie_rating(user_id=user_id, movie_id=movie.id)
 
         assert result is not None
         assert result.rating == 9
-        assert result.tmdb_id == 550
-        mock_movie_service.get_movie_by_tmdb_id.assert_awaited_once_with(550)
+        mock_movie_service.get_active_movie.assert_awaited_once_with(movie.id)
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.assert_awaited_once_with(
             user_id=user_id, movie_id=movie.id
         )
 
     @pytest.mark.asyncio
-    async def test_get_movie_ratings_by_tmdb_id_returns_none_for_unknown_movie(
+    async def test_get_movie_rating_unknown_movie_is_not_found(
         self, movie_rating_service, mock_movie_rating_repository, mock_movie_service
     ):
-        """Returns None without querying ratings when the movie is not in the catalog."""
-        mock_movie_service.get_movie_by_tmdb_id.return_value = None
+        """Unknown and soft-deleted movies are 404 without querying ratings."""
+        mock_movie_service.get_active_movie.side_effect = AppException(ErrorCodes.MOVIE_NOT_FOUND)
 
-        result = await movie_rating_service.get_movie_ratings_by_tmdb_id(user_id=uuid4(), tmdb_id=550)
+        with pytest.raises(AppException) as exc_info:
+            await movie_rating_service.get_movie_rating(user_id=uuid4(), movie_id=uuid4())
 
-        assert result is None
+        assert exc_info.value.error == ErrorCodes.MOVIE_NOT_FOUND
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_get_movie_ratings_by_tmdb_id_not_found(
+    async def test_get_movie_rating_without_rating_returns_none(
         self, movie_rating_service, mock_movie_rating_repository, mock_movie_service
     ):
-        """Returns None when no rating exists for the caller."""
-        mock_movie_service.get_movie_by_tmdb_id.return_value = Mock(
-            id=uuid4(), providers=[MovieProviderMapping(provider="tmdb", external_id="550")]
-        )
+        """Returns None (204 at the API) when the caller has not rated an existing movie."""
+        mock_movie_service.get_active_movie.return_value = Mock(id=uuid4())
         mock_movie_rating_repository.find_movie_rating_by_user_and_movie.return_value = None
 
-        result = await movie_rating_service.get_movie_ratings_by_tmdb_id(user_id=uuid4(), tmdb_id=550)
+        result = await movie_rating_service.get_movie_rating(user_id=uuid4(), movie_id=uuid4())
 
         assert result is None

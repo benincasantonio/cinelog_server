@@ -21,7 +21,6 @@ from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
-from app.utils.movie_compatibility_utils import get_legacy_tmdb_id
 
 
 class LogService:
@@ -45,7 +44,6 @@ class LogService:
         return MovieResponse(
             id=movie.id,
             title=movie.title,
-            tmdb_id=get_legacy_tmdb_id(movie),
             poster_path=movie.poster_path,
             release_date=movie.release_date,
             overview=movie.overview,
@@ -58,14 +56,11 @@ class LogService:
 
     async def create_log(self, user_id: UUID, request: LogCreateRequest) -> LogCreateResponse:
         """
-        Create a new viewing log entry.
+        Create a new viewing log entry for an active catalog movie.
 
-        If the movie doesn't exist in our database, it will be fetched from TMDB
-        and created automatically.
+        Search results must be resolved to a movie UUID first; writes never import movies.
         """
-        movie: Movie = await self.movie_service.find_or_create_movie(tmdb_id=request.tmdb_id)
-
-        request.movie_id = movie.id
+        movie: Movie = await self.movie_service.get_active_movie(request.movie_id)
 
         log = await self.log_repository.create_log(user_id=user_id, create_log_request=request)
 
@@ -76,7 +71,6 @@ class LogService:
             id=str(log.id),
             movie_id=str(log.movie_id),
             movie=self._map_movie_to_response(movie),
-            tmdb_id=get_legacy_tmdb_id(movie),
             date_watched=log.date_watched,
             viewing_notes=log.viewing_notes,
             poster_path=movie.poster_path,
@@ -107,7 +101,6 @@ class LogService:
             id=str(log.id),
             movie_id=str(log.movie_id),
             movie=self._map_movie_to_response(movie),
-            tmdb_id=get_legacy_tmdb_id(movie),
             date_watched=log.date_watched,
             viewing_notes=log.viewing_notes,
             poster_path=movie.poster_path,
@@ -149,7 +142,6 @@ class LogService:
                     movie_id=log.movie_id,
                     movie=None if movie.deleted else self._map_movie_to_response(movie),
                     movie_rating=rating,
-                    tmdb_id=get_legacy_tmdb_id(movie),
                     date_watched=log.date_watched,
                     viewing_notes=log.viewing_notes,
                     poster_path=movie.poster_path,

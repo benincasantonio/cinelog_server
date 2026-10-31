@@ -45,8 +45,10 @@ There is no independent mapping deletion API.
 `MovieRepository.find_movie_by_provider()` accepts a `MovieSourceReferenceDTO`,
 bundling the provider name (`source`) and opaque `external_id`. Its `include_deleted`
 option lets import inspect reserved identities; ordinary reads still return only
-active movies. Existing service entry points accept numeric TMDB IDs and construct
-this reference at the compatibility boundary.
+active movies. Since #225 the reference comes from a decoded `movieRef` (resolution)
+or is read from a loaded mapping (UUID details); see [Canonical Movie Identity](movie-identity.md).
+`find_movies_by_external_ids()` maps one search page's external IDs to movies in a
+single read, including soft-deleted films so search can omit them.
 
 The repository shares a private query builder between source lookup and conflict
 recovery. Recovery executes that query in the same session after rollback and requires
@@ -67,18 +69,16 @@ cache reads never fabricate a successful synchronization time. No refresh policy
 is introduced here; locale behavior and initial `en-US` imports remain unchanged.
 
 `Movie.providers` uses `lazy="raise"`. Movie queries and the log-list query load
-mappings explicitly with `selectinload`, before closing their session. List reads
-batch these queries instead of issuing one per film. The temporary
-`get_legacy_tmdb_id()` adapter selects the TMDB mapping and converts its ID for
-numeric responses, with no database or provider calls. A missing mapping is an
-invariant failure, never an inferred ID or a silently omitted history entry.
-This adapter stays outside `Movie`; its model import is used only for type checking.
+mappings explicitly with `selectinload`, before closing their session. Batch reads
+issue one mapping query instead of one per film. The temporary `get_legacy_tmdb_id()`
+adapter and the log-list mapping load it required were removed by #225: responses no
+longer expose TMDB identity.
 
 `movies` no longer has `tmdb_id`, `tmdb_payload` or `tmdb_last_synced_at`, including
 Python compatibility properties. `movie_providers` is their sole source of truth.
-Logs and ratings retain only their canonical movie foreign keys; existing response
-fields derive TMDB identity from the mapping and posters from the movie. History
-keeps numeric identity/posters even for a soft-deleted movie, with `movie: null`.
+Logs and ratings retain only their canonical movie foreign keys; responses expose
+`movieId` and derive posters from the movie. History keeps `movieId`/posters even for
+a soft-deleted movie, with `movie: null`.
 
 ## Migration and rollback
 
@@ -138,10 +138,10 @@ After a successful downgrade, deploy the retained old backend artifact and verif
 the same numeric flows. If guards refuse rollback, keep the new schema and resolve
 the incompatibility before switching code. Never start old code against revision 010.
 
-No frontend deployment is needed for #248. Numeric endpoints and response fields
-remain the compatibility surface. Their eventual removal belongs to #225 and is
-gated on the relevant `cinelog_web` #97/#98 rollout; #99 owns later metadata/refresh
-compatibility. Removing storage columns here does not remove these API contracts.
+No frontend deployment was needed for #248. The numeric endpoints and response fields
+it preserved were removed by #225 together with `cinelog_web` #97/#98; see the
+[deployment and rollback matrix](movie-identity.md#deployment-and-rollback). #99 owns
+later metadata/refresh compatibility.
 
 ## Validation
 

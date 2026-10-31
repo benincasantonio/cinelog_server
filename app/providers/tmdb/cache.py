@@ -24,23 +24,23 @@ class TMDBCache:
         return self._redis if self._redis is not None else RedisClient.get_instance()
 
     @staticmethod
-    def search_key(query: str, locale: str) -> str:
-        return f"cinelog:tmdb:search:v2:{locale}:{query.strip().lower()}"
+    def search_key(query: str, locale: str, page: int = 1) -> str:
+        return f"cinelog:tmdb:search:v3:{locale}:{page}:{query.strip().lower()}"
 
     @staticmethod
     def details_key(external_id: str, locale: str, generation: int) -> str:
         return f"cinelog:tmdb:details:v2:{locale}:{external_id}:generation:{generation}"
 
-    async def get_search(self, query: str, locale: str) -> TMDBSearchSnapshot | None:
+    async def get_search(self, query: str, locale: str, *, page: int = 1) -> TMDBSearchSnapshot | None:
         try:
-            data = await self._client.get(self.search_key(query, locale))
+            data = await self._client.get(self.search_key(query, locale, page))
             return TMDBSearchSnapshot.model_validate(data) if data is not None else None
         except (JSONDecodeError, ValidationError):
             return None
 
-    async def set_search(self, query: str, locale: str, snapshot: TMDBSearchSnapshot) -> None:
+    async def set_search(self, query: str, locale: str, snapshot: TMDBSearchSnapshot, *, page: int = 1) -> None:
         await self._client.set(
-            self.search_key(query, locale), snapshot.model_dump(mode="json"), ttl=TMDB_SEARCH_CACHE_TTL
+            self.search_key(query, locale, page), snapshot.model_dump(mode="json"), ttl=TMDB_SEARCH_CACHE_TTL
         )
 
     async def get_details(self, external_id: str, locale: str) -> tuple[TMDBDetailsSnapshot | None, int]:

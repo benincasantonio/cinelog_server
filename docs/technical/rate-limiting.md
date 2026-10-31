@@ -19,6 +19,7 @@ See Also: [Redis Caching](redis-caching.md)
 | `/v1/auth/reset-password` | `POST` | 10 per hour per IP, plus 10 per hour per session and 10 per hour per email-hash account for invalid credentials |
 | `/v1/auth/csrf` | `GET` | 300 per 30 minutes per authenticated user |
 | `/v1/movies/search` | `GET` | 20 per minute per client |
+| `/v1/movies/resolve` | `POST` | 20 per minute per client |
 | `/v1/logs/` | `POST` | 20 per minute per client |
 | `/v1/logs/{log_id}` | `PUT` | 10 per minute per client |
 

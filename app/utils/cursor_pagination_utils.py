@@ -1,11 +1,8 @@
-"""Reusable signed cursor encoding for timestamp-and-UUID pagination."""
+"""Reusable signed cursor encoding for timestamp-and-UUID and provider-page pagination."""
 
-import hmac
-import json
-from base64 import b64decode, urlsafe_b64encode
 from datetime import UTC, datetime
 from hashlib import sha256
-from typing import TypedDict, cast
+from typing import Any
 from uuid import UUID
 
 from app.config.cursor_pagination_config import (
@@ -13,36 +10,9 @@ from app.config.cursor_pagination_config import (
     CURSOR_PAGINATION_VERSION,
 )
 from app.types import TimestampUUIDCursor
+from app.utils.signed_payload_utils import decode_signed_payload, encode_signed_payload
 
-_BASE64URL_ALPHABET = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
-
-
-class _TimestampUUIDCursorPayload(TypedDict):
-    """Closed serialized cursor payload signed by this module."""
-
-    v: int
-    scope: str
-    timestamp: str
-    id: str
-
-
-def _encode_base64url(value: bytes) -> str:
-    return urlsafe_b64encode(value).decode("ascii").rstrip("=")
-
-
-def _decode_base64url(value: str) -> bytes:
-    if not value or any(character not in _BASE64URL_ALPHABET for character in value):
-        raise ValueError
-    padding = "=" * (-len(value) % 4)
-    return b64decode(value + padding, altchars=b"-_", validate=True)
-
-
-def _signature(payload_segment: str) -> bytes:
-    return hmac.new(
-        CURSOR_PAGINATION_HMAC_SECRET.encode("utf-8"),
-        payload_segment.encode("ascii"),
-        sha256,
-    ).digest()
+MOVIE_SEARCH_CURSOR_SCOPE = "movie-search"
 
 
 def encode_timestamp_uuid_cursor(cursor: TimestampUUIDCursor, *, scope: str) -> str:
@@ -54,20 +24,13 @@ def encode_timestamp_uuid_cursor(cursor: TimestampUUIDCursor, *, scope: str) -> 
         raise ValueError("Cursor timestamp must be timezone-aware")
 
     timestamp = cursor.timestamp.astimezone(UTC).isoformat().replace("+00:00", "Z")
-    payload: _TimestampUUIDCursorPayload = {
+    payload: dict[str, Any] = {
         "v": CURSOR_PAGINATION_VERSION,
         "scope": scope,
         "timestamp": timestamp,
         "id": str(cursor.id),
     }
-    payload_bytes = json.dumps(
-        payload,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
-    payload_segment = _encode_base64url(payload_bytes)
-    signature_segment = _encode_base64url(_signature(payload_segment))
-    return f"{payload_segment}.{signature_segment}"
+    return encode_signed_payload(payload, secret=CURSOR_PAGINATION_HMAC_SECRET)
 
 
 def decode_timestamp_uuid_cursor(value: str, *, expected_scope: str) -> TimestampUUIDCursor:
@@ -76,20 +39,7 @@ def decode_timestamp_uuid_cursor(value: str, *, expected_scope: str) -> Timestam
     try:
         if not expected_scope:
             raise ValueError
-        parts = value.split(".")
-        if len(parts) != 2:
-            raise ValueError
-
-        payload_segment, signature_segment = parts
-        payload_bytes = _decode_base64url(payload_segment)
-        supplied_signature = _decode_base64url(signature_segment)
-        if not hmac.compare_digest(supplied_signature, _signature(payload_segment)):
-            raise ValueError
-
-        decoded: object = json.loads(payload_bytes)
-        if not isinstance(decoded, dict):
-            raise ValueError
-        payload = cast(dict[str, object], decoded)
+        payload = decode_signed_payload(value, secret=CURSOR_PAGINATION_HMAC_SECRET)
         if set(payload) != {"v", "scope", "timestamp", "id"}:
             raise ValueError
         if type(payload["v"]) is not int or payload["v"] != CURSOR_PAGINATION_VERSION:
@@ -111,5 +61,45 @@ def decode_timestamp_uuid_cursor(value: str, *, expected_scope: str) -> Timestam
             timestamp=timestamp.astimezone(UTC),
             id=UUID(id_value),
         )
-    except (ValueError, TypeError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+    except (ValueError, TypeError) as exc:
+        raise ValueError("Invalid cursor") from exc
+
+
+def _movie_search_query_digest(query: str) -> str:
+    return sha256(query.strip().lower().encode("utf-8")).hexdigest()
+
+
+def encode_movie_search_cursor(page: int, *, query: str, locale: str) -> str:
+    """Sign the next provider page of a search, bound to its normalized query and locale."""
+
+    if page < 1:
+        raise ValueError("Cursor page must be positive")
+    payload: dict[str, Any] = {
+        "v": CURSOR_PAGINATION_VERSION,
+        "scope": MOVIE_SEARCH_CURSOR_SCOPE,
+        "page": page,
+        "q": _movie_search_query_digest(query),
+        "locale": locale,
+    }
+    return encode_signed_payload(payload, secret=CURSOR_PAGINATION_HMAC_SECRET)
+
+
+def decode_movie_search_cursor(value: str, *, query: str, locale: str) -> int:
+    """Return the provider page of a search cursor issued for exactly this query and locale."""
+
+    try:
+        payload = decode_signed_payload(value, secret=CURSOR_PAGINATION_HMAC_SECRET)
+        if set(payload) != {"v", "scope", "page", "q", "locale"}:
+            raise ValueError
+        if type(payload["v"]) is not int or payload["v"] != CURSOR_PAGINATION_VERSION:
+            raise ValueError
+        if payload["scope"] != MOVIE_SEARCH_CURSOR_SCOPE:
+            raise ValueError
+        page = payload["page"]
+        if type(page) is not int or page < 1:
+            raise ValueError
+        if payload["q"] != _movie_search_query_digest(query) or payload["locale"] != locale:
+            raise ValueError
+        return page
+    except (ValueError, TypeError) as exc:
         raise ValueError("Invalid cursor") from exc

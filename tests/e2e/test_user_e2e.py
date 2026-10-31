@@ -3,7 +3,7 @@ E2E tests for user controller endpoints.
 Tests the full stack against the selected e2e backend.
 """
 
-from tests.e2e.conftest import register_and_login
+from tests.e2e.conftest import register_and_login, resolve_movie
 
 
 class TestUserE2E:
@@ -136,12 +136,13 @@ class TestUserE2E:
         handle = login_data["handle"]
         csrf_token = login_data["csrfToken"]
 
-        # Create a log entry (this creates a movie too)
+        # Resolving the search result imports the movie, then the log references its UUID
+        movie_id = await resolve_movie(async_client, csrf_token, 550)
         log_response = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
             json={
-                "tmdbId": 550,  # Fight Club
+                "movieId": movie_id,
                 "dateWatched": "2024-01-15",
                 "viewingNotes": "Great movie!",
                 "watchedWhere": "cinema",
@@ -157,11 +158,13 @@ class TestUserE2E:
         assert len(data["logs"]) == 1
 
         log = data["logs"][0]
-        assert log["tmdbId"] == 550
+        assert log["movieId"] == movie_id
+        assert "tmdbId" not in log
         assert log["dateWatched"] == "2024-01-15"
         assert log["viewingNotes"] == "Great movie!"
         assert log["watchedWhere"] == "cinema"
 
         # Verify movie data is included
         assert "movie" in log
-        assert log["movie"]["tmdbId"] == 550
+        assert log["movie"]["id"] == movie_id
+        assert "tmdbId" not in log["movie"]
