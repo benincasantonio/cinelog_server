@@ -4,7 +4,7 @@ Tests the full stack against the selected e2e backend.
 """
 
 from app.utils.error_codes_utils import ErrorCodes
-from tests.e2e.conftest import register, register_and_login
+from tests.e2e.conftest import register, register_and_login, resolve_movie
 
 
 class TestLogE2E:
@@ -36,7 +36,11 @@ class TestLogE2E:
             response = await async_client.post(
                 "/v1/logs/",
                 headers=headers,
-                json={"tmdbId": tmdb_id, "dateWatched": watched_on, "watchedWhere": location},
+                json={
+                    "movieId": await resolve_movie(async_client, headers["X-CSRF-Token"], tmdb_id),
+                    "dateWatched": watched_on,
+                    "watchedWhere": location,
+                },
             )
             assert response.status_code == 201
             log_ids.append(response.json()["id"])
@@ -99,7 +103,11 @@ class TestLogE2E:
         create_a = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-10", "watchedWhere": "cinema"},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token, 550),
+                "dateWatched": "2024-01-10",
+                "watchedWhere": "cinema",
+            },
         )
         assert create_a.status_code == 201
 
@@ -107,7 +115,7 @@ class TestLogE2E:
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
             json={
-                "tmdbId": 13,
+                "movieId": await resolve_movie(async_client, csrf_token, 13),
                 "dateWatched": "2024-01-11",
                 "watchedWhere": "streaming",
             },
@@ -120,7 +128,7 @@ class TestLogE2E:
 
         assert len(data["logs"]) == 1
         assert data["logs"][0]["watchedWhere"] == "streaming"
-        assert data["logs"][0]["tmdbId"] == 13
+        assert data["logs"][0]["movieId"] == create_b.json()["movieId"]
 
     async def test_create_and_update_log_rating(self, async_client):
         """Log writes atomically maintain the user's movie-level rating."""
@@ -143,7 +151,11 @@ class TestLogE2E:
         first = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-10", "rating": 8},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token, 550),
+                "dateWatched": "2024-01-10",
+                "rating": 8,
+            },
         )
         assert first.status_code == 201
         assert first.json()["movieRating"] == 8
@@ -155,7 +167,7 @@ class TestLogE2E:
         second = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-02-10"},
+            json={"movieId": await resolve_movie(async_client, csrf_token, 550), "dateWatched": "2024-02-10"},
         )
         assert second.status_code == 201
         assert second.json()["movieRating"] is None
@@ -180,7 +192,7 @@ class TestLogE2E:
         assert null_update.status_code == 200
         assert null_update.json()["movieRating"] is None
 
-        rating_response = await async_client.get("/v1/movie-ratings/550")
+        rating_response = await async_client.get(f"/v1/movie-ratings/{first.json()['movieId']}")
         assert rating_response.status_code == 200
         assert rating_response.json()["rating"] == 10
 
@@ -191,7 +203,7 @@ class TestLogE2E:
         direct_rating = await async_client.post(
             "/v1/movie-ratings/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "rating": 7},
+            json={"movieId": await resolve_movie(async_client, csrf_token, 550), "rating": 7},
         )
         assert direct_rating.status_code == 200
         refreshed_logs = await async_client.get(f"/v1/logs/{handle}")
@@ -218,14 +230,18 @@ class TestLogE2E:
         invalid_create = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-10", "rating": 0},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token, 550),
+                "dateWatched": "2024-01-10",
+                "rating": 0,
+            },
         )
         assert invalid_create.status_code == 422
 
         created = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-10"},
+            json={"movieId": await resolve_movie(async_client, csrf_token, 550), "dateWatched": "2024-01-10"},
         )
         assert created.status_code == 201
 
@@ -255,7 +271,11 @@ class TestLogE2E:
         create_a = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-05", "watchedWhere": "cinema"},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token, 550),
+                "dateWatched": "2024-01-05",
+                "watchedWhere": "cinema",
+            },
         )
         assert create_a.status_code == 201
 
@@ -263,7 +283,7 @@ class TestLogE2E:
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
             json={
-                "tmdbId": 13,
+                "movieId": await resolve_movie(async_client, csrf_token, 13),
                 "dateWatched": "2024-01-15",
                 "watchedWhere": "streaming",
             },
@@ -273,7 +293,11 @@ class TestLogE2E:
         create_c = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 278, "dateWatched": "2024-01-25", "watchedWhere": "tv"},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token, 278),
+                "dateWatched": "2024-01-25",
+                "watchedWhere": "tv",
+            },
         )
         assert create_c.status_code == 201
 
@@ -319,7 +343,7 @@ class TestLogE2E:
                 "/v1/logs/",
                 headers={"X-CSRF-Token": csrf_token},
                 json={
-                    "tmdbId": tmdb_id,
+                    "movieId": await resolve_movie(async_client, csrf_token, tmdb_id),
                     "dateWatched": date_watched,
                     "watchedWhere": "cinema",
                 },
@@ -387,7 +411,11 @@ class TestLogE2E:
         create_response = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token_a},
-            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token_a, 550),
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "cinema",
+            },
         )
         assert create_response.status_code == 201
         log_id = create_response.json()["id"]
@@ -455,7 +483,7 @@ class TestLogE2E:
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
             json={
-                "tmdbId": 550,
+                "movieId": await resolve_movie(async_client, csrf_token, 550),
                 "dateWatched": "2024-01-15",
                 "watchedWhere": "invalid-place",
             },
@@ -482,7 +510,11 @@ class TestLogE2E:
         create_resp = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token_a},
-            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token_a, 550),
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "cinema",
+            },
         )
         assert create_resp.status_code == 201
 
@@ -523,7 +555,11 @@ class TestLogE2E:
         first_resp = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-10", "watchedWhere": "cinema"},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token, 550),
+                "dateWatched": "2024-01-10",
+                "watchedWhere": "cinema",
+            },
         )
         assert first_resp.status_code == 201
         first_data = first_resp.json()
@@ -532,7 +568,7 @@ class TestLogE2E:
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
             json={
-                "tmdbId": 550,
+                "movieId": await resolve_movie(async_client, csrf_token, 550),
                 "dateWatched": "2024-02-20",
                 "watchedWhere": "streaming",
             },
@@ -575,7 +611,11 @@ class TestLogE2E:
         create_resp = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token, 550),
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "cinema",
+            },
         )
         assert create_resp.status_code == 201
         log_id = create_resp.json()["id"]
@@ -615,7 +655,7 @@ class TestLogE2E:
             "/v1/logs/",
             headers={"X-CSRF-Token": user_not_logged["csrfToken"]},
             json={
-                "tmdbId": 550,  # Fight Club
+                "movieId": await resolve_movie(async_client, user_not_logged["csrfToken"], 550),
                 "dateWatched": "2024-01-15",
                 "viewingNotes": "Great movie!",
                 "watchedWhere": "cinema",
@@ -644,13 +684,14 @@ class TestLogE2E:
         assert len(data["logs"]) == 1
         assert (data["totalWatches"], data["uniqueTitles"], data["totalRewatches"]) == (1, 1, 0)
         log = data["logs"][0]
-        assert log["tmdbId"] == 550
+        assert "tmdbId" not in log
         assert log["dateWatched"] == "2024-01-15"
         assert log["viewingNotes"] == "Great movie!"
         assert log["watchedWhere"] == "cinema"
         # Verify movie data is included
         assert "movie" in log
-        assert log["movie"]["tmdbId"] == 550
+        assert log["movie"]["id"] == log["movieId"]
+        assert "tmdbId" not in log["movie"]
 
     async def test_private_profile_other_user_logs(self, async_client):
         """Test that a private profile's logs are not accessible by another user."""
@@ -708,7 +749,11 @@ class TestLogE2E:
         create_resp = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token},
-            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token, 550),
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "cinema",
+            },
         )
         assert create_resp.status_code == 201
         log_id = create_resp.json()["id"]
@@ -776,7 +821,11 @@ class TestLogE2E:
         create_response = await async_client.post(
             "/v1/logs/",
             headers={"X-CSRF-Token": csrf_token_a},
-            json={"tmdbId": 550, "dateWatched": "2024-01-15", "watchedWhere": "cinema"},
+            json={
+                "movieId": await resolve_movie(async_client, csrf_token_a, 550),
+                "dateWatched": "2024-01-15",
+                "watchedWhere": "cinema",
+            },
         )
         assert create_response.status_code == 201
         log_id = create_response.json()["id"]

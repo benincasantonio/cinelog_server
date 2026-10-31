@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.models.movie_model import Movie
 from app.providers.movie_provider_protocol import MovieProviderProtocol
 from app.repository.movie_repository_protocol import MovieIdentityUnavailableError, MovieRepositoryProtocol
 from app.schemas.movie_api_schemas import (
@@ -14,28 +15,58 @@ from app.schemas.movie_api_schemas import (
 from app.schemas.movie_import_schemas import MovieCreateDTO
 from app.schemas.movie_provider_schemas import MovieDetailsQuery, MovieSearchQuery, MovieSourceReferenceDTO
 from app.types import DEFAULT_LOCALE, MovieProviderName
+from app.utils.cursor_pagination_utils import decode_movie_search_cursor, encode_movie_search_cursor
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
+from app.utils.movie_ref_utils import decode_movie_ref, encode_movie_ref
+
+# TMDB serves at most 500 pages for a search query.
+MAX_SEARCH_PAGE = 500
 
 
 class MovieService:
     def __init__(
         self,
-        movie_repository: MovieRepositoryProtocol,
+        movie_repository: MovieRepositoryProtocol[UUID, Movie],
         provider: MovieProviderProtocol,
     ):
         self.movie_repository = movie_repository
         self.provider = provider
 
-    async def search_movie(self, query: str, locale: str = DEFAULT_LOCALE) -> MovieSearchResult:
-        result = await self.provider.search_movie(MovieSearchQuery(query=query, locale=locale))
-        return MovieSearchResult(
-            page=result.page,
-            total_results=result.total_results,
-            total_pages=result.total_pages,
-            results=[
+    async def search_movie(
+        self, query: str, locale: str = DEFAULT_LOCALE, cursor: str | None = None
+    ) -> MovieSearchResult:
+        """Return one provider page, naming catalog films by UUID and the rest by movieRef.
+
+        Soft-deleted catalog films are omitted without backfilling, so a page may hold fewer items.
+        """
+        try:
+            page = decode_movie_search_cursor(cursor, query=query, locale=locale) if cursor is not None else 1
+        except ValueError as error:
+            raise AppException(ErrorCodes.INVALID_PAGINATION_CURSOR) from error
+
+        result = await self.provider.search_movie(MovieSearchQuery(query=query, locale=locale, page=page))
+
+        external_ids_by_source: dict[str, list[str]] = {}
+        for item in result.results:
+            external_ids_by_source.setdefault(item.source.source, []).append(item.source.external_id)
+        catalog = {
+            (source, external_id): movie
+            for source, external_ids in external_ids_by_source.items()
+            for external_id, movie in (
+                await self.movie_repository.find_movies_by_external_ids(source, external_ids)
+            ).items()
+        }
+
+        results = []
+        for item in result.results:
+            movie = catalog.get((item.source.source, item.source.external_id))
+            if movie is not None and movie.deleted:
+                continue
+            results.append(
                 MovieSearchResultItem(
-                    id=int(item.source.external_id),
+                    id=movie.id if movie is not None else None,
+                    movie_ref=encode_movie_ref(item.source) if movie is None else None,
                     title=item.localized.title,
                     overview=item.localized.overview,
                     release_date=item.common.release_date.isoformat() if item.common.release_date else "",
@@ -46,15 +77,39 @@ class MovieService:
                     original_language=item.common.original_language,
                     genre_ids=item.common.genre_ids,
                 )
-                for item in result.results
-            ],
+            )
+
+        has_next_page = result.page < min(result.total_pages, MAX_SEARCH_PAGE)
+        return MovieSearchResult(
+            results=results,
+            next_cursor=(
+                encode_movie_search_cursor(result.page + 1, query=query, locale=locale) if has_next_page else None
+            ),
         )
 
-    async def get_movie_details(self, tmdb_id: int, locale: str = DEFAULT_LOCALE) -> MovieDetails:
-        metadata = await self.provider.get_movie_details(MovieDetailsQuery(external_id=str(tmdb_id), locale=locale))
+    async def resolve_movie(self, movie_ref: str) -> UUID:
+        """Return the catalog UUID of a search result, importing it on first selection only."""
+        try:
+            source = decode_movie_ref(movie_ref)
+        except ValueError as error:
+            raise AppException(ErrorCodes.INVALID_MOVIE_REF) from error
+
+        movie = await self._find_or_import_movie(source)
+        return movie.id
+
+    async def get_movie_details(self, movie_id: UUID, locale: str = DEFAULT_LOCALE) -> MovieDetails:
+        """Read live provider details for an active catalog movie through its mapping."""
+        movie = await self.get_active_movie(movie_id)
+        mapping = next((item for item in movie.providers if item.provider == MovieProviderName.TMDB), None)
+        if mapping is None:
+            raise AppException(ErrorCodes.MOVIE_NOT_FOUND)
+
+        metadata = await self.provider.get_movie_details(
+            MovieDetailsQuery(external_id=mapping.external_id, locale=locale)
+        )
         common, localized = metadata.common, metadata.localized
         return MovieDetails(
-            id=int(metadata.source.external_id),
+            id=movie.id,
             title=localized.title,
             original_title=common.original_title,
             overview=localized.overview,
@@ -83,18 +138,17 @@ class MovieService:
         """Find a movie by its ID."""
         return await self.movie_repository.find_movie_by_id(movie_id)
 
-    async def get_movie_by_tmdb_id(self, tmdb_id: int):
-        """Find a movie by its TMDB ID."""
-        return await self.movie_repository.find_movie_by_provider(
-            MovieSourceReferenceDTO(source=MovieProviderName.TMDB, external_id=str(tmdb_id))
-        )
+    async def get_active_movie(self, movie_id: UUID) -> Movie:
+        """Find an active movie by UUID; unknown and soft-deleted movies are both not found."""
+        movie = await self.movie_repository.find_movie_by_id(movie_id)
+        if movie is None:
+            raise AppException(ErrorCodes.MOVIE_NOT_FOUND)
+        return movie
 
-    async def find_or_create_movie(self, tmdb_id: int):
-        """Find a movie by TMDB ID, or create it if it doesn't exist."""
+    async def _find_or_import_movie(self, source: MovieSourceReferenceDTO) -> Movie:
+        """Find a source identity, or import it; a soft-deleted identity stays reserved."""
 
-        movie = await self.movie_repository.find_movie_by_provider(
-            MovieSourceReferenceDTO(source=MovieProviderName.TMDB, external_id=str(tmdb_id)), include_deleted=True
-        )
+        movie = await self.movie_repository.find_movie_by_provider(source, include_deleted=True)
 
         if movie:
             if movie.deleted:
@@ -102,7 +156,7 @@ class MovieService:
             return movie
 
         metadata = await self.provider.get_movie_details(
-            MovieDetailsQuery(external_id=str(tmdb_id), locale=DEFAULT_LOCALE)
+            MovieDetailsQuery(external_id=source.external_id, locale=DEFAULT_LOCALE)
         )
         try:
             return await self.movie_repository.create_movie(MovieCreateDTO.from_metadata(metadata))

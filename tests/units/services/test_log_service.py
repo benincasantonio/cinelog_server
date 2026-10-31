@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 
 from app.models.movie_model import Movie
-from app.models.movie_provider_mapping_model import MovieProviderMapping
 from app.schemas.log_schemas import LogCreateRequest, LogListRequest, LogListResponse, LogUpdateRequest
 from app.services.log_service import LogService
 from app.utils.error_codes_utils import ErrorCodes
@@ -66,7 +65,6 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = date(2020, 1, 1)
         mock_movie.overview = "A description"
@@ -76,7 +74,7 @@ class TestLogService:
         mock_movie.created_at = date(2020, 1, 1)
         mock_movie.updated_at = date(2020, 1, 1)
 
-        mock_movie_service.find_or_create_movie.return_value = mock_movie
+        mock_movie_service.get_active_movie.return_value = mock_movie
 
         mock_log = Mock()
         mock_log.id = "log123"
@@ -89,7 +87,7 @@ class TestLogService:
 
         # Execute
         request = LogCreateRequest(
-            tmdb_id=550,
+            movie_id=mock_movie.id,
             date_watched=date(2024, 1, 15),
             viewing_notes="Great movie!",
             watched_where="cinema",
@@ -102,8 +100,22 @@ class TestLogService:
         assert result.movie_id == "movie123"
         assert result.movie.title == "Test Movie"
         assert result.movie_rating == 9
-        mock_movie_service.find_or_create_movie.assert_awaited_once_with(tmdb_id=550)
+        mock_movie_service.get_active_movie.assert_awaited_once_with(mock_movie.id)
         mock_log_repository.create_log.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_create_log_unknown_movie_writes_nothing(
+        self, log_service, mock_log_repository, mock_movie_service, mock_log_list_cache_service
+    ):
+        mock_movie_service.get_active_movie.side_effect = AppException(ErrorCodes.MOVIE_NOT_FOUND)
+        request = LogCreateRequest(movie_id=uuid4(), date_watched=date(2024, 1, 15), rating=8)
+
+        with pytest.raises(AppException) as exc_info:
+            await log_service.create_log(uuid4(), request)
+
+        assert exc_info.value.error == ErrorCodes.MOVIE_NOT_FOUND
+        mock_log_repository.create_log.assert_not_awaited()
+        mock_log_list_cache_service.invalidate_user.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_create_log_invalidates_stats_cache(
@@ -119,7 +131,6 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -128,7 +139,7 @@ class TestLogService:
         mock_movie.original_language = "en"
         mock_movie.created_at = None
         mock_movie.updated_at = None
-        mock_movie_service.find_or_create_movie.return_value = mock_movie
+        mock_movie_service.get_active_movie.return_value = mock_movie
 
         mock_log = Mock()
         mock_log.id = "log123"
@@ -138,7 +149,7 @@ class TestLogService:
         mock_log.watched_where = "cinema"
         mock_log_repository.create_log.return_value = mock_log
 
-        request = LogCreateRequest(tmdb_id=550, date_watched=date(2024, 1, 15), watched_where="cinema")
+        request = LogCreateRequest(movie_id=mock_movie.id, date_watched=date(2024, 1, 15), watched_where="cinema")
         result = await log_service.create_log(user_id, request)
 
         assert result.movie_rating is None
@@ -146,14 +157,11 @@ class TestLogService:
         mock_stats_cache_service.invalidate_user_stats.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
-    async def test_create_log_derives_identity_and_poster_from_movie(
-        self, log_service, mock_log_repository, mock_movie_service
-    ):
-        """tmdbId and posterPath come from the movie; the log stores neither."""
+    async def test_create_log_derives_poster_from_movie(self, log_service, mock_log_repository, mock_movie_service):
+        """posterPath comes from the movie; the log does not store it."""
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/movie_poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -163,7 +171,7 @@ class TestLogService:
         mock_movie.created_at = None
         mock_movie.updated_at = None
 
-        mock_movie_service.find_or_create_movie.return_value = mock_movie
+        mock_movie_service.get_active_movie.return_value = mock_movie
 
         mock_log = Mock()
         mock_log.id = "log123"
@@ -176,15 +184,13 @@ class TestLogService:
 
         request = LogCreateRequest.model_validate(
             {
-                "tmdbId": 550,
+                "movieId": str(mock_movie.id),
                 "dateWatched": "2024-01-15",
                 "watchedWhere": "streaming",
-                "posterPath": "/client_poster.jpg",
             }
         )
         result = await log_service.create_log("user123", request)
 
-        assert result.tmdb_id == 550
         assert result.poster_path == "/movie_poster.jpg"
         persisted_request = mock_log_repository.create_log.await_args.kwargs["create_log_request"]
         assert "poster_path" not in persisted_request.model_dump()
@@ -205,7 +211,6 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -247,7 +252,6 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -328,7 +332,6 @@ class TestLogService:
         mock_movie = Mock()
         mock_movie.id = uuid4()
         mock_movie.title = "Test Movie"
-        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None
@@ -356,7 +359,7 @@ class TestLogService:
 
         assert len(result.logs) == 1
         assert result.logs[0].movie_rating == 8
-        assert result.logs[0].tmdb_id == 550
+        assert result.logs[0].movie_id == mock_log.movie_id
         assert result.logs[0].poster_path == "/poster.jpg"
         mock_log_list_cache_service.set.assert_awaited_once()
 
@@ -389,7 +392,6 @@ class TestLogService:
             Movie(
                 id=uuid4(),
                 title="Same title",
-                providers=[MovieProviderMapping(provider="tmdb", external_id=str(550 + index))],
                 poster_path=f"/poster-{index}.jpg",
                 deleted=not include_movie_details,
             )
@@ -418,8 +420,8 @@ class TestLogService:
         assert [item.id for item in result.logs] == [log.id for log in logs]
         assert all((item.movie is not None) == include_movie_details for item in result.logs)
         # Identity and poster stay derivable from the movie even when it is soft-deleted.
-        assert [(item.tmdb_id, item.poster_path) for item in result.logs] == [
-            (int(movies[index].providers[0].external_id), movies[index].poster_path) for index in movie_indexes
+        assert [(item.movie_id, item.poster_path) for item in result.logs] == [
+            (movies[index].id, movies[index].poster_path) for index in movie_indexes
         ]
         mock_log_repository.find_logs_by_user_id.assert_awaited_once_with(
             user_id=user_id,
@@ -459,7 +461,6 @@ class TestGetUserLogsByHandle:
         movie = Movie(
             id=mock_log.movie_id,
             title="Test Movie",
-            providers=[MovieProviderMapping(provider="tmdb", external_id="550")],
             poster_path="/poster.jpg",
             deleted=False,
         )
@@ -483,7 +484,6 @@ class TestGetUserLogsByHandle:
         mock_movie = Mock()
         mock_movie.id = movie_id
         mock_movie.title = "Test Movie"
-        mock_movie.providers = [MovieProviderMapping(provider="tmdb", external_id="550")]
         mock_movie.poster_path = "/poster.jpg"
         mock_movie.release_date = None
         mock_movie.overview = None

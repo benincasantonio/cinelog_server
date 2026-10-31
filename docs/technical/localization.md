@@ -27,12 +27,12 @@ The supported-header path performs no preference query. PostgreSQL remains autho
 
 | Operation | Key |
 |-----------|-----|
-| Search | `cinelog:tmdb:search:v2:{locale}:{normalized_query}` |
+| Search | `cinelog:tmdb:search:v3:{locale}:{page}:{normalized_query}` |
 | Details | `cinelog:tmdb:details:v2:{locale}:{external_id}:generation:{generation}` |
 
 Legacy cache keys are no longer read and expire through their existing TTL.
 
-`MovieService.find_or_create_movie` always requests `en-US` before persisting a canonical movie row. Live localized TMDB responses are not stored in PostgreSQL and log/history responses are not hydrated per movie. Persisted localized movie text is deferred to [server issue #214](https://github.com/benincasantonio/cinelog_server/issues/214).
+`MovieService.resolve_movie` (first import of a search result) always requests `en-US` before persisting a canonical movie row. Live localized TMDB responses are not stored in PostgreSQL and log/history responses are not hydrated per movie. Persisted localized movie text is deferred to [server issue #214](https://github.com/benincasantonio/cinelog_server/issues/214).
 
 ## API and Rollout
 

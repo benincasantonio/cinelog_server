@@ -58,13 +58,16 @@ class TMDBMovieProvider:
     async def search_movie(self, request: MovieSearchQuery) -> MovieSearchResultDTO:
         self._ensure_open()
         try:
-            cached = await self._cache.get_search(request.query, request.locale)
+            cached = await self._cache.get_search(request.query, request.locale, page=request.page)
             if cached is not None:
                 return self._map_search(cached.payload, request.locale, cached.observed_at)
-            payload = await self._client.search_movie(request.query, request.locale)
+            payload = await self._client.search_movie(request.query, request.locale, request.page)
             result = self._map_search(payload, request.locale)
             await self._cache.set_search(
-                request.query, request.locale, TMDBSearchSnapshot(payload=payload, observed_at=result.observed_at)
+                request.query,
+                request.locale,
+                TMDBSearchSnapshot(payload=payload, observed_at=result.observed_at),
+                page=request.page,
             )
             return result
         except ValueError:

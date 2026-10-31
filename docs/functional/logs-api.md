@@ -59,9 +59,11 @@ The log and rating changes are atomic. If either database write fails, neither c
 
 ### Create example
 
+`movieId` is the Cinelog movie UUID. A search result that only has a `movieRef` must be resolved with `POST /v1/movies/resolve` first; creating a log never imports a movie.
+
 ```json
 {
-  "tmdbId": 550,
+  "movieId": "6f1c2a9e-4b7d-4c1e-9a55-0d2b8f3e7a10",
   "dateWatched": "2024-01-15",
   "watchedWhere": "cinema",
   "viewingNotes": "Great rewatch",
@@ -78,7 +80,7 @@ The log and rating changes are atomic. If either database write fails, neither c
 }
 ```
 
-`posterPath` in log responses is always the movie's poster; create requests don't accept one. If the movie for `tmdbId` has been removed from the catalog, creating a log or rating returns `409 Conflict` with `MOVIE_UNAVAILABLE`.
+`posterPath` in log responses is always the movie's poster. Create requests reject unknown fields with `422`, including `posterPath` and `tmdbId` (even alongside a valid `movieId`). A malformed `movieId` returns `422`; an unknown `movieId`, or one whose movie was removed from the catalog, returns `404 Not Found` with `MOVIE_NOT_FOUND`.
 
 Both endpoints return the log response with `movieRating`. It contains the score applied by that request, or `null` when the request omitted the rating or supplied `null`.
 
@@ -117,10 +119,13 @@ No request body.
 }
 ```
 
-The #248 persistence migration preserves existing `movieId` UUIDs and numeric `tmdbId` fields. TMDB identity now comes from a separate provider mapping; clients continue sending the same requests. Saved entries for a removed film still include `tmdbId` and `posterPath`, while the nested `movie` is `null`.
+Log responses identify the movie only by `movieId` (and `movie.id` in the nested movie); `tmdbId` was removed in #225. Saved entries for a removed film keep `movieId` and `posterPath`, while the nested `movie` is `null`.
 
 ## See Also
 
+- [Movie Search, Resolution and Details](tmdb-service.md) — resolving search results to `movieId`
+- [Movie Ratings API](movie-ratings-api.md)
+- [Canonical Movie Identity (technical)](../technical/movie-identity.md)
 - [Movie Provider Mappings and Deployment](../technical/movie-provider-mappings.md)
 - [Authentication](authentication.md) — cookie and CSRF setup
 - [Rate Limiting](rate-limiting.md) — per-endpoint limits and 429 behavior

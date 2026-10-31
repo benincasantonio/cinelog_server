@@ -7,7 +7,6 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, and_, select
-from sqlalchemy.orm import selectinload
 
 from app.models.log_model import Log
 from app.models.movie_model import Movie
@@ -23,9 +22,6 @@ class LogRepository(RepositoryBase):
 
     async def create_log(self, user_id: UUID, create_log_request: LogCreateRequest) -> Log:
         """Create a new viewing log in PostgreSQL."""
-
-        if create_log_request.movie_id is None:
-            raise ValueError("movie_id is required")
 
         async with self._session_provider() as session:
             log = Log(
@@ -110,14 +106,13 @@ class LogRepository(RepositoryBase):
     ) -> list[tuple[Log, Movie, int | None]]:
         """Find active logs with their movie and the user's active rating.
 
-        The movie is joined regardless of soft deletion: its provider mappings and
-        poster are needed by every legacy log response. Callers decide whether to expose it.
+        The movie is joined regardless of soft deletion: its poster is needed by every
+        log response. Callers decide whether to expose it.
         """
 
         async with self._session_provider() as session:
             statement = (
                 select(Log, Movie, MovieRating.rating)
-                .options(selectinload(Movie.providers))
                 .join(Movie, Movie.id == Log.movie_id)
                 .outerjoin(
                     MovieRating,

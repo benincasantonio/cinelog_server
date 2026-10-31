@@ -414,6 +414,36 @@ async def test_batch_lookup_loads_mappings_in_a_bounded_number_of_queries(reposi
         event.remove(pg_engine.sync_engine, "before_cursor_execute", record_statement)
 
 
+async def test_find_movies_by_external_ids_maps_known_ids_including_deleted(repository, seed_session, pg_engine):
+    active = Movie(providers=[MovieProviderMapping(provider="tmdb", external_id="930")], title="Active")
+    deleted = Movie(
+        providers=[MovieProviderMapping(provider="tmdb", external_id="931")],
+        title="Gone",
+        deleted=True,
+        deleted_at=datetime.now(UTC),
+    )
+    await _add(seed_session, active, deleted)
+    statements = []
+
+    def record_statement(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    event.listen(pg_engine.sync_engine, "before_cursor_execute", record_statement)
+    try:
+        found = await repository.find_movies_by_external_ids("tmdb", ["930", "931", "932"])
+    finally:
+        event.remove(pg_engine.sync_engine, "before_cursor_execute", record_statement)
+
+    assert {external_id: movie.id for external_id, movie in found.items()} == {"930": active.id, "931": deleted.id}
+    assert found["931"].deleted is True
+    assert len(statements) == 1
+    assert await repository.find_movies_by_external_ids("other", ["930"]) == {}
+
+
+async def test_find_movies_by_external_ids_with_no_ids_short_circuits(repository):
+    assert await repository.find_movies_by_external_ids("tmdb", []) == {}
+
+
 async def test_unrelated_error_is_not_swallowed_even_when_identity_exists(repository):
     await repository.create_movie(_import_data(920))
     data = _import_data(920)

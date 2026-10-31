@@ -124,6 +124,13 @@ class ErrorCodes:
         error_description="The movie has been removed from the catalog and cannot be logged or rated.",
     )
 
+    INVALID_MOVIE_REF = ErrorSchema(
+        error_code_name="INVALID_MOVIE_REF",
+        error_code=422,
+        error_message="Invalid movie reference",
+        error_description="The movie reference is malformed, unsupported, or was not issued by this server.",
+    )
+
     # Movie Rating Errors
     MOVIE_RATING_VALUE_REQUIRED = ErrorSchema(
         error_code_name="MOVIE_RATING_VALUE_REQUIRED",
