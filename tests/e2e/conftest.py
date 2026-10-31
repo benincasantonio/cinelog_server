@@ -12,6 +12,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6380/0")
 os.environ.setdefault("RATE_LIMIT_HMAC_SECRET", "test-rate-limit-hmac-secret")
 os.environ.setdefault("REGISTRATION_VERIFICATION_HMAC_SECRET", "test-registration-verification-hmac-secret")
 os.environ.setdefault("CURSOR_PAGINATION_HMAC_SECRET", "test-cursor-pagination-hmac-secret")
+os.environ.setdefault("MOVIE_REF_HMAC_SECRET", "test-movie-ref-hmac-secret")
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://cinelog:cinelog@localhost:5433/cinelog_e2e_db"
 
 import asyncio  # noqa: E402
@@ -32,7 +33,9 @@ from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncEngine  # noqa: E402
 
 from app.infrastructure.postgres import close_postgres_engine, init_postgres_engine  # noqa: E402
+from app.schemas.movie_provider_schemas import MovieSourceReferenceDTO  # noqa: E402
 from app.utils.auth_utils import normalize_email_identifier  # noqa: E402
+from app.utils.movie_ref_utils import encode_movie_ref  # noqa: E402
 from tests.fakes.movie_provider import FakeMovieProvider  # noqa: E402
 
 # Load .env file for remaining local settings (e.g. JWT_SECRET_KEY).
@@ -289,6 +292,20 @@ async def logged_in_client(
         user_client = RegistrationAwareAsyncClient(client, async_client._registration_codes)
         login = await register_and_login(user_client, user_data)
         yield user_client, login["csrfToken"]
+
+
+def movie_ref_for(tmdb_id: int) -> str:
+    """The movieRef the search endpoint issues for a TMDB film that is not yet in the catalog."""
+    return encode_movie_ref(MovieSourceReferenceDTO(source="tmdb", external_id=str(tmdb_id)))
+
+
+async def resolve_movie(client, csrf_token: str, tmdb_id: int) -> str:
+    """Helper: resolve a TMDB search result through the public API and return its movie UUID."""
+    response = await client.post(
+        "/v1/movies/resolve", headers={"X-CSRF-Token": csrf_token}, json={"movieRef": movie_ref_for(tmdb_id)}
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["movieId"]
 
 
 async def count_movie_rows(engine: AsyncEngine, tmdb_id: int) -> int:

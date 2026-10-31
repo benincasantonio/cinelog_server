@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.base_schemas import BaseSchema
 from app.schemas.movie_schemas import MovieResponse
@@ -9,8 +9,9 @@ from app.types import RatingInt, WatchedWhereStr
 
 
 class LogCreateRequest(BaseSchema):
-    movie_id: UUID | None = Field(None, description="Unique identifier of the movie (auto-generated from tmdbId)")
-    tmdb_id: int = Field(..., description="TMDB ID of the movie")
+    model_config = ConfigDict(extra="forbid")
+
+    movie_id: UUID = Field(..., description="Cinelog movie UUID")
     date_watched: date = Field(..., description="Date when the movie was watched")
     viewing_notes: str | None = Field(None, description="Optional notes about this viewing")
     watched_where: WatchedWhereStr = Field(
@@ -24,7 +25,6 @@ class LogCreateResponse(BaseSchema):
     id: str = Field(..., description="Unique identifier of the log entry")
     movie_id: str = Field(..., description="Unique identifier of the movie")
     movie: MovieResponse = Field(..., description="Details of the movie")
-    tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
     viewing_notes: str | None = Field(None, description="Optional notes about this viewing")
     poster_path: str | None = Field(None, description="Path to the movie poster image")
@@ -51,7 +51,6 @@ class LogListItem(BaseSchema):
     id: UUID = Field(..., description="Unique identifier of the log entry")
     movie_id: UUID = Field(..., description="Unique identifier of the movie")
     movie: MovieResponse | None = Field(None, description="Details of the movie")
-    tmdb_id: int = Field(..., description="TMDB ID of the movie")
     date_watched: date = Field(..., description="Date when the movie was watched")
     viewing_notes: str | None = Field(None, description="Optional notes about this viewing")
     poster_path: str | None = Field(None, description="Path to the movie poster image")

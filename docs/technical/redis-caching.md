@@ -58,7 +58,7 @@ Cache keys follow the pattern: `cinelog:{entity}:{identifier}`
 Examples:
 - `cinelog:movie:550` — movie with TMDB ID 550
 - `cinelog:cache-generation:log-list:{user_id}` — persistent log-list generation counter
-- `cinelog:log-list-response:v1:{user_id}:generation:{generation}:where:{watched_where}:from:{from}:to:{to}:sort:{sort_by}:{sort_order}` — complete filtered log-list response
+- `cinelog:log-list-response:v2:{user_id}:generation:{generation}:where:{watched_where}:from:{from}:to:{to}:sort:{sort_by}:{sort_order}` — complete filtered log-list response
 - `cinelog:stats:{user_id}:all` — stats for a specific user
 - `cinelog:notif:follow-started:{recipient_id}:{follower_id}` — rolling cooldown for `follow.started` emission
 
@@ -78,7 +78,7 @@ Counters retain the existing Redis hash format (`value` field) and do not expire
 
 ## TMDB Observation Cache
 
-TMDB uses versioned `v2` search/detail keys and payload envelopes containing `observed_at`. Detail invalidation uses the shared generation helpers with context `tmdb-details:v2` and scope `{external_id}:{locale}`; search retains TTL-only expiry. The original timestamp and captured generation are preserved across a fill. See [TMDB Movie Provider](tmdb-service.md#cache-and-observation-time).
+TMDB uses versioned search (`v3`, page-scoped since #225) and detail (`v2`) keys and payload envelopes containing `observed_at`. Detail invalidation uses the shared generation helpers with context `tmdb-details:v2` and scope `{external_id}:{locale}`; search retains TTL-only expiry. The original timestamp and captured generation are preserved across a fill. See [TMDB Movie Provider](tmdb-service.md#cache-and-observation-time).
 
 ## Cache Layer Boundaries
 

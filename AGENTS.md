@@ -86,6 +86,7 @@ Required environment variables (see `.env`):
 - `RATE_LIMIT_HMAC_SECRET`: Secret key used to HMAC account-based rate-limit identifiers
 - `REGISTRATION_VERIFICATION_HMAC_SECRET`: Secret key used to HMAC registration email-verification codes and keys
 - `CURSOR_PAGINATION_HMAC_SECRET`: Dedicated secret key used to sign opaque pagination cursors
+- `MOVIE_REF_HMAC_SECRET`: Dedicated secret key used to sign opaque search-result movie references (`movieRef`)
 - `TMDB_API_KEY`: The Movie Database API key
 - `DATABASE_URL`: PostgreSQL connection string (e.g., `postgresql+asyncpg://cinelog:cinelog@localhost:5432/cinelog_db`) — required
 - `REDIS_URL`: Redis connection URL (default: `redis://localhost:6379/0`)

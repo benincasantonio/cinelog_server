@@ -48,8 +48,10 @@ class TMDBClient:
         except (ValidationError, ValueError):
             raise AppException(ErrorCodes.MOVIE_PROVIDER_INVALID_RESPONSE) from None
 
-    async def search_movie(self, query: str, locale: str) -> TMDBMovieSearchResult:
-        return await self._request("/search/movie", {"query": query, "language": locale}, TMDBMovieSearchResult)
+    async def search_movie(self, query: str, locale: str, page: int = 1) -> TMDBMovieSearchResult:
+        return await self._request(
+            "/search/movie", {"query": query, "language": locale, "page": str(page)}, TMDBMovieSearchResult
+        )
 
     async def get_movie_details(self, external_id: str, locale: str) -> TMDBMovieDetails:
         # Keep the legacy integer API, and never interpolate arbitrary paths.

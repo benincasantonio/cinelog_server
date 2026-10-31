@@ -126,6 +126,25 @@ class MovieRepository(RepositoryBase):
             await session.refresh(movie, attribute_names=["providers"])
             return movie
 
+    async def find_movies_by_external_ids(self, provider: str, external_ids: Iterable[str]) -> dict[str, Movie]:
+        """Map imported external IDs to movies in one read, including soft-deleted films."""
+
+        external_ids = list(external_ids)
+        if not external_ids:
+            return {}
+
+        async with self._session_provider() as session:
+            statement = (
+                select(MovieProviderMapping.external_id, Movie)
+                .join(Movie, MovieProviderMapping.movie_id == Movie.id)
+                .where(
+                    MovieProviderMapping.provider == provider,
+                    MovieProviderMapping.external_id.in_(external_ids),
+                )
+            )
+            result = await session.execute(statement)
+            return dict(result.tuples().all())
+
     async def find_movies_by_ids(self, movie_ids: Iterable[UUID]) -> list[Movie]:
         """Find active movies by UUID set."""
 

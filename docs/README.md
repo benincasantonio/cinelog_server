@@ -16,7 +16,8 @@ User-facing documentation covering features, flows, and API usage from the consu
 | [Profile Visibility](functional/profile-visibility.md) | User profile visibility settings and public profile lookup |
 | [Rate Limiting](functional/rate-limiting.md) | Rate limits per endpoint, response headers, and 429 behavior |
 | [User Statistics API](functional/stats-api.md) | Viewing summary, distribution, ratings, and year filters |
-| [Movie Search and Details](functional/tmdb-service.md) | Compatible numeric APIs, localization and provider errors |
+| [Movie Search, Resolution and Details](functional/tmdb-service.md) | UUID-only movie identity, search cursor, `movieRef` resolution and provider errors |
+| [Movie Ratings API](functional/movie-ratings-api.md) | Create, update and read movie ratings by movie UUID |
 
 ## Technical Docs
 
@@ -43,6 +44,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Service Dependencies](technical/service-dependencies.md) | Service providers, FastAPI `Depends` wiring, test overrides |
 | [Stats Caching](technical/stats-caching.md) | Stats caching strategy, TTL, and invalidation triggers |
 | [Statistics Query](technical/stats-query.md) | PostgreSQL cross-table stats aggregation and semantics |
+| [Canonical Movie Identity](technical/movie-identity.md) | UUID-only contract, signed `movieRef` and search cursor, resolution, deployment/rollback matrix |
 | [Movie Provider Mappings](technical/movie-provider-mappings.md) | Source identity, atomic imports, schema migration and coordinated rollback |
 | [TMDB Movie Provider](technical/tmdb-service.md) | Integration package, separate provider/import DTOs, observation timestamps and generation cache |
 | [Validation Error Sanitization](technical/validation-error-sanitization.md) | Why 422 responses never echo submitted request values |

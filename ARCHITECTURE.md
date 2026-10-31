@@ -26,10 +26,10 @@ All routes are registered under the `/v1/` prefix:
 | Controller | Prefix | Purpose |
 |---|---|---|
 | `auth_controller` | `/v1/auth` | Registration, login, logout, token refresh, password reset, CSRF |
-| `movie_controller` | `/v1/movies` | TMDB movie search and details |
+| `movie_controller` | `/v1/movies` | Cursor-paged movie search, `POST /resolve` (movieRef → UUID) and UUID details |
 | `log_controller` | `/v1/logs` | Viewing log CRUD |
 | `user_controller` | `/v1/users` | User info and profiles, including `PUT`/`DELETE /{handle}/follow` |
-| `movie_rating_controller` | `/v1/movie-ratings` | Movie rating CRUD |
+| `movie_rating_controller` | `/v1/movie-ratings` | Movie rating create/update and read by movie UUID |
 | `stats_controller` | `/v1/stats` | Viewing statistics |
 | `notification_controller` | `/v1/notifications` | Notification inbox and read state |
 
@@ -172,7 +172,7 @@ Primary key `(provider, external_id)` prevents one external identity from naming
 
 **Constraints/Indexes:** unique `(user_id, movie_id)` (`uq_movie_ratings_user_movie`), also the rating upsert's conflict target
 
-Logs and ratings store no TMDB id or poster; responses derive `tmdbId` from the movie’s TMDB mapping and `posterPath` from the movie.
+Logs and ratings store no TMDB id or poster; responses identify the movie by `movieId` and derive `posterPath` from the movie. No public contract exposes TMDB IDs.
 
 ### Notification (`notifications` table — `Notification`)
 
@@ -223,8 +223,8 @@ The `__Host-` prefix enforces: `Secure=true`, no `Domain`, `path=/` — prevents
 | `TokenService` | JWT creation/decoding (HS256, access + refresh tokens) |
 | `PasswordService` | Bcrypt hashing via `passlib.CryptContext` |
 | `EmailService` | SMTP password reset emails (falls back to console logging in dev) |
-| `MovieService` | Search/detail through `MovieProviderProtocol`, catalog lookup and lazy movie import |
-| `LogService` | Viewing log CRUD with movie fetching and poster auto-population |
+| `MovieService` | Cursor-paged search with catalog UUIDs/`movieRef`s, `movieRef` resolution (import on first selection), UUID details and the active-movie guard used by log/rating writes |
+| `LogService` | Viewing log CRUD for active movie UUIDs, with poster derived from the movie |
 | `MovieRatingService` | Movie rating create/update/read |
 | `UserService` | User info and profile retrieval with follower/following summaries |
 | `FollowService` | Public-target eligibility, idempotent follow/unfollow mutations, and `follow.started` emission |
@@ -262,7 +262,7 @@ HTTP request/response schemas use `BaseSchema` for camelCase alias generation (`
 | `movie_schemas.py` | `MovieUpdateRequest`, `MovieResponse` |
 | `movie_rating_schemas.py` | `MovieRatingCreateUpdateRequest`, `MovieRatingResponse`, `MovieRatingStats` |
 | `stats_schemas.py` | `StatsSummary`, `StatsDistribution`, `StatsPace`, `StatsResponse` |
-| `movie_api_schemas.py` | Released numeric movie search/detail responses |
+| `movie_api_schemas.py` | UUID-only search (`id` XOR `movieRef`, `nextCursor`), resolve request/response and detail responses |
 | `movie_provider_schemas.py` | Neutral provider queries, `MovieMetadataDTO`, `MovieSearchResultDTO` and nested DTOs |
 | `movie_import_schemas.py` | `MovieCreateDTO`, the repository creation input, and its `from_metadata()` conversion |
 | `error_schemas.py` | `ErrorSchema` (error_code_name, error_code, error_message, error_description) |
@@ -279,8 +279,9 @@ HTTP request/response schemas use `BaseSchema` for camelCase alias generation (`
 | `sanitize_utils.py` | HTML tag stripping, name/handle pattern validation |
 | `datetime_utils.py` | UTC date/datetime conversion helpers |
 | `id_utils.py` | `is_valid_uuid()` string validation |
-| `cursor_pagination_utils.py` | Versioned opaque cursor encoding and strict decoding |
-| `movie_compatibility_utils.py` | Temporary `get_legacy_tmdb_id()` adapter deriving the released numeric movie identity from loaded TMDB mappings |
+| `cursor_pagination_utils.py` | Versioned opaque cursor encoding and strict decoding (timestamp/UUID and movie-search page cursors) |
+| `signed_payload_utils.py` | Stateless HMAC-signed JSON tokens shared by cursors and movie references |
+| `movie_ref_utils.py` | `encode_movie_ref()` / `decode_movie_ref()` for signed search-result references (`MOVIE_REF_HMAC_SECRET`) |
 
 ## User Repository Deletion Methods
 
@@ -303,9 +304,9 @@ flowchart LR
     TMDBCache --> RedisClient
 ```
 
-The public numeric movie schemas remain separate and retain all released fields. Internal source identity never assigns a canonical UUID. `create_movie(data: MovieCreateDTO)` atomically persists a canonical movie and its source mapping, or rolls back the candidate and returns the existing movie on an external-identity conflict. A soft-deleted identity remains reserved and produces `409 MOVIE_UNAVAILABLE`; import checks deleted records before provider I/O as well as after a concurrent conflict. The original UTC `observed_at` becomes `movie_providers.last_synced_at`, and retries do not update it. First imports remain `en-US`, while live search/detail use the resolved locale. Source IDs remain opaque strings in persistence; numeric conversion is confined to legacy API compatibility. See [Movie Provider Mappings](docs/technical/movie-provider-mappings.md) for revision 010, loading semantics and coordinated deployment/rollback.
+Public movie identity is the Cinelog UUID only ([Canonical Movie Identity](docs/technical/movie-identity.md)). Search returns a catalog film's UUID `id` (one batch mapping read, soft-deleted films omitted) or a signed stateless `movieRef`; `POST /v1/movies/resolve` turns a `movieRef` into a UUID, importing on first selection. UUID details read live provider data through the movie's mapping. Log/rating writes require an active `movieId` and never import; `tmdbId` is rejected. Internal source identity never assigns a canonical UUID. `create_movie(data: MovieCreateDTO)` atomically persists a canonical movie and its source mapping, or rolls back the candidate and returns the existing movie on an external-identity conflict. A soft-deleted identity remains reserved and produces `409 MOVIE_UNAVAILABLE`; import checks deleted records before provider I/O as well as after a concurrent conflict. The original UTC `observed_at` becomes `movie_providers.last_synced_at`, and retries do not update it. First imports remain `en-US`, while live search/detail use the resolved locale. Source IDs remain opaque strings in persistence and never reach public responses. See [Movie Provider Mappings](docs/technical/movie-provider-mappings.md) for revision 010, loading semantics and coordinated deployment/rollback.
 
-Search keys use `cinelog:tmdb:search:v2:{locale}:{normalized_query}`. Detail keys add a film/locale generation: `cinelog:tmdb:details:v2:{locale}:{external_id}:generation:{generation}`. Cache hits retain their acquisition timestamp. Internal `force_refresh=True` bumps that generation and requests fresh data; #227 owns the future trigger policy.
+Search keys use `cinelog:tmdb:search:v3:{locale}:{page}:{normalized_query}`. Detail keys add a film/locale generation: `cinelog:tmdb:details:v2:{locale}:{external_id}:generation:{generation}`. Cache hits retain their acquisition timestamp. Internal `force_refresh=True` bumps that generation and requests fresh data; #227 owns the future trigger policy.
 
 The HTTP client uses a Bearer token and finite timeout. Source not-found, unavailability and invalid responses become distinct application errors (404, 503, 502). Redis failures preserve their existing behavior.
 

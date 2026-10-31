@@ -44,11 +44,11 @@ The TMDB adapter always leaves canonical identity unset. Original title/language
 
 Dates are date-only values internally. `TMDBReleaseDate` in `app/providers/tmdb/validation.py` handles the source's date format: empty, absent or null release dates become `None`; malformed nonempty dates are errors. Existing optional images, runtime, tagline, homepage and IMDb ID accept absence/null. Neutral Cinelog DTOs receive `date | None` and do not depend on these upstream parsing rules.
 
-Search titles are the only exception to the required-field policy: an absent, null, empty or whitespace-only title causes the provider to omit that item during mapping. All other item fields are validated first, including those of untitled items; a missing required field or malformed value still fails the request with `MOVIE_PROVIDER_INVALID_RESPONSE` (502). A title of the wrong type also fails validation. Retained titles and result order are unchanged. The provider preserves TMDB's `page`, `total_results` and `total_pages`, so a returned page can contain fewer items, including zero. The cache keeps the source DTOs, and the same filter runs on fresh responses and cache hits. Details require a nonblank title and never use this omission policy.
+Search titles are the only exception to the required-field policy: an absent, null, empty or whitespace-only title causes the provider to omit that item during mapping. All other item fields are validated first, including those of untitled items; a missing required field or malformed value still fails the request with `MOVIE_PROVIDER_INVALID_RESPONSE` (502). A title of the wrong type also fails validation. Retained titles and result order are unchanged. The provider preserves TMDB's `page`, `total_results` and `total_pages`, so a returned page can contain fewer items, including zero. `MovieSearchQuery.page` (default 1) selects the TMDB page; it is sent as `page` and is part of the search cache key. The cache keeps the source DTOs, and the same filter runs on fresh responses and cache hits. Details require a nonblank title and never use this omission policy.
 
 Search and detail vote averages accept numbers and numeric strings such as `"8.4"`, normalized to floats through `TMDBVoteAverage` in `app/providers/tmdb/validation.py`. Scores must remain finite and within TMDB's 0–10 scale; booleans, missing/null values, nonnumeric strings and out-of-range values produce 502. These source-specific types remain private to the integration and are not exported from `app.types`. No default score or clamping is applied. Other required fields and strict types remain unchanged, and identity mismatches are rejected.
 
-`MovieService` explicitly maps neutral results into `movie_api_schemas.py`, preserving every released JSON field, numeric ID and camelCase alias. Unknown release dates remain empty strings on the numeric HTTP API. Expanded image/rating/UUID response contracts are outside #226.
+`MovieService` explicitly maps neutral results into `movie_api_schemas.py`, preserving the display fields and camelCase aliases. Since #225 the public identity is the Cinelog UUID: search items carry a UUID `id` or a signed `movieRef`, details carry the UUID `id`, and provider page totals are replaced by a signed `nextCursor`. See [Canonical Movie Identity](movie-identity.md). Unknown release dates remain empty strings.
 
 ## HTTP and application errors
 
@@ -68,7 +68,7 @@ A search endpoint returning 404 is an invalid response, not an empty result. A s
 
 | Operation | Key | Default TTL |
 |---|---|---|
-| Search | `cinelog:tmdb:search:v2:{locale}:{normalized_query}` | 600 seconds |
+| Search | `cinelog:tmdb:search:v3:{locale}:{page}:{normalized_query}` | 600 seconds |
 | Details | `cinelog:tmdb:details:v2:{locale}:{external_id}:generation:{generation}` | 86400 seconds |
 
 Search normalization retains the existing trim/lowercase behavior. `TMDB_SEARCH_CACHE_TTL` and `TMDB_DETAILS_CACHE_TTL` retain their existing configuration roles. Old keys are not read or rewritten; they expire with their original TTL. Rollback remains isolated because old and new versions use different namespaces.
@@ -85,13 +85,13 @@ Redis operation failures and generation-counter errors continue to propagate. Re
 
 ## Import and persistence compatibility
 
-`find_or_create_movie` checks the existing numeric lookup first. Existing movies return without provider calls. First import requests `en-US`, then uses `MovieCreateDTO.from_metadata()` to select the neutral import fields for the repository's single creation method, `create_movie(data: MovieCreateDTO)`. The conversion retains the observation timestamp and opaque source snapshot, and excludes the optional canonical identity.
+`MovieService.resolve_movie()` (behind `POST /v1/movies/resolve`) decodes the `movieRef` and checks the source lookup first. Existing movies return without provider calls. Log and rating writes no longer import; they require an existing movie UUID. First import requests `en-US`, then uses `MovieCreateDTO.from_metadata()` to select the neutral import fields for the repository's single creation method, `create_movie(data: MovieCreateDTO)`. The conversion retains the observation timestamp and opaque source snapshot, and excludes the optional canonical identity.
 
 The repository persists canonical fields on `movies` and the external reference, opaque snapshot and original observation timestamp on `movie_providers`. The `(provider, external_id)` primary key is the conflict target; `UNIQUE(movie_id, provider)` permits one mapping per source per film. The new film and mapping commit atomically. A competing import rolls back its candidate film and returns the winning UUID, without overwriting the saved observation. A source payload or optional canonical identity cannot assign the database-generated UUID.
 
-A soft-deleted identity remains reserved and produces `409 MOVIE_UNAVAILABLE`. Import checks it before contacting the provider, and the repository checks it again after a concurrent conflict. List responses obtain numeric identity through explicitly loaded mappings, including those of soft-deleted movies.
+A soft-deleted identity remains reserved and produces `409 MOVIE_UNAVAILABLE`. Import checks it before contacting the provider, and the repository checks it again after a concurrent conflict. Search omits soft-deleted catalog films; UUID reads and writes treat them as not found.
 
-Revision 010 transfers and removes the three original TMDB columns. API contracts, provider cache/locale behavior and initial import language are unchanged; no metadata refresh on log/rating writes, additional provider or background task is introduced. See [Movie Provider Mappings](movie-provider-mappings.md) for constraints, rollback guards and the required coordinated deployment.
+Revision 010 transfers and removes the three original TMDB columns. Provider locale behavior and initial import language are unchanged; no metadata refresh on log/rating writes, additional provider or background task is introduced. See [Movie Provider Mappings](movie-provider-mappings.md) for constraints, rollback guards and the required coordinated deployment.
 
 ## Composition and lifecycle
 

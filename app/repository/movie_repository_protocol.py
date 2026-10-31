@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Protocol, TypeVar
 
 from app.schemas.movie_import_schemas import MovieCreateDTO
@@ -35,3 +35,6 @@ class MovieRepositoryProtocol(Protocol[IdType, MovieType]):
 
     async def find_movies_by_ids(self, movie_ids: Iterable[IdType]) -> Sequence[MovieType]:
         """Find multiple movies by a set of unique identifiers."""
+
+    async def find_movies_by_external_ids(self, provider: str, external_ids: Iterable[str]) -> Mapping[str, MovieType]:
+        """Map each already-imported external ID of one provider to its movie, including deleted movies."""

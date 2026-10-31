@@ -12,6 +12,7 @@ The Cinelog API enforces rate limits on authentication and key data endpoints to
 | `POST /v1/auth/reset-password` | 10 requests per hour per IP, with matching 10 per hour session and invalid-credential account limits |
 | `GET /v1/auth/csrf` | 300 requests per 30 minutes |
 | `GET /v1/movies/search` | 20 requests per minute |
+| `POST /v1/movies/resolve` | 20 requests per minute |
 | `POST /v1/logs/` | 20 requests per minute |
 | `PUT /v1/logs/{log_id}` | 10 requests per minute |
 | `DELETE /v1/logs/{log_id}` | 20 requests per minute |

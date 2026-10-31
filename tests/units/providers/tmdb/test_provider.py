@@ -77,6 +77,16 @@ async def test_cache_hits_preserve_original_observation(integration, details_dat
     cache.set_search.assert_not_awaited()
 
 
+async def test_search_requests_and_caches_the_requested_page(integration):
+    provider, cache, calls = integration
+
+    await provider.search_movie(MovieSearchQuery(query="film", locale="it-IT", page=3))
+
+    assert calls[0].url.params["page"] == "3"
+    assert cache.get_search.await_args.kwargs == {"page": 3}
+    assert cache.set_search.await_args.kwargs == {"page": 3}
+
+
 @pytest.mark.parametrize(
     ("operation", "query", "component_name"),
     [
@@ -265,7 +275,7 @@ async def test_redis_failure_still_propagates(integration):
 async def test_corrupt_cache_is_refilled_and_next_read_is_a_hit(operation, cached_value, search_data, details_data):
     search = operation == "search_movie"
     query = MovieSearchQuery(query="film") if search else MovieDetailsQuery(external_id="550")
-    key = "cinelog:tmdb:search:v2:en-US:film" if search else "cinelog:tmdb:details:v2:en-US:550:generation:3"
+    key = "cinelog:tmdb:search:v3:en-US:1:film" if search else "cinelog:tmdb:details:v2:en-US:550:generation:3"
     values = {key: cached_value}
 
     async def store(key, value, ex):

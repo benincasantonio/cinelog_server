@@ -7,7 +7,6 @@ from app.services.movie_service import MovieService
 from app.services.stats_cache_service import StatsCacheService
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
-from app.utils.movie_compatibility_utils import get_legacy_tmdb_id
 
 
 class MovieRatingService:
@@ -26,7 +25,7 @@ class MovieRatingService:
     async def create_update_movie_rating(
         self,
         user_id: UUID,
-        tmdb_id: int,
+        movie_id: UUID,
         rating: int,
         comment: str | None = None,
     ) -> MovieRatingResponse:
@@ -34,7 +33,7 @@ class MovieRatingService:
         Create or update a movie rating for a specific user and movie.
         """
 
-        movie = await self.movie_service.find_or_create_movie(tmdb_id=tmdb_id)
+        movie = await self.movie_service.get_active_movie(movie_id)
 
         movie_rating = await self.movie_rating_repository.create_update_movie_rating(
             user_id=user_id,
@@ -46,16 +45,14 @@ class MovieRatingService:
         await self.log_list_cache_service.invalidate_user(user_id)
         await self.stats_cache_service.invalidate_user_stats(user_id)
 
-        return self._get_movie_rating_response(movie_rating, tmdb_id=get_legacy_tmdb_id(movie))
+        return self._get_movie_rating_response(movie_rating)
 
-    async def get_movie_ratings_by_tmdb_id(self, tmdb_id: int, user_id: UUID) -> MovieRatingResponse | None:
+    async def get_movie_rating(self, movie_id: UUID, user_id: UUID) -> MovieRatingResponse | None:
         """
-        Get the caller's rating for a specific TMDB ID. Returns None if no rating exists.
+        Get the caller's rating for an active movie. Returns None if no rating exists.
         """
 
-        movie = await self.movie_service.get_movie_by_tmdb_id(tmdb_id)
-        if movie is None:
-            return None
+        movie = await self.movie_service.get_active_movie(movie_id)
 
         movie_rating = await self.movie_rating_repository.find_movie_rating_by_user_and_movie(
             user_id=user_id, movie_id=movie.id
@@ -64,9 +61,9 @@ class MovieRatingService:
         if not movie_rating:
             return None
 
-        return self._get_movie_rating_response(movie_rating, tmdb_id=get_legacy_tmdb_id(movie))
+        return self._get_movie_rating_response(movie_rating)
 
-    def _get_movie_rating_response(self, movie_rating, tmdb_id: int) -> MovieRatingResponse:
+    def _get_movie_rating_response(self, movie_rating) -> MovieRatingResponse:
         if movie_rating.rating is None:
             raise AppException(ErrorCodes.MOVIE_RATING_VALUE_REQUIRED)
 
@@ -74,7 +71,6 @@ class MovieRatingService:
             id=str(movie_rating.id),
             user_id=str(movie_rating.user_id),
             movie_id=str(movie_rating.movie_id),
-            tmdb_id=tmdb_id,
             rating=movie_rating.rating,
             comment=movie_rating.review,
             created_at=movie_rating.created_at,

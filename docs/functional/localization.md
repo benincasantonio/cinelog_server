@@ -61,7 +61,7 @@ Accept-Language: it-IT
 
 The server honors quality weights and maps compatible variants to a supported locale. For example, `fr-CA,fr;q=0.9` selects `fr-FR`. When the header has no supported language, the saved account locale is used; malformed legacy state defensively falls back to `en-US`.
 
-This localization currently applies only to live `GET /v1/movies/search` and `GET /v1/movies/{tmdb_id}` responses. Movie metadata persisted for logs and ratings remains canonical `en-US`; localized saved metadata is tracked in [server issue #214](https://github.com/benincasantonio/cinelog_server/issues/214).
+This localization currently applies only to live `GET /v1/movies/search` and `GET /v1/movies/{movieId}` responses. Movie metadata persisted for logs and ratings remains canonical `en-US`; localized saved metadata is tracked in [server issue #214](https://github.com/benincasantonio/cinelog_server/issues/214).
 
 ## See Also
 

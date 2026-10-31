@@ -96,7 +96,6 @@ async def _seed_fk_entities(seed_session: AsyncSession) -> tuple[User, Movie, Mo
 def _create_request(
     movie_id: UUID,
     *,
-    tmdb_id: int,
     date_watched: date = date(2024, 1, 2),
     watched_where: str = "cinema",
     viewing_notes: str | None = "Great watch",
@@ -104,7 +103,6 @@ def _create_request(
 ) -> LogCreateRequest:
     return LogCreateRequest(
         movie_id=movie_id,
-        tmdb_id=tmdb_id,
         date_watched=date_watched,
         viewing_notes=viewing_notes,
         watched_where=watched_where,
@@ -118,7 +116,7 @@ async def test_create_log_persists_row(repository: LogRepository, seed_session: 
 
     log = await repository.create_log(
         user.id,
-        _create_request(movie.id, tmdb_id=550),
+        _create_request(movie.id),
     )
 
     assert log.id is not None
@@ -136,7 +134,7 @@ async def test_create_log_atomically_creates_rating(repository: LogRepository, s
 
     log = await repository.create_log(
         user.id,
-        _create_request(movie.id, tmdb_id=550, rating=9),
+        _create_request(movie.id, rating=9),
     )
 
     rating = await seed_session.scalar(
@@ -152,7 +150,7 @@ async def test_create_log_atomically_creates_rating(repository: LogRepository, s
 @pytest.mark.asyncio
 async def test_create_log_rolls_back_when_rating_fails(repository: LogRepository, seed_session: AsyncSession):
     user, movie, _ = await _seed_fk_entities(seed_session)
-    request = _create_request(movie.id, tmdb_id=550)
+    request = _create_request(movie.id)
     request.rating = 11
 
     with pytest.raises(IntegrityError):

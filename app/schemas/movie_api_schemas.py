@@ -1,14 +1,24 @@
-"""Released numeric movie API contract, owned by Cinelog."""
+"""Public movie API contract, owned by Cinelog: canonical UUIDs and backend-issued movie references."""
 
-from pydantic import Field
+from typing import Self
+from uuid import UUID
+
+from pydantic import ConfigDict, Field, model_validator
 
 from app.schemas.base_schemas import BaseSchema
 
 
 class MovieSearchResultItem(BaseSchema):
-    """Single movie item in movie search results"""
+    """Single movie item in movie search results.
 
-    id: int = Field(..., description="Unique identifier for the movie")
+    Exactly one identity is set: ``id`` for a film already in the Cinelog catalog,
+    otherwise ``movieRef``, which must be resolved before navigation or writes.
+    """
+
+    id: UUID | None = Field(None, description="Cinelog movie UUID, when the film is already in the catalog")
+    movie_ref: str | None = Field(
+        None, description="Opaque backend-issued reference to resolve via POST /v1/movies/resolve"
+    )
     title: str = Field(..., description="Title of the movie")
     overview: str = Field(..., description="Overview of the movie")
     release_date: str = Field(
@@ -43,22 +53,32 @@ class MovieSearchResultItem(BaseSchema):
         description="Original title of the movie",
     )
 
+    @model_validator(mode="after")
+    def validate_single_identity(self) -> Self:
+        if (self.id is None) == (self.movie_ref is None):
+            raise ValueError("Exactly one of id and movieRef must be set")
+        return self
+
 
 class MovieSearchResult(BaseSchema):
-    """Results for movie search from the external movie catalog"""
+    """One provider page of movie search results, without soft-deleted catalog films"""
 
-    page: int = Field(..., description="Current page of results")
-    total_results: int = Field(
-        ...,
-        validation_alias="total_results",
-        description="Total number of results found",
-    )
-    total_pages: int = Field(
-        ...,
-        validation_alias="total_pages",
-        description="Total number of pages available",
-    )
     results: list[MovieSearchResultItem] = Field(..., description="List of movie search result items")
+    next_cursor: str | None = Field(None, description="Opaque cursor for the next page, or null on the last page")
+
+
+class MovieResolveRequest(BaseSchema):
+    """Request to materialize a search result as a Cinelog movie"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    movie_ref: str = Field(..., min_length=1, description="movieRef returned by GET /v1/movies/search")
+
+
+class MovieResolveResponse(BaseSchema):
+    """Canonical identity of a resolved search result"""
+
+    movie_id: UUID = Field(..., description="Cinelog movie UUID")
 
 
 class MovieGenre(BaseSchema):
@@ -97,9 +117,9 @@ class MovieSpokenLanguage(BaseSchema):
 
 
 class MovieDetails(BaseSchema):
-    """Full movie details from the external movie catalog"""
+    """Full movie details for a Cinelog movie, read live from its provider"""
 
-    id: int = Field(..., description="Unique identifier for the movie")
+    id: UUID = Field(..., description="Cinelog movie UUID")
     title: str = Field(..., description="Title of the movie")
     original_title: str = Field(
         ...,

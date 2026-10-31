@@ -4,6 +4,7 @@ Tests all validator functions in log_schemas.py.
 """
 
 from datetime import date
+from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -15,22 +16,45 @@ from app.schemas.log_schemas import (
     LogUpdateRequest,
 )
 
+MOVIE_ID = uuid4()
+
 
 class TestLogCreateRequest:
     """Tests for LogCreateRequest schema."""
+
+    def test_movie_id_is_required(self):
+        with pytest.raises(ValidationError) as exc_info:
+            LogCreateRequest.model_validate({"dateWatched": "2023-10-01"})
+
+        assert exc_info.value.errors()[0]["loc"] == ("movieId",)
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"tmdbId": 550, "dateWatched": "2023-10-01"},
+            {"movieId": str(MOVIE_ID), "tmdbId": 550, "dateWatched": "2023-10-01"},
+        ],
+    )
+    def test_tmdb_id_is_rejected(self, payload):
+        with pytest.raises(ValidationError) as exc_info:
+            LogCreateRequest.model_validate(payload)
+
+        assert any(
+            error["type"] == "extra_forbidden" and error["loc"] == ("tmdbId",) for error in exc_info.value.errors()
+        )
 
     def test_valid_watched_where(self):
         """Test valid watched_where values."""
         valid_values = ["cinema", "streaming", "homeVideo", "tv", "other"]
         for value in valid_values:
-            request = LogCreateRequest(tmdb_id=12345, date_watched=date(2023, 10, 1), watched_where=value)
+            request = LogCreateRequest(movie_id=MOVIE_ID, date_watched=date(2023, 10, 1), watched_where=value)
             assert request.watched_where == value
 
     def test_invalid_watched_where(self):
         """Test invalid watched_where raises ValidationError."""
         with pytest.raises(ValidationError) as exc_info:
             LogCreateRequest(
-                tmdb_id=12345,
+                movie_id=MOVIE_ID,
                 date_watched=date(2023, 10, 1),
                 watched_where="invalid_value",
             )
@@ -39,19 +63,19 @@ class TestLogCreateRequest:
 
     def test_default_watched_where(self):
         """Test default watched_where is 'other'."""
-        request = LogCreateRequest(tmdb_id=12345, date_watched=date(2023, 10, 1))
+        request = LogCreateRequest(movie_id=MOVIE_ID, date_watched=date(2023, 10, 1))
         assert request.watched_where == "other"
 
     @pytest.mark.parametrize("rating", [1, 10, None])
     def test_valid_rating(self, rating):
-        request = LogCreateRequest(tmdb_id=12345, date_watched=date(2023, 10, 1), rating=rating)
+        request = LogCreateRequest(movie_id=MOVIE_ID, date_watched=date(2023, 10, 1), rating=rating)
 
         assert request.rating == rating
 
     @pytest.mark.parametrize("rating", [0, 11])
     def test_invalid_rating(self, rating):
         with pytest.raises(ValidationError):
-            LogCreateRequest(tmdb_id=12345, date_watched=date(2023, 10, 1), rating=rating)
+            LogCreateRequest(movie_id=MOVIE_ID, date_watched=date(2023, 10, 1), rating=rating)
 
 
 class TestLogUpdateRequest:

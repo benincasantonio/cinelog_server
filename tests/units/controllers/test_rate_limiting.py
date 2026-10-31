@@ -90,7 +90,6 @@ def sample_log_response():
     movie = MovieResponse(
         id=uuid4(),
         title="Fight Club",
-        tmdb_id=550,
         poster_path="/path/to/poster.jpg",
         release_date=None,
         overview="A description",
@@ -104,7 +103,6 @@ def sample_log_response():
         id=str(uuid4()),
         movie_id=str(uuid4()),
         movie=movie,
-        tmdb_id=550,
         date_watched=date(2024, 1, 15),
         viewing_notes="Great film!",
         poster_path="/path/to/poster.jpg",
@@ -1014,10 +1012,8 @@ class TestCreateLogRateLimit:
 
     LOG_PAYLOAD = {
         "movieId": "0f0e8400-e29b-41d4-a716-446655440011",
-        "tmdbId": 550,
         "dateWatched": "2024-01-15",
         "viewingNotes": "Great film!",
-        "posterPath": "/path/to/poster.jpg",
         "watchedWhere": "cinema",
     }
 

@@ -18,7 +18,7 @@ class LogListCacheService:
         date_from = request.date_watched_from.isoformat() if request.date_watched_from else "any"
         date_to = request.date_watched_to.isoformat() if request.date_watched_to else "any"
         return (
-            f"cinelog:log-list-response:v1:{user_id}:generation:{generation}:where:{watched_where}:"
+            f"cinelog:log-list-response:v2:{user_id}:generation:{generation}:where:{watched_where}:"
             f"from:{date_from}:to:{date_to}:sort:{request.sort_by}:{request.sort_order}"
         )
 

@@ -1,6 +1,6 @@
 """E2E coverage for the PostgreSQL-backed user statistics endpoint."""
 
-from tests.e2e.conftest import register_and_login
+from tests.e2e.conftest import register_and_login, resolve_movie
 
 
 def _user_payload(email: str, handle: str) -> dict:
@@ -27,7 +27,7 @@ async def _create_log(
         "/v1/logs/",
         headers=headers,
         json={
-            "tmdbId": tmdb_id,
+            "movieId": await resolve_movie(client, headers["X-CSRF-Token"], tmdb_id),
             "dateWatched": watched_at,
             "watchedWhere": watched_where,
         },
@@ -40,7 +40,7 @@ async def _rate_movie(client, headers: dict, *, tmdb_id: int, rating: int) -> No
     response = await client.post(
         "/v1/movie-ratings/",
         headers=headers,
-        json={"tmdbId": tmdb_id, "rating": rating},
+        json={"movieId": await resolve_movie(client, headers["X-CSRF-Token"], tmdb_id), "rating": rating},
     )
     assert response.status_code == 200
 

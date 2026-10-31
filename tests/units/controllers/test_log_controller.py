@@ -17,12 +17,11 @@ from app.schemas.movie_schemas import MovieResponse
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
 
-# Released response fields read by cinelog_web. A rename or removal must fail here.
+# Response fields read by cinelog_web. A rename or removal must fail here.
 LOG_RESPONSE_FIELDS = {
     "id",
     "movieId",
     "movie",
-    "tmdbId",
     "dateWatched",
     "viewingNotes",
     "posterPath",
@@ -33,7 +32,6 @@ LOG_LIST_FIELDS = {"logs", "totalWatches", "uniqueTitles", "totalRewatches"}
 MOVIE_RESPONSE_FIELDS = {
     "id",
     "title",
-    "tmdbId",
     "posterPath",
     "releaseDate",
     "overview",
@@ -56,10 +54,8 @@ def sample_log_create_request():
     """Sample log creation request."""
     return {
         "movieId": "0f0e8400-e29b-41d4-a716-446655440011",
-        "tmdbId": 550,
         "dateWatched": "2024-01-15",
         "viewingNotes": "Amazing film!",
-        "posterPath": "/path/to/poster.jpg",
         "watchedWhere": "cinema",
         "rating": 9,
     }
@@ -71,7 +67,6 @@ def sample_movie_response():
     return MovieResponse(
         id=uuid4(),
         title="Fight Club",
-        tmdb_id=550,
         poster_path="/path/to/poster.jpg",
         release_date=None,
         overview="A description",
@@ -90,7 +85,6 @@ def sample_log_response(sample_movie_response):
         id=str(uuid4()),
         movie_id=str(uuid4()),
         movie=sample_movie_response,
-        tmdb_id=550,
         date_watched=date(2024, 1, 15),
         viewing_notes="Amazing film!",
         poster_path="/path/to/poster.jpg",
@@ -111,7 +105,6 @@ def sample_log_list_response(sample_movie_response):
                 id=uuid4(),
                 movie_id=uuid4(),
                 movie=sample_movie_response,
-                tmdb_id=550,
                 date_watched=date(2024, 1, 15),
                 viewing_notes="Amazing film!",
                 poster_path="/path/to/poster.jpg",
@@ -179,7 +172,6 @@ class TestCreateLog:
 
         invalid_request = {
             "movieId": "0f0e8400-e29b-41d4-a716-446655440011",
-            "tmdbId": 550,
             "dateWatched": "2024-01-15",
             "watchedWhere": "invalid_location",
         }
@@ -200,13 +192,37 @@ class TestCreateLog:
 
         response = client.post(
             "/v1/logs/",
-            json={"tmdbId": 550, "dateWatched": "2024-01-15", "rating": 11},
+            json={"movieId": "0f0e8400-e29b-41d4-a716-446655440011", "dateWatched": "2024-01-15", "rating": 11},
             cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
             headers={"X-CSRF-Token": "test-token"},
         )
 
         app.dependency_overrides = {}
         assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"tmdbId": 550, "dateWatched": "2024-01-15"},
+            {"movieId": "0f0e8400-e29b-41d4-a716-446655440011", "tmdbId": 550, "dateWatched": "2024-01-15"},
+            {"movieId": "550", "dateWatched": "2024-01-15"},
+        ],
+    )
+    @patch.object(get_log_service(), "create_log", new_callable=AsyncMock)
+    def test_create_log_rejects_legacy_or_invalid_identity(self, mock_create_log, client, override_auth, payload):
+        """tmdbId is rejected even beside a valid movieId; nothing is written."""
+        app.dependency_overrides[auth_dependency] = override_auth
+
+        response = client.post(
+            "/v1/logs/",
+            json=payload,
+            cookies={"__Host-access_token": "token", "__Host-csrf_token": "test-token"},
+            headers={"X-CSRF-Token": "test-token"},
+        )
+
+        app.dependency_overrides = {}
+        assert response.status_code == 422
+        mock_create_log.assert_not_awaited()
 
 
 class TestUpdateLog:
