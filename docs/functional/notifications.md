@@ -6,7 +6,13 @@ Cinelog provides an authenticated, persisted notification inbox for activity his
 
 `follow.started` is emitted when an authenticated user creates a new follow edge to a public profile. The recipient is the followed user and the actor is the follower.
 
-Duplicate `PUT /v1/users/{handle}/follow` calls, already-following retries, and unfollow-then-refollow within a rolling 7-day window do not create another inbox row. A follow still succeeds with `204` if notification persistence fails.
+The follow and its required inbox row commit together. A failed write or rejected commit rolls back both and returns
+`500 ERROR_CREATING_FOLLOW`; retries are safe. Duplicate `PUT /v1/users/{handle}/follow` calls and existing relationships
+never produce another inbox row or backfill missing history.
+
+Unfollow-then-refollow within seven days of the last stored notification succeeds with `204` but intentionally creates
+no notification. Read and soft-deleted history still counts. Suppressed attempts do not extend the window, and a
+refollow at seven days or later can notify again. This rule survives Redis cache loss and calendar-week boundaries.
 
 See [Following](following.md) for eligibility and mutation semantics.
 

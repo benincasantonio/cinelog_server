@@ -1,15 +1,17 @@
 """Business rules for basic public-profile following."""
 
 import logging
-from datetime import UTC, datetime
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 from uuid import UUID
 
-from app.config.notification_config import FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS
-from app.models.user_model import User
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.infrastructure.postgres import get_async_session
 from app.repository.follow_repository_protocol import FollowRepositoryProtocol
+from app.repository.notification_repository_protocol import NotificationCreateResult, NotificationRepositoryProtocol
 from app.repository.user_repository_protocol import UserRepositoryProtocol
 from app.schemas.notification_schemas import NotificationCreateData
-from app.services.notification_service import NotificationService
 from app.types import NotificationType
 from app.utils.error_codes_utils import ErrorCodes
 from app.utils.exceptions_utils import AppException
@@ -24,13 +26,15 @@ class FollowService:
         self,
         user_repository: UserRepositoryProtocol,
         follow_repository: FollowRepositoryProtocol,
-        notification_service: NotificationService | None = None,
+        notification_repository: NotificationRepositoryProtocol,
+        session_provider: Callable[[], AbstractAsyncContextManager[AsyncSession]] = get_async_session,
     ):
         self.user_repository = user_repository
         self.follow_repository = follow_repository
-        self.notification_service = notification_service or NotificationService()
+        self.notification_repository = notification_repository
+        self._session_provider = session_provider
 
-    async def follow_user(self, follower_id: UUID, handle: str) -> None:
+    async def follow_user(self, follower_id: UUID, handle: str) -> NotificationCreateResult | None:
         """Follow an active public target, or keep an existing edge unchanged."""
 
         follower = await self.user_repository.find_user_by_id(follower_id)
@@ -45,13 +49,34 @@ class FollowService:
             raise AppException(ErrorCodes.SELF_FOLLOW_NOT_ALLOWED)
 
         if await self.follow_repository.is_following(follower.id, target.id):
-            return
+            return None
 
         if target.profile_visibility != "public":
             raise AppException(ErrorCodes.PROFILE_NOT_PUBLIC)
 
-        await self.follow_repository.create_follow(follower.id, target.id)
-        await self._notify_follow_started(actor=follower, recipient=target)
+        result = None
+        try:
+            async with self._session_provider() as session:
+                async with session.begin():
+                    created = await self.follow_repository.create_follow(follower.id, target.id, session=session)
+                    # The winning insert holds the pair's unique-key protection until commit.
+                    if created and not await self.notification_repository.has_recent_follow_started(
+                        target.id, follower.id, session=session
+                    ):
+                        result = await self.notification_repository.create_notification(
+                            NotificationCreateData(
+                                recipient_id=target.id,
+                                actor_id=follower.id,
+                                type=NotificationType.FOLLOW_STARTED,
+                                title="New follower",
+                                body=f"{follower.first_name} {follower.last_name} started following you.",
+                            ),
+                            session=session,
+                        )
+        except Exception as exc:
+            logger.exception("Failed to persist follow for recipient_id=%s actor_id=%s", target.id, follower.id)
+            raise AppException(ErrorCodes.ERROR_CREATING_FOLLOW) from exc
+        return result
 
     async def unfollow_user(self, follower_id: UUID, handle: str) -> None:
         """Unfollow an active target regardless of its current visibility."""
@@ -65,35 +90,3 @@ class FollowService:
             raise AppException(ErrorCodes.USER_NOT_FOUND)
 
         await self.follow_repository.delete_follow(follower.id, target.id)
-
-    async def _notify_follow_started(self, *, actor: User, recipient: User) -> None:
-        """Emit a follow.started inbox row without failing the follow mutation."""
-
-        try:
-            await self.notification_service.create_notification(
-                NotificationCreateData(
-                    recipient_id=recipient.id,
-                    actor_id=actor.id,
-                    type=NotificationType.FOLLOW_STARTED,
-                    title="New follower",
-                    body=f"{actor.first_name} {actor.last_name} started following you.",
-                    deduplication_key=self._follow_started_deduplication_key(actor.id),
-                ),
-                cooldown_key=self._follow_started_cooldown_key(recipient.id, actor.id),
-                cooldown_seconds=FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS,
-            )
-        except Exception:
-            logger.exception(
-                "Failed to emit follow.started notification for recipient_id=%s actor_id=%s",
-                recipient.id,
-                actor.id,
-            )
-
-    @staticmethod
-    def _follow_started_cooldown_key(recipient_id: UUID, actor_id: UUID) -> str:
-        return f"cinelog:notif:follow-started:{recipient_id}:{actor_id}"
-
-    @staticmethod
-    def _follow_started_deduplication_key(actor_id: UUID) -> str:
-        iso_week = datetime.now(UTC).strftime("%G-W%V")
-        return f"follow.started:{actor_id}:{iso_week}"

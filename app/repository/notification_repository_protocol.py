@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.notification_model import Notification
 from app.schemas.notification_schemas import NotificationCreateData
 from app.types import TimestampUUIDCursor
@@ -38,8 +40,13 @@ class MarkAllNotificationsReadResult:
 class NotificationRepositoryProtocol(Protocol):
     """Notification repository operations used by services and future producers."""
 
-    async def create_notification(self, data: NotificationCreateData) -> NotificationCreateResult:
-        """Create once per active recipient/event key, returning an existing duplicate."""
+    async def create_notification(
+        self, data: NotificationCreateData, *, session: AsyncSession | None = None
+    ) -> NotificationCreateResult:
+        """Create once per active event key; never commit or close a supplied session."""
+
+    async def has_recent_follow_started(self, recipient_id: UUID, actor_id: UUID, *, session: AsyncSession) -> bool:
+        """Check retained history after winning the follow insert in this transaction."""
 
     async def list_notifications(
         self,
