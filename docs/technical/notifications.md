@@ -34,7 +34,9 @@ The generic response always includes `availableActions: []`. The registered acti
 
 ## Follow Started Producer
 
-`FollowService` is the first domain producer. After a new public follow edge commits, it calls `NotificationService.create_notification` with:
+`FollowService` owns one PostgreSQL transaction containing a new public follow and any required notification.
+It calls `NotificationRepository` with the shared session; no repository operation commits that supplied session.
+Standalone `NotificationService.create_notification` still delegates to a repository-owned transaction.
 
 | Field | Value |
 |---|---|
@@ -43,19 +45,33 @@ The generic response always includes `availableActions: []`. The registered acti
 | `actor_id` | follower |
 | `title` | `New follower` |
 | `body` | `{first_name} {last_name} started following you.` |
-| `deduplication_key` | `follow.started:{follower_id}:{ISO week}` using `%G-W%V` |
+| `deduplication_key` | `NULL`; relationship insertion ownership and retained history govern this producer |
 
-Emission is skipped on the already-following path. Failures are swallowed and logged in `FollowService` so the follow `204` is independent of the inbox write. The follow insert and notification insert remain separate transactions.
+Only the transaction whose conflict-safe follow insert returns a new edge checks notification history. An existing
+relationship or concurrent insertion loser never generates or backfills a notification. Write and commit failures
+roll back the transaction and produce `500 ERROR_CREATING_FOLLOW`, rather than a successful follow without its
+required notification. See [Following](following.md) for transaction and retry details.
 
-`create_notification` accepts optional `cooldown_key` and `cooldown_seconds`. When a cooldown key is present it:
+The rolling window is `FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS` (604800 seconds). The history query looks for
+`follow.started` with the same recipient and actor and `created_at > now() - cooldown`, using PostgreSQL transaction
+time. It includes read and soft-deleted rows, and does not depend on deduplication-key contents. Legacy ISO-week keys
+continue to count without rewriting or backfilling data. Suppressed refollows do not reset the window; exactly seven
+days qualifies for another notification. Redis state and ISO-week/year transitions have no effect.
 
-1. Returns `None` without inserting if Redis already has the key.
-2. Inserts through the repository.
-3. `SET`s the key after the insert returns, including when the row already existed (`created=False`).
+Revision `011_add_follow_cooldown_index` adds `ix_notifications_follow_started_cooldown` on
+`(recipient_id, actor_id, created_at DESC)` where `type = 'follow.started'`, without filtering out deleted rows.
+Deploy this index before the new code and drain old API instances before relying on the atomic guarantee. The
+migration changes no notification data; downgrade drops only the index. Index creation can briefly block writes.
 
-The follow producer uses `cinelog:notif:follow-started:{recipient_id}:{follower_id}` with `FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS` (7 days). Redis is the rolling primary gate; the ISO-week `deduplication_key` is the durable backstop if Redis loses state. A rolling 7-day expiry always lands in a later ISO week, so the database key cannot suppress an emission Redis approved.
+The generic active-recipient/event-key unique index and `NotificationCreateResult.created` semantics remain intact.
+Within a supplied session, creation results are provisional until its owner commits. `FollowService` exposes its
+result only after commit, making a future publisher able to distinguish creation from suppression. No publisher,
+queue, or delivery mechanism is introduced here.
 
-`RedisClient` is resolved lazily through `RedisClient.get_instance()` so the `@lru_cache`d `NotificationService` does not capture the singleton before startup initialization.
+The cooldown deliberately relies on retained history: permanently deleting it would remove suppression evidence.
+Any future inbox retention cleanup must preserve seven days of evidence or add an independent durable record first.
+Application startup and rate-limiter Redis dependencies are unchanged; this change removes notification cooldown
+cache access only.
 
 ## Repository and Read Semantics
 

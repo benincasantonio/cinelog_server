@@ -5,7 +5,6 @@ from uuid import UUID
 
 from app.config.notification_config import notification_list_cursor_scope
 from app.dependencies.repository_dependency import get_notification_repository
-from app.infrastructure.redis import RedisClient
 from app.models.notification_model import Notification
 from app.repository.notification_repository_protocol import (
     NotificationCreateResult,
@@ -37,10 +36,6 @@ class NotificationService:
     ) -> None:
         self.repository = repository or get_notification_repository()
 
-    @property
-    def _cache(self) -> RedisClient:
-        return RedisClient.get_instance()
-
     @staticmethod
     def _to_response(notification: Notification) -> NotificationBaseResponse:
         """Map one persisted notification to the current common API response."""
@@ -65,25 +60,9 @@ class NotificationService:
             created_at=notification.created_at,
         )
 
-    async def create_notification(
-        self,
-        data: NotificationCreateData,
-        *,
-        cooldown_key: str | None = None,
-        cooldown_seconds: int | None = None,
-    ) -> NotificationCreateResult | None:
-        """Create a typed notification, optionally suppressing repeats for a cooldown window."""
-
-        if cooldown_key is not None:
-            if cooldown_seconds is None:
-                raise ValueError("cooldown_seconds is required when cooldown_key is set")
-            if await self._cache.get(cooldown_key) is not None:
-                return None
-
-        result = await self.repository.create_notification(data)
-        if cooldown_key is not None:
-            await self._cache.set(cooldown_key, {"emitted": True}, ttl=cooldown_seconds)
-        return result
+    async def create_notification(self, data: NotificationCreateData) -> NotificationCreateResult:
+        """Create a typed notification in a standalone transaction."""
+        return await self.repository.create_notification(data)
 
     async def list_notifications(
         self,

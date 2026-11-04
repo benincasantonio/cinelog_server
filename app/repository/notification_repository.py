@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import cast
 from uuid import UUID
 
@@ -10,6 +11,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config.notification_config import FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS
 from app.models.notification_model import Notification
 from app.repository.notification_repository_protocol import (
     MarkAllNotificationsReadResult,
@@ -18,7 +20,7 @@ from app.repository.notification_repository_protocol import (
 )
 from app.repository.repository_base import RepositoryBase
 from app.schemas.notification_schemas import NotificationCreateData
-from app.types import TimestampUUIDCursor
+from app.types import NotificationType, TimestampUUIDCursor
 
 
 class NotificationRepository(RepositoryBase):
@@ -40,55 +42,75 @@ class NotificationRepository(RepositoryBase):
         result = await session.execute(statement)
         return result.scalar_one_or_none()
 
-    async def create_notification(self, data: NotificationCreateData) -> NotificationCreateResult:
-        """Insert a notification once per active recipient/deduplication key."""
+    async def create_notification(
+        self, data: NotificationCreateData, *, session: AsyncSession | None = None
+    ) -> NotificationCreateResult:
+        """Create once per active event key; a supplied session owns the transaction."""
 
-        async with self._session_provider() as session:
-            # Timestamps come from PostgreSQL rather than the base entity's Python
-            # default so seek pagination stays consistently ordered across API instances.
-            statement = (
-                insert(Notification)
-                .values(
-                    recipient_id=data.recipient_id,
-                    actor_id=data.actor_id,
-                    type=data.type.value,
-                    title=data.title,
-                    body=data.body,
-                    deduplication_key=data.deduplication_key,
-                    created_at=func.now(),
-                    updated_at=func.now(),
-                )
-                .on_conflict_do_nothing(
-                    index_elements=[Notification.recipient_id, Notification.deduplication_key],
-                    index_where=and_(
-                        Notification.deleted.is_(False),
-                        Notification.deduplication_key.is_not(None),
-                    ),
-                )
-                .returning(Notification.id)
+        if session is None:
+            async with self._session_provider() as owned_session:
+                async with owned_session.begin():
+                    created_result = await self.create_notification(data, session=owned_session)
+                return created_result
+
+        # Timestamps come from PostgreSQL rather than the base entity's Python
+        # default so seek pagination stays consistently ordered across API instances.
+        statement = (
+            insert(Notification)
+            .values(
+                recipient_id=data.recipient_id,
+                actor_id=data.actor_id,
+                type=data.type.value,
+                title=data.title,
+                body=data.body,
+                deduplication_key=data.deduplication_key,
+                created_at=func.now(),
+                updated_at=func.now(),
             )
-            result = await session.execute(statement)
-            inserted_id = result.scalar_one_or_none()
-            created = inserted_id is not None
+            .on_conflict_do_nothing(
+                index_elements=[Notification.recipient_id, Notification.deduplication_key],
+                index_where=and_(
+                    Notification.deleted.is_(False),
+                    Notification.deduplication_key.is_not(None),
+                ),
+            )
+            .returning(Notification.id)
+        )
+        result = await session.execute(statement)
+        inserted_id = result.scalar_one_or_none()
+        created = inserted_id is not None
 
-            if inserted_id is None:
-                if data.deduplication_key is None:
-                    raise RuntimeError("Notification insert returned no row without a deduplication key")
-                existing_result = await session.execute(
-                    select(Notification.id).where(
-                        Notification.recipient_id == data.recipient_id,
-                        Notification.deduplication_key == data.deduplication_key,
-                        Notification.active(),
-                    )
+        if inserted_id is None:
+            if data.deduplication_key is None:
+                raise RuntimeError("Notification insert returned no row without a deduplication key")
+            existing_result = await session.execute(
+                select(Notification.id).where(
+                    Notification.recipient_id == data.recipient_id,
+                    Notification.deduplication_key == data.deduplication_key,
+                    Notification.active(),
                 )
-                inserted_id = existing_result.scalar_one()
+            )
+            inserted_id = existing_result.scalar_one()
 
-            notification = await self._find_by_id(session, inserted_id)
-            if notification is None:
-                raise RuntimeError("Notification insert could not be reloaded")
+        notification = await self._find_by_id(session, inserted_id)
+        if notification is None:
+            raise RuntimeError("Notification insert could not be reloaded")
 
-            await session.commit()
-            return NotificationCreateResult(notification=notification, created=created)
+        return NotificationCreateResult(notification=notification, created=created)
+
+    async def has_recent_follow_started(self, recipient_id: UUID, actor_id: UUID, *, session: AsyncSession) -> bool:
+        """Include read and deleted history so inbox changes cannot reset the cooldown."""
+        statement = select(
+            select(Notification.id)
+            .where(
+                Notification.recipient_id == recipient_id,
+                Notification.actor_id == actor_id,
+                Notification.type == NotificationType.FOLLOW_STARTED.value,
+                Notification.created_at > func.now() - timedelta(seconds=FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS),
+            )
+            .exists()
+        )
+        return bool(await session.scalar(statement))
 
     async def list_notifications(
         self,

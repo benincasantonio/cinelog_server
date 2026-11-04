@@ -31,7 +31,7 @@ Developer-facing documentation covering infrastructure, implementation details, 
 | [Dependency Automation](technical/dependency-automation.md) | Dependabot updates, locked dependency audits, and advisory exceptions |
 | [Deployment Options](technical/deployment-options.md) | VPS and optional Vercel deployment guidance |
 | [E2E Testing](technical/e2e-testing.md) | Setup and run end-to-end tests |
-| [Following](technical/following.md) | Follow persistence, eligibility rules, aggregation, and idempotency |
+| [Following](technical/following.md) | Atomic follow persistence, rolling notification cooldown, eligibility, and idempotency |
 | [Account Localization](technical/localization.md) | Locale persistence, header negotiation, fallback, and TMDB cache isolation |
 | [Atomic Log and Rating Writes](technical/log-rating-writes.md) | Combined transaction, rating text preservation, and cache invalidation |
 | [Log List Query](technical/log-list-query.md) | PostgreSQL joins, response mapping, and response caching |

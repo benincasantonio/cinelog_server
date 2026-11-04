@@ -172,6 +172,13 @@ class ErrorCodes:
     )
 
     # Follow Errors
+    ERROR_CREATING_FOLLOW = ErrorSchema(
+        error_code_name="ERROR_CREATING_FOLLOW",
+        error_code=500,
+        error_message="Error creating follow",
+        error_description="The follow could not be confirmed. Retry the request.",
+    )
+
     SELF_FOLLOW_NOT_ALLOWED = ErrorSchema(
         error_code_name="SELF_FOLLOW_NOT_ALLOWED",
         error_code=400,
