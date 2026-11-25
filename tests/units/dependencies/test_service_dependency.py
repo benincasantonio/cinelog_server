@@ -58,7 +58,7 @@ def test_follow_and_user_services_share_follow_repository():
 
     assert isinstance(follow_service.follow_repository, FollowRepository)
     assert user_service.follow_repository is follow_service.follow_repository
-    assert follow_service.notification_service is get_notification_service()
+    assert follow_service.notification_repository is get_notification_service().repository
 
     clear_caches()
 

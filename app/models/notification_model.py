@@ -45,6 +45,13 @@ class Notification(BaseEntity):
     _notification_type_sql = ", ".join(f"'{notification_type.value}'" for notification_type in NotificationType)
 
     __table_args__ = (
+        Index(
+            "ix_notifications_follow_started_cooldown",
+            "recipient_id",
+            "actor_id",
+            text("created_at DESC"),
+            postgresql_where=text("type = 'follow.started'"),
+        ),
         CheckConstraint(
             f"type IN ({_notification_type_sql})",
             name="ck_notifications_type",

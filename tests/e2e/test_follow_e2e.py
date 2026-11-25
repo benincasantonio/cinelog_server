@@ -1,7 +1,13 @@
 """End-to-end coverage for basic public-profile following."""
 
-import pytest
+import os
 
+import pytest
+import redis.asyncio as aioredis
+from sqlalchemy import text
+
+from app.repository.follow_repository import FollowRepository
+from app.repository.notification_repository import NotificationRepository
 from tests.e2e.conftest import register, register_and_login
 
 
@@ -143,7 +149,7 @@ class TestFollowE2E:
         assert bob_profile.json()["followingCount"] == 1
         assert bob_profile.json()["isFollowing"] is False
 
-    async def test_follow_emits_inbox_notification_and_same_week_refollow_is_silent(self, async_client):
+    async def test_follow_emits_inbox_notification_and_refollow_after_redis_flush_is_silent(self, async_client):
         target = _user_data("notifollowtarget", "public")
         follower = _user_data("notifollower", "public")
         await register(async_client, target)
@@ -178,6 +184,8 @@ class TestFollowE2E:
             f"/v1/users/{target['handle']}/follow",
             headers={"X-CSRF-Token": follower_login["csrfToken"]},
         )
+        async with aioredis.from_url(os.environ["REDIS_URL"]) as cache:
+            await cache.flushdb()
         refollow_response = await async_client.put(
             f"/v1/users/{target['handle']}/follow",
             headers={"X-CSRF-Token": follower_login["csrfToken"]},
@@ -191,3 +199,39 @@ class TestFollowE2E:
         assert inbox_after_refollow.json()["unreadCount"] == 1
         assert len(inbox_after_refollow.json()["items"]) == 1
         assert inbox_after_refollow.json()["items"][0]["id"] == notification["id"]
+
+    @pytest.mark.parametrize("failure", ["follow", "notification"])
+    async def test_failed_write_returns_structured_error_and_can_be_retried(
+        self, async_client, postgres_engine, monkeypatch, failure
+    ):
+        target = _user_data("failedtarget", "public")
+        follower = _user_data("failedfollower", "public")
+        await register(async_client, target)
+        login = await register_and_login(async_client, follower)
+        owner = FollowRepository if failure == "follow" else NotificationRepository
+        method = "create_follow" if failure == "follow" else "create_notification"
+        original = getattr(owner, method)
+
+        async def fail_after_write(self, *args, session, **kwargs):
+            await original(self, *args, session=session, **kwargs)
+            await session.execute(text("SELECT 1 / 0"))
+
+        with monkeypatch.context() as context:
+            context.setattr(owner, method, fail_after_write)
+            response = await async_client.put(
+                f"/v1/users/{target['handle']}/follow", headers={"X-CSRF-Token": login["csrfToken"]}
+            )
+        assert response.status_code == 500
+        assert response.json()["error_code_name"] == "ERROR_CREATING_FOLLOW"
+        async with postgres_engine.connect() as connection:
+            assert await connection.scalar(text("SELECT count(*) FROM user_follows")) == 0
+            assert await connection.scalar(text("SELECT count(*) FROM notifications")) == 0
+
+        for _ in range(2):
+            response = await async_client.put(
+                f"/v1/users/{target['handle']}/follow", headers={"X-CSRF-Token": login["csrfToken"]}
+            )
+            assert response.status_code == 204
+        async with postgres_engine.connect() as connection:
+            assert await connection.scalar(text("SELECT count(*) FROM user_follows")) == 1
+            assert await connection.scalar(text("SELECT count(*) FROM notifications")) == 1

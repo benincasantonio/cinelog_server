@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 @dataclass(frozen=True)
 class FollowSummary:
@@ -17,8 +19,8 @@ class FollowSummary:
 class FollowRepositoryProtocol(Protocol):
     """Persistence operations for accepted directional follows."""
 
-    async def create_follow(self, follower_id: UUID, followed_id: UUID) -> None:
-        """Idempotently create a follower-to-followed edge."""
+    async def create_follow(self, follower_id: UUID, followed_id: UUID, *, session: AsyncSession | None = None) -> bool:
+        """Return whether inserted; never commit or close a supplied session."""
 
     async def delete_follow(self, follower_id: UUID, followed_id: UUID) -> None:
         """Idempotently delete a follower-to-followed edge."""

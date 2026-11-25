@@ -26,9 +26,15 @@ The endpoint requires authentication and a matching CSRF header/cookie pair. It 
 The operation is idempotent: following the same user again also returns `204` and does not create a duplicate
 relationship. A preserved relationship can be retried after the target becomes non-public.
 
-A newly created follow writes a `follow.started` in-app notification to the target's inbox. Repeating the follow,
-including unfollow then refollow within 7 days, does not create another notification. The follow still returns `204`
-if that inbox write fails. See [In-App Notifications](notifications.md).
+A newly created follow and its required `follow.started` inbox notification are saved together. If either write or
+the database commit fails, the request returns `500 ERROR_CREATING_FOLLOW` instead of a successful partial follow.
+Retrying is safe, including when the client loses a successful response.
+
+Existing relationships never generate another notification, even if their original notification is missing.
+Unfollow then refollow within seven days of the last stored notification succeeds without another inbox row.
+Reading or soft-deleting that notification does not reset this window, and suppressed refollows do not extend it.
+At seven days or later, a new refollow can notify again. Redis cache loss does not affect this rule.
+See [In-App Notifications](notifications.md).
 
 ## Unfollow a user
 
@@ -67,6 +73,7 @@ behind those counts.
 | `400` | `SELF_FOLLOW_NOT_ALLOWED` | The requester targets their own handle |
 | `403` | `PROFILE_NOT_PUBLIC` | A new relationship targets a non-public profile |
 | `404` | `USER_NOT_FOUND` | The follower account or target handle is inactive or missing |
+| `500` | `ERROR_CREATING_FOLLOW` | The follow transaction could not be confirmed; retry safely |
 | `429` | `RATE_LIMIT_EXCEEDED` | The requester exceeds 60 operations per minute on an endpoint |
 
 ## See Also

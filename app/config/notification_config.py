@@ -3,7 +3,7 @@
 Owns the notification cursor scope so the reusable pagination configuration in
 ``app/config/cursor_pagination_config.py`` stays free of per-domain constants.
 
-Also owns producer cooldown TTLs such as ``FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS``.
+Also owns producer cooldown durations such as ``FOLLOW_STARTED_NOTIFICATION_COOLDOWN_SECONDS``.
 
 The raw prefix is deliberately private: a scope is only ever obtained through
 ``notification_list_cursor_scope()``, so an inbox cursor cannot accidentally be

@@ -26,17 +26,35 @@ Users are soft-deleted elsewhere in the application, so follow reads join the re
 
 - `FollowRepository` performs conflict-safe inserts, idempotent deletes, active-edge checks, and profile aggregation.
 - `FollowService` validates the authenticated follower, resolves target handles case-insensitively through
-  `UserRepository`, rejects self-follows, applies the public-target policy, and asks `NotificationService` to emit
-  `follow.started` after a new edge is inserted.
+  `UserRepository`, rejects self-follows, applies the public-target policy, and owns the transaction for the new edge
+  and its required `follow.started` notification through `FollowRepository` and `NotificationRepository`.
 - `UserService.get_visible_profile` combines its existing visibility-aware profile mapping with a `FollowSummary`.
 - `UserProfileResponse` serializes `follower_count`, `following_count`, and `is_following` as camelCase.
 - `PUT` and `DELETE /v1/users/{handle}/follow` are authenticated, CSRF-protected, rate-limited endpoints returning
   `204 No Content`.
 
-Notification emission is a second PostgreSQL transaction after `create_follow` commits. `FollowService` swallows and
-logs emission failures so a lost inbox row cannot turn a successful follow into a `500`. Duplicate PUTs return before
-`create_follow` and therefore do not notify. Unfollow then refollow is gated by a Redis rolling 7-day cooldown plus
-the notification `deduplication_key`; see [Notification Architecture](notifications.md).
+`FollowService` opens a request-local `AsyncSession` and `session.begin()` around the follow insert, notification
+history check, and notification insert. The context is the sole commit/rollback owner. The two repository creation
+methods accept an optional session: supplied sessions are never committed, rolled back, or closed by repositories;
+standalone calls still own their transaction. Unfollow and unrelated repository operations retain their behavior.
+Cached service/repository instances hold providers, never a live session. Future follow-request transitions can use
+the same explicit session boundary without introducing a generic unit-of-work layer.
+
+`create_follow` uses `ON CONFLICT DO NOTHING RETURNING` and returns whether it inserted the edge. Only the winner
+checks history and creates a notification. The composite primary key serializes competing inserts until commit;
+the subsequent history query uses a fresh Read Committed snapshot. Concurrent losers do not notify. Existing edges
+return before insertion and never backfill a missing notification, including after the target becomes non-public.
+
+Notification suppression uses retained PostgreSQL history for the same recipient, actor, and `follow.started` type,
+including read and soft-deleted rows. A timestamp strictly newer than the transaction's `now() - 604800 seconds`
+suppresses another notification; exactly seven days qualifies. Suppressed attempts do not change any timestamps.
+No Redis read/write or ISO-week key participates in this workflow. See [Notification Architecture](notifications.md).
+
+Write and commit exceptions are logged and mapped to `500 ERROR_CREATING_FOLLOW` after transaction cleanup.
+A rejected commit leaves neither new row. A connection loss during commit can leave the outcome unknown, but
+PostgreSQL still stores both or neither; clients can retry without duplicating activity. The internal service returns
+`NotificationCreateResult | None` only after successful commit (`None` means intentional suppression). The controller
+ignores this internal result and returns `204`. No external publication occurs.
 
 The profile aggregate is read in one database round trip using scalar count subqueries plus an existence check.
 
@@ -48,7 +66,8 @@ For PUT, the service checks active relationship state before target visibility:
 2. Reject self-following.
 3. Return successfully when an active edge already exists.
 4. Reject a new edge unless the target is currently `public`.
-5. Insert with `ON CONFLICT DO NOTHING`.
+5. Insert with `ON CONFLICT DO NOTHING RETURNING`; the winner checks history and writes any required inbox row.
+6. Commit both writes before returning success.
 
 This ordering preserves retry behavior when a followed public target later becomes `private` or `followers_only`.
 DELETE never applies a visibility check.
@@ -59,7 +78,7 @@ but existing profile/log authorization remains unchanged: `followers_only` still
 ## Errors and rate limiting
 
 The domain adds `SELF_FOLLOW_NOT_ALLOWED` (`400`) and reuses `USER_NOT_FOUND` (`404`) and `PROFILE_NOT_PUBLIC`
-(`403`). Each mutation endpoint uses the existing authenticated-user SlowAPI key at `60/minute`, including the shared
+(`403`). Failed follow persistence returns `ERROR_CREATING_FOLLOW` (`500`). Each mutation endpoint uses the existing authenticated-user SlowAPI key at `60/minute`, including the shared
 structured `429 RATE_LIMIT_EXCEEDED` response and rate-limit headers.
 
 ## Verification
@@ -71,7 +90,9 @@ Coverage includes:
 - service policy and controller authentication/CSRF/error contracts;
 - camelCase schema serialization;
 - E2E follow, unfollow, mutual counts, non-public rejection, visibility-transition behavior, and follow.started
-  inbox emission with same-week refollow suppression.
+  inbox emission, Redis-independent rolling cooldown, exact seven-day boundaries, and structured write failures;
+- real-PostgreSQL write/commit rollback, safe retry, simultaneous follows/refollows, and overlapping unfollow;
+- migration upgrade/downgrade preserves all notification history.
 
 ## See Also
 

@@ -66,6 +66,7 @@ All routes are registered under the `/v1/` prefix:
 - Each repository has a `Protocol` interface in `app/repository/*_repository_protocol.py` that services type-hint against
 - Repository methods are instance methods; services should not call repository classes statically
 - `FollowRepository` implements `FollowRepositoryProtocol` for idempotent follow mutations, active-user relationship reads, and profile follow summaries
+- `FollowService` owns one request-local transaction for a new follow, its durable cooldown check, and required notification. Follow/notification creation methods accept a caller-owned session without committing it; standalone calls retain repository-owned transactions. See [Following](docs/technical/following.md).
 
 **Error Handling:**
 

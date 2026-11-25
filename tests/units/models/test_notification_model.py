@@ -32,6 +32,7 @@ def test_notification_model_has_closed_type_constraint_and_expected_indexes():
 
     assert constraints["ck_notifications_type"] == ("type IN ('follow.started', 'follow.requested', 'follow.accepted')")
     assert set(indexes) == {
+        "ix_notifications_follow_started_cooldown",
         "ix_notifications_recipient_chronology",
         "ix_notifications_recipient_unread_chronology",
         "uq_notifications_active_recipient_deduplication_key",

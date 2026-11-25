@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.models.user_follow_model import UserFollow
@@ -17,17 +18,23 @@ from app.repository.repository_base import RepositoryBase
 class FollowRepository(RepositoryBase):
     """Persist and aggregate accepted user-follow edges."""
 
-    async def create_follow(self, follower_id: UUID, followed_id: UUID) -> None:
-        """Idempotently insert a follow edge using its composite primary key."""
+    async def create_follow(self, follower_id: UUID, followed_id: UUID, *, session: AsyncSession | None = None) -> bool:
+        """Return whether inserted; a supplied session keeps transaction ownership."""
 
-        async with self._session_provider() as session:
-            statement = (
-                insert(UserFollow)
-                .values(follower_id=follower_id, followed_id=followed_id)
-                .on_conflict_do_nothing(index_elements=[UserFollow.follower_id, UserFollow.followed_id])
-            )
-            await session.execute(statement)
-            await session.commit()
+        if session is None:
+            async with self._session_provider() as owned_session:
+                async with owned_session.begin():
+                    created = await self.create_follow(follower_id, followed_id, session=owned_session)
+                return created
+
+        statement = (
+            insert(UserFollow)
+            .values(follower_id=follower_id, followed_id=followed_id)
+            .on_conflict_do_nothing(index_elements=[UserFollow.follower_id, UserFollow.followed_id])
+            .returning(UserFollow.follower_id)
+        )
+        result = await session.execute(statement)
+        return result.scalar_one_or_none() is not None
 
     async def delete_follow(self, follower_id: UUID, followed_id: UUID) -> None:
         """Idempotently delete a follow edge."""

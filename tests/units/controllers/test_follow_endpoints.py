@@ -69,6 +69,17 @@ class TestFollowController:
         assert response.json()["error_code_name"] == "SELF_FOLLOW_NOT_ALLOWED"
 
     @patch.object(get_follow_service(), "follow_user", new_callable=AsyncMock)
+    def test_follow_returns_structured_persistence_error(self, mock_follow, client, override_auth):
+        app.dependency_overrides[auth_dependency] = override_auth
+        mock_follow.side_effect = AppException(ErrorCodes.ERROR_CREATING_FOLLOW)
+        try:
+            response = client.put("/v1/users/target/follow", **_csrf_request_kwargs())
+        finally:
+            app.dependency_overrides = {}
+        assert response.status_code == 500
+        assert response.json()["error_code_name"] == "ERROR_CREATING_FOLLOW"
+
+    @patch.object(get_follow_service(), "follow_user", new_callable=AsyncMock)
     def test_follow_requires_csrf(self, mock_follow, client, override_auth):
         app.dependency_overrides[auth_dependency] = override_auth
 
